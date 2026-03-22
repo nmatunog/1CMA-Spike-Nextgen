@@ -1,16 +1,18 @@
 # 1CMA NextGen — Project documentation & reload guide
 
-**Last updated:** 2026-03-22  
+**Last updated:** 2026-03-22 (saved before session exit)
 
 This file is the **single source of truth** for product decisions, language rules, and what has been built in this repository. If a chat or IDE session closes, **open this file first** to restore context. (Cursor chat itself is not stored in this folder; export chats from the Cursor UI if you need a verbatim transcript.)
 
 **Quick setup (clone → run):** see **[README.md](./README.md)**.
 
+**Remote repository:** [github.com/nmatunog/1CMA-Spike-Nextgen](https://github.com/nmatunog/1CMA-Spike-Nextgen) — latest `main` should match this doc after each push.
+
 ---
 
 ## 1. How to reload context quickly
 
-1. Skim **[README.md](./README.md)** for install, env vars, and scripts.
+1. Skim **[README.md](./README.md)** for install, env vars, port **3002**, and scripts.
 2. Read **§2 Product vision** and **§3 Language policy** (non‑negotiable UX rules).
 3. Skim **§5 Repository map** (what each file does).
 4. Follow **§7 Local setup** to run the app.
@@ -37,16 +39,20 @@ This file is the **single source of truth** for product decisions, language rule
 
 | Pillar | Implementation note in this repo |
 |--------|--------------------------------|
-| **Zero‑load engagement** | Next.js App Router; static‑friendly pages; minimal client JS on first paint. |
+| **Zero‑load engagement** | Next.js App Router; marketing landing on `/`; `/onboarding` for forms. |
 | **Peer mentor persona** | **Chat only** — see **§3** (English for all formal UI). |
-| **Agentic intelligence** | Stub chat in `lib/chat/stub-reply.ts` + `POST /api/chat`; ready to swap for Ollama / n8n later. |
-| **Resilience** | SQLite file `data/app.db`; optional **Litestream** via `litestream.yml`; export story can extend later. |
-| **AIA branded excellence** | CSS variables in `app/globals.css`: red `#D31145`, purple, cyan; **Gen Z dark mode** base. |
+| **Agentic intelligence** | Stub chat in `lib/chat/stub-reply.ts` + `POST /api/chat`; optional **Ollama** (`OLLAMA_MODEL`); n8n hooks. |
+| **Resilience** | SQLite file `data/app.db`; optional **Litestream** via `litestream.yml`; Supabase optional for quiz data. |
+| **AIA branded excellence** | AIA red `#D31145`, purple, cyan; dark marketing UI on `/`; design tokens in `app/globals.css` for app shell pages. |
 
 ### 2.4 AI cost posture (planning)
 
-- Prefer **subscription‑light** paths: local **Ollama**, **n8n** workflows, edge/small models when you add them.
-- Current code uses **no paid LLM** — responses are **deterministic stubs** keyed by persona.
+- Prefer **subscription‑light** paths: local **Ollama**, **n8n** workflows.
+- Default chat uses **stub** or **Ollama** when configured — no paid LLM required.
+
+### 2.5 Marketing / compliance note
+
+- Landing copy (roadmap, rewards, DNA framing) is **product marketing**. **Insurance / AIA compliance** must review before public launch (income claims, subsidies, etc.).
 
 ---
 
@@ -70,180 +76,130 @@ Use **standard English** for:
 
 ### 3.3 Regional capture
 
-- Onboarding collects **region + province** to drive **`resolveChatPersona()`** for **chat** only.
-- **Tagalog–English conyo** applies where Tagalog‑primary regions are configured.
-- **Conyo Bisaya** applies only for **Cebuano‑speaking** areas as defined in code (narrow list — extend in `CHAT_CONYO_BISAYA_PROVINCES` if product expands).
+- **`/onboarding`** collects **region + province** to drive **`resolveChatPersona()`** for **chat** only.
 
 ### 3.4 Known data caveat
 
-- **`negros_oriental`** appears in `data/geo.ts` (Region VII) but is **not** in `CHAT_CONYO_BISAYA_PROVINCES`, so chat stays **`peer_en`** until you deliberately add it.
+- **`negros_oriental`** appears in `data/geo.ts` (Region VII) but is **not** in `CHAT_CONYO_BISAYA_PROVINCES`, so chat stays **`peer_en`** until you add it.
 
 ---
 
 ## 4. Architecture overview
 
 ```
-User → Next.js pages (English UI)
-     → localStorage + cookie (`lib/storage/onboarding.ts`) for region/province
-     → /chat → POST /api/chat (persona + stub reply)
-     → first visit to chat → one POST /api/lead → SQLite + optional n8n webhooks
-     → optional sign-in → NextAuth (JWT) → userId on future leads
+User → GET /  (AIA Next Gen landing: roadmap, DNA quiz modal, rewards, admin CTA)
+     → optional Supabase insert from browser (quiz “candidates” table)
+     → GET /onboarding → English region/province form
+     → localStorage + cookie (`lib/storage/onboarding.ts`)
+     → GET /chat → POST /api/chat (persona + stub or Ollama)
+     → first visit to chat → POST /api/lead → SQLite + optional n8n webhooks
+     → optional NextAuth sign-in → userId on leads when logged in
+
+Admin (after password via POST /api/admin/verify + httpOnly cookie):
+     → GET /api/admin/candidates (server uses service role if set)
+     → DELETE /api/admin/candidates/[id]
 ```
 
-- **Runtime:** Node.js for API routes that use `better-sqlite3` (`export const runtime = "nodejs"`).
-- **Auth:** NextAuth v5 (`auth.ts`, `app/api/auth/[...nextauth]/route.ts`).
-- **Automation:** Outbound `lib/n8n/trigger.ts`, `lib/social/automation.ts`; inbound `app/api/webhooks/n8n/route.ts`.
+- **Runtime:** Node.js for API routes using `better-sqlite3` (`export const runtime = "nodejs"`).
+- **Auth:** NextAuth v5 (`auth.ts`); **`AUTH_SECRET`** synced into `process.env` at startup so Auth.js never hits `MissingSecret` (see `auth.ts`).
+- **Automation:** `lib/n8n/trigger.ts`, `lib/social/automation.ts`; inbound `app/api/webhooks/n8n/route.ts`.
+- **Supabase (optional):** `NEXT_PUBLIC_SUPABASE_*` for quiz writes; `SUPABASE_SERVICE_ROLE_KEY` for server-side admin list/delete.
 
 ---
 
-## 5. Repository map (source files)
+## 5. Routes (user-facing)
+
+| Route | Purpose |
+|-------|---------|
+| `/` | Marketing landing: hero, roadmap accordions, rewards, **DNA quiz** modal, footer **Admin Console** link. |
+| `/onboarding` | English-only region + province; links to chat. |
+| `/chat` | Peer chat UI; requires onboarding data in `localStorage` or redirects home. |
+| `/login` | Demo credentials (env‑driven). |
+
+---
+
+## 6. Repository map (key paths)
 
 | Path | Purpose |
 |------|---------|
-| `app/layout.tsx` | Root layout, Inter font, `Providers` (NextAuth `SessionProvider`). |
-| `app/globals.css` | AIA palette tokens, dark theme, focus styles. |
-| `app/page.tsx` | Home: English onboarding. |
-| `app/chat/page.tsx` | Chat page shell. |
-| `app/login/page.tsx` | Demo credentials login. |
-| `app/providers.tsx` | Client `SessionProvider`. |
-| `app/api/chat/route.ts` | Resolves persona; returns stub agent text. |
-| `app/api/lead/route.ts` | Inserts lead row; calls n8n + social automation hooks. |
-| `app/api/webhooks/n8n/route.ts` | Inbound webhook (optional `N8N_INBOUND_SECRET`). |
-| `app/api/auth/[...nextauth]/route.ts` | NextAuth GET/POST handlers. |
-| `auth.ts` | NextAuth config (Credentials provider, JWT sessions). |
-| `components/app-header.tsx` | Header / nav. |
-| `components/onboarding-form.tsx` | **English** region + province selects; `localStorage` + cookie. |
-| `components/chat-panel.tsx` | Chat UI; calls `/api/chat`; one-time `/api/lead` sync. |
-| `data/geo.ts` | Region + province dropdown data (must match `lib/i18n` slugs). |
-| `lib/i18n/chat-persona.ts` | Persona constants. |
-| `lib/i18n/region-persona.ts` | Allowlists + `resolveChatPersona()`. |
-| `lib/i18n/index.ts` | Barrel exports. |
-| `lib/chat/stub-reply.ts` | Persona‑aware stub strings (chat layer). |
-| `lib/chat/persona-system-prompts.ts` | System prompts for optional Ollama. |
-| `lib/chat/ollama.ts` | Calls Ollama `/api/chat` when `OLLAMA_MODEL` is set. |
-| `components/plausible-analytics.tsx` | Optional Plausible script if `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` is set. |
-| `vitest.config.ts` | Unit tests (`npm test`). |
-| `README.md` | Quick start, env table, deploy notes. |
-| `lib/db/schema.ts` | Drizzle `leads` table. |
-| `lib/db/client.ts` | SQLite connection + `CREATE TABLE IF NOT EXISTS`. |
-| `lib/storage/onboarding.ts` | Keys: `cma_onboarding_v1`, `cma_lead_synced_v1`, cookie. |
-| `lib/n8n/trigger.ts` | POST to `N8N_WEBHOOK_URL`. |
-| `lib/social/automation.ts` | POST to social or fallback n8n URL. |
-| `drizzle.config.ts` | Drizzle Kit config (`npm run db:push`). |
-| `litestream.yml` | Example replication config for `data/app.db`. |
-| `.env.example` | Required and optional environment variables. |
-| `next.config.ts` | `serverExternalPackages: ["better-sqlite3"]`. |
-| `package.json` | Scripts and dependencies. |
+| `app/page.tsx` | Composes **LandingNav** + **LandingExperience** (not the old inline onboarding). |
+| `app/onboarding/page.tsx` | Region/province **English** form + link back to `/`. |
+| `app/layout.tsx` | **Plus Jakarta Sans**, metadata, Plausible, `Providers`. |
+| `app/globals.css` | `@import "tailwindcss"` (v4) + `:root` tokens for non-landing pages. |
+| `postcss.config.mjs` | `@tailwindcss/postcss`. |
+| `components/landing/LandingExperience.tsx` | Full landing + quiz + admin UI (client). |
+| `components/landing/LandingNav.tsx` | Sticky nav for `/`. |
+| `components/onboarding-form.tsx` | English region/province; `id="location"` for anchors. |
+| `components/app-header.tsx` | Header for `/onboarding`, `/chat`, `/login`. |
+| `components/chat-panel.tsx` | Chat; shows `source` ollama/stub when returned by API. |
+| `app/icon.tsx` | Dynamic 32×32 PNG (AIA red “1”) via `next/og` **edge**. |
+| `lib/landing/dna-quiz-questions.ts` | Quiz question data. |
+| `lib/supabase/browser.ts` | Browser Supabase client (env‑gated). |
+| `app/api/admin/verify/route.ts` | `POST` — sets httpOnly cookie if `ADMIN_CONSOLE_PASSWORD` matches. |
+| `app/api/admin/candidates/route.ts` | `GET` — list candidates (cookie + Supabase). |
+| `app/api/admin/candidates/[id]/route.ts` | `DELETE` — remove row (cookie + Supabase). |
+| `app/api/chat/route.ts` | Persona + stub or Ollama. |
+| `app/api/lead/route.ts` | SQLite lead + n8n. |
+| `auth.ts` | NextAuth; ensures `AUTH_SECRET` in `process.env`. |
+| `next.config.ts` | `better-sqlite3` external, **security headers**, **`/favicon.ico` → `/icon` rewrite**. |
+| `package.json` | **`dev`:** `kill-port 3002 && next dev -p 3002` (frees stuck Next dev on 3002). |
+| `.env.example` | All public/server keys **documented**; never commit real secrets. |
 
-**Not in repo:** `data/app.db` (created at runtime; gitignored), `.env.local` (local secrets).
+**Not in repo:** `data/app.db`, `.env.local`, Supabase service role, production passwords.
 
 ---
 
-## 6. Data model
+## 7. Data models
 
 ### `leads` (SQLite / Drizzle)
 
-- `id` (UUID text)
-- `created_at` (timestamp)
-- `region_code`, `province_slug`
-- `resolved_persona` (persona id at insert time)
-- `email` (optional)
-- `user_id` (optional — from NextAuth session)
+- `id`, `created_at`, `region_code`, `province_slug`, `resolved_persona`, `email`, `user_id`
+
+### `candidates` (Supabase — optional)
+
+- Intended columns: `id`, `name`, `email`, `phone`, `score`, `created_at` (see `.env.example` SQL comment).
+- **RLS** must be configured for anon insert (quiz) and service-role or policy for admin reads.
 
 ---
 
-## 7. Local setup
+## 8. Local setup
 
-1. **Install dependencies** (requires sufficient disk space; `ENOSPC` has occurred on this machine before):
-
-   ```bash
-   npm install
-   ```
-
-2. **Environment**
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Set at minimum:
-
-   - `AUTH_SECRET` — e.g. `openssl rand -base64 32`
-   - `DEMO_USER_EMAIL` / `DEMO_USER_PASSWORD` — demo login for `/login`
-
-   Optional:
-
-   - `N8N_WEBHOOK_URL` — outbound lead/social events
-   - `N8N_SOCIAL_WEBHOOK_URL` — overrides social hook target
-   - `N8N_INBOUND_SECRET` — protects `POST /api/webhooks/n8n`
-
-3. **Run**
-
-   ```bash
-   npm run dev
-   ```
-
-   Flow: `/` → save region/province → `/chat` → stub messages; first chat load creates a lead if not yet synced.
-
-4. **Database tooling**
-
-   ```bash
-   npm run db:push    # apply Drizzle schema to ./data/app.db
-   npm run db:studio  # optional Drizzle Studio
-   ```
-
-5. **Production / SQLite**
-
-   - `better-sqlite3` needs **Node runtime** (not Edge) for these routes.
-   - For serverless hosts, plan **Turso/libSQL** or another store; Litestream suits **long‑running Node + file** deployments.
-
-6. **Litestream**
-
-   - Edit `litestream.yml` with your bucket and credentials; run the `litestream` CLI alongside the app (see [Litestream docs](https://litestream.io/)).
+1. **`npm install`**
+2. **`cp .env.example .env.local`** and set:
+   - **`AUTH_SECRET`** (strong random)
+   - **`NEXT_PUBLIC_SUPABASE_URL`**, **`NEXT_PUBLIC_SUPABASE_ANON_KEY`** (quiz + client)
+   - **`SUPABASE_SERVICE_ROLE_KEY`** (recommended for admin API list/delete)
+   - **`ADMIN_CONSOLE_PASSWORD`** (admin console)
+   - Optional: `DEMO_*`, `N8N_*`, `OLLAMA_*`, Plausible domain
+3. **`npm run dev`** — opens **[http://localhost:3002](http://localhost:3002)** (script runs **`kill-port 3002`** first to avoid stacked `next dev` processes).
+4. **`npm run build`** / **`npm test`** before deploy.
 
 ---
 
-## 8. Implementation timeline (what was done, in order)
+## 9. Implementation timeline (summary)
 
-Chronological record of work agreed in the assistant session:
+1. Planning, language policy, `lib/i18n`, Next.js scaffold, onboarding, chat stub, SQLite, Auth, n8n, Litestream.
+2. README, Ollama optional path, Vitest (persona tests), Plausible, security headers, hero copy, auth secret fix, favicon + rewrite.
+3. **Landing + DNA quiz:** Tailwind v4, `LandingExperience`, `LandingNav`, `/onboarding` split, Supabase browser client, admin API routes, Plus Jakarta, `kill-port` on dev, push to GitHub (`main`).
 
-1. **Planning** — Recruitment vision, Gen Z/Y, UI/UX principles, AI posture (free/cheap engines, n8n + Ollama mentioned), social automation hooks, five pillars, suggested revisions.
-2. **Language policy** — English formal UI; Conyo Bisaya only in chat for defined Cebuano areas; Tagalog–English conyo where appropriate; regional capture for switching.
-3. **`lib/i18n`** — `ChatPersona` ids + `resolveChatPersona()` + region/province allowlists.
-4. **Execution order 1→5** (scaffold → design → onboarding → chat stub → DB/auth/n8n/Litestream):
-   - **1:** Next.js 15 + TS + ESLint; integrated `lib/i18n` (Tailwind not added — **CSS variables** used instead).
-   - **2:** AIA dark theme tokens + header + Inter.
-   - **3:** English onboarding + `data/geo.ts` + `localStorage` + cookie.
-   - **4:** `POST /api/chat` + stub replies + `/chat` UI.
-   - **5:** SQLite + Drizzle + `leads` table; NextAuth credentials demo; `notifyN8n` + `enqueueSocialEvent`; `litestream.yml`; inbound n8n route; `.env.example`.
-
-**Build verification:** `npm run build` and `npm run lint` succeeded after implementation.
-
-**Later iteration:** root `README.md`; optional **Ollama** in `/api/chat` with fallback stub; **Vitest** tests for `resolveChatPersona`; **Plausible** hook in layout; **security headers** in `next.config.ts`; home **hero + CTAs**; privacy copy on onboarding.
-
----
-
-## 9. Styling note
-
-- **Tailwind** was **not** added; styling is **plain CSS** (`globals.css` + inline styles in components) to keep dependencies small and avoid tooling issues during setup.
-- You may add Tailwind later without changing the persona/language rules.
+**Styling:** **Tailwind CSS v4** is integrated (`@import "tailwindcss"`). Older note about “no Tailwind” is **obsolete**.
 
 ---
 
 ## 10. Maintenance checklist
 
-- [ ] Keep `data/geo.ts` province **slugs** in sync with `lib/i18n/region-persona.ts`.
-- [ ] Replace `stub-reply.ts` with real LLM + guardrails + RAG when ready.
-- [ ] Review `CHAT_TAGLISH_REGION_CODES` (Region III is broad — may need province‑level Taglish).
-- [ ] Add automated tests for `resolveChatPersona` edge cases.
-- [ ] Ensure `AUTH_SECRET` and webhook secrets are set in production.
+- [ ] Comms/compliance review of **landing** and **quiz** copy.
+- [ ] Supabase **RLS** policies for `candidates`; rotate keys if ever leaked.
+- [ ] Keep `data/geo.ts` slugs aligned with `lib/i18n/region-persona.ts`.
+- [ ] Replace stub / tune Ollama prompts + guardrails when going live.
+- [ ] Production: set **`AUTH_SECRET`**, **`ADMIN_CONSOLE_PASSWORD`**, Supabase keys on the host (never in git).
 
 ---
 
 ## 11. Related files outside this repo
 
-- **Cursor chat history:** Use Cursor’s UI to export or pin important threads; this project does not duplicate them on disk.
-- **Agent transcripts:** Cursor may store transcripts under your machine’s Cursor user data directory; they are not part of this git tree.
+- **Cursor chat history:** export from the Cursor UI if you need it; not stored in this folder.
+- **Agent transcripts:** may exist under your user’s Cursor data directory; not part of this git tree.
 
 ---
 
