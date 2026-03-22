@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "kill-port 3002 && next dev -p 3002",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -13,6 +13,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.3",
     "better-sqlite3": "^11.8.1",
     "drizzle-orm": "^0.41.0",
     "next": "^15.5.0",
@@ -21,6 +22,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.8",
@@ -28,6 +30,9 @@
     "drizzle-kit": "^0.30.6",
     "eslint": "^9.20.0",
     "eslint-config-next": "^15.5.0",
+    "kill-port": "^2.0.1",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   }

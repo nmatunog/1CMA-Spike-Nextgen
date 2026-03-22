@@ -1,6 +1,6 @@
 # 1CMA NextGen
 
-Peer-led recruitment exploration: **English-first** forms, **persona-aware** chat (stub or [Ollama](https://ollama.com)), SQLite leads, optional **n8n** webhooks and **Litestream** backups.
+Peer-led recruitment exploration: **AIA Next Gen landing** (roadmap + **DNA quiz**), **English-first** forms on `/onboarding`, **persona-aware** chat (stub or [Ollama](https://ollama.com)), SQLite leads, optional **[Supabase](https://supabase.com)** for quiz results, **n8n** webhooks, and **Litestream** backups.
 
 **Repository:** [github.com/nmatunog/1CMA-Spike-Nextgen](https://github.com/nmatunog/1CMA-Spike-Nextgen)
 
@@ -27,14 +27,21 @@ Edit `.env.local`:
 | `OLLAMA_MODEL` | If set, `/api/chat` calls local Ollama; else stub |
 | `OLLAMA_BASE_URL` | Default `http://127.0.0.1:11434` |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | Optional [Plausible](https://plausible.io) site domain |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | DNA quiz saves to Supabase `candidates` table |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; admin dashboard API (recommended) |
+| `ADMIN_CONSOLE_PASSWORD` | Admin console login (footer on landing) |
 
-Run the dev server:
+Run the dev server on **port 3002**:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → set region → **Open chat**.
+**Why ports kept “busy”:** each new `next dev` starts another **Node** process. The old one often keeps running (another terminal, Cursor tab, or closed window without **Ctrl+C**). That process still holds the port → `EADDRINUSE`. This repo’s `dev` script runs **`kill-port 3002`** first so the **previous** Next dev on 3002 is stopped, then the server starts—one listener, predictable URL.
+
+Open [http://localhost:3002](http://localhost:3002) — **landing** (`/`), **region & chat** ([`/onboarding`](http://localhost:3002/onboarding)), **chat** ([`/chat`](http://localhost:3002/chat)).
+
+If something *else* must use 3002, start manually: `npx next dev -p 3003` (and avoid running two dev servers for this app at once).
 
 ### Working copy on an external drive (e.g. Seagate)
 
