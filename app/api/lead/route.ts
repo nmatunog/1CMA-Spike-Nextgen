@@ -28,15 +28,20 @@ export async function POST(req: Request) {
   const db = getDb();
   const id = crypto.randomUUID();
 
-  await db.insert(leads).values({
-    id,
-    createdAt: new Date(),
-    regionCode,
-    provinceSlug,
-    resolvedPersona: persona,
-    email: body.email?.trim() || null,
-    userId: session?.user?.id ?? null,
-  });
+  try {
+    await db.insert(leads).values({
+      id,
+      createdAt: new Date(),
+      regionCode,
+      provinceSlug,
+      resolvedPersona: persona,
+      email: body.email?.trim() || null,
+      userId: session?.user?.id ?? null,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Database error";
+    return NextResponse.json({ error: message }, { status: 503 });
+  }
 
   await notifyN8n("lead.created", {
     id,

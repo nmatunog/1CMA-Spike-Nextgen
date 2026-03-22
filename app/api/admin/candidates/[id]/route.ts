@@ -1,6 +1,8 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
+import { getDb } from "@/lib/db/client";
+import { candidates } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 
@@ -19,20 +21,18 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await ctx.params;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  const key = service || anon;
-  if (!url || !key) {
-    return NextResponse.json(
-      { error: "Supabase not configured" },
-      { status: 503 },
-    );
+  try {
+    const db = getDb();
+    const deleted = await db
+      .delete(candidates)
+      .where(eq(candidates.id, id))
+      .returning({ id: candidates.id });
+    if (deleted.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Database error";
+    return NextResponse.json({ error: message }, { status: 503 });
   }
-  const supabase = createClient(url, key);
-  const { error } = await supabase.from("candidates").delete().eq("id", id);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  return NextResponse.json({ ok: true });
 }

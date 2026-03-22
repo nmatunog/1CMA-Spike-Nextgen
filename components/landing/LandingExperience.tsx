@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DNA_QUIZ_QUESTIONS } from "@/lib/landing/dna-quiz-questions";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Candidate = {
   id: string;
@@ -93,22 +92,30 @@ export function LandingExperience() {
       );
     }
 
-    const supabase = getSupabaseBrowserClient();
-    if (supabase) {
-      const { error } = await supabase.from("candidates").insert([
-        {
+    try {
+      const res = await fetch("/api/candidates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           name: candidateInfo.name.trim(),
           email: candidateInfo.email.trim(),
           phone: candidateInfo.phone.trim(),
           score: percentage,
-        },
-      ]);
-      if (error) {
-        console.error("Save Error:", error);
-        showNotif("Could not save result — check Supabase config.");
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        console.error("Save Error:", data.error ?? res.statusText);
+        showNotif("Could not save result — check DATABASE_URL (Supabase Postgres).");
       } else {
         showNotif("DNA Profile Captured!");
       }
+    } catch (e) {
+      console.error("Save Error:", e);
+      showNotif("Could not save result — network or DATABASE_URL.");
     }
   };
 

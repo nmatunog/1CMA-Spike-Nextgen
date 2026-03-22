@@ -1,6 +1,6 @@
 # 1CMA NextGen
 
-Peer-led recruitment exploration: **AIA Next Gen landing** (roadmap + **DNA quiz**), **English-first** forms on `/onboarding`, **persona-aware** chat (stub or [Ollama](https://ollama.com)), SQLite leads, optional **[Supabase](https://supabase.com)** for quiz results, **n8n** webhooks, and **Litestream** backups.
+Peer-led recruitment exploration: **AIA Next Gen landing** (roadmap + **DNA quiz**), **English-first** forms on `/onboarding`, **persona-aware** chat (stub or [Ollama](https://ollama.com)), **[Supabase](https://supabase.com) PostgreSQL** (via Drizzle + `postgres`) for leads and quiz candidates, **n8n** webhooks. The old SQLite + Litestream setup is removed (`litestream.yml` deleted).
 
 **Repository:** [github.com/nmatunog/1CMA-Spike-Nextgen](https://github.com/nmatunog/1CMA-Spike-Nextgen)
 
@@ -26,9 +26,8 @@ Edit `.env.local`:
 | `N8N_WEBHOOK_URL` | Outbound POST on lead creation (optional) |
 | `OLLAMA_MODEL` | If set, `/api/chat` calls local Ollama; else stub |
 | `OLLAMA_BASE_URL` | Default `http://127.0.0.1:11434` |
+| `DATABASE_URL` | Supabase Postgres connection string (required for `/api/lead`, `/api/candidates`, admin APIs) |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | Optional [Plausible](https://plausible.io) site domain |
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | DNA quiz saves to Supabase `candidates` table |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; admin dashboard API (recommended) |
 | `ADMIN_CONSOLE_PASSWORD` | Admin console login (footer on landing) |
 
 Run the dev server on **port 3002**:
@@ -66,7 +65,7 @@ Quote the path if it includes spaces. If you still see **`EPERM`** writing `pack
 | `npm run start` | Run production server |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest (persona resolver tests) |
-| `npm run db:push` | Apply Drizzle schema to `./data/app.db` |
+| `npm run db:push` | Push Drizzle schema to Postgres (`DATABASE_URL`) |
 | `npm run db:studio` | Drizzle Studio |
 
 ---
@@ -75,16 +74,15 @@ Quote the path if it includes spaces. If you still see **`EPERM`** writing `pack
 
 - **Next.js 15** (App Router) · **React 19** · **TypeScript**
 - **NextAuth v5** (JWT, credentials demo)
-- **SQLite** + **Drizzle ORM** (`better-sqlite3`, Node runtime)
+- **Supabase PostgreSQL** + **Drizzle ORM** + **[postgres](https://github.com/porsager/postgres)** (Node runtime API routes)
 - **n8n** outbound hooks · optional inbound `POST /api/webhooks/n8n`
-- **Litestream** — see `litestream.yml`
 
 ---
 
 ## Deployment notes
 
-- **SQLite file** (`data/app.db`) needs a **persistent disk** and **Node** runtime for API routes using `better-sqlite3`.
-- **Vercel/serverless:** swap DB for something like [Turso](https://turso.tech) or Postgres if you move API to Edge without native SQLite.
+- Set **`DATABASE_URL`** to your Supabase pooler URI (port **6543** is typical for serverless); use **`npm run db:push`** after schema changes.
+- API routes use **Node** runtime (not Edge) for Postgres.
 - Set **`AUTH_SECRET`** and webhook secrets in production; never commit `.env.local`.
 
 ---

@@ -42,7 +42,7 @@ This file is the **single source of truth** for product decisions, language rule
 | **Zero‑load engagement** | Next.js App Router; marketing landing on `/`; `/onboarding` for forms. |
 | **Peer mentor persona** | **Chat only** — see **§3** (English for all formal UI). |
 | **Agentic intelligence** | Stub chat in `lib/chat/stub-reply.ts` + `POST /api/chat`; optional **Ollama** (`OLLAMA_MODEL`); n8n hooks. |
-| **Resilience** | SQLite file `data/app.db`; optional **Litestream** via `litestream.yml`; Supabase optional for quiz data. |
+| **Resilience** | **Supabase PostgreSQL** via Drizzle (`DATABASE_URL`); quiz and admin use the same DB. Legacy SQLite + **Litestream** (`litestream.yml`) removed. |
 | **AIA branded excellence** | AIA red `#D31145`, purple, cyan; dark marketing UI on `/`; design tokens in `app/globals.css` for app shell pages. |
 
 ### 2.4 AI cost posture (planning)
@@ -88,22 +88,22 @@ Use **standard English** for:
 
 ```
 User → GET /  (AIA Next Gen landing: roadmap, DNA quiz modal, rewards, admin CTA)
-     → optional Supabase insert from browser (quiz “candidates” table)
+     → POST /api/candidates after quiz (Drizzle → Postgres “candidates”)
      → GET /onboarding → English region/province form
      → localStorage + cookie (`lib/storage/onboarding.ts`)
      → GET /chat → POST /api/chat (persona + stub or Ollama)
-     → first visit to chat → POST /api/lead → SQLite + optional n8n webhooks
+     → first visit to chat → POST /api/lead → Postgres + optional n8n webhooks
      → optional NextAuth sign-in → userId on leads when logged in
 
 Admin (after password via POST /api/admin/verify + httpOnly cookie):
-     → GET /api/admin/candidates (server uses service role if set)
-     → DELETE /api/admin/candidates/[id]
+     → GET /api/admin/candidates (Drizzle)
+     → DELETE /api/admin/candidates/[id] (Drizzle)
 ```
 
-- **Runtime:** Node.js for API routes using `better-sqlite3` (`export const runtime = "nodejs"`).
+- **Runtime:** Node.js for API routes using **postgres** + Drizzle (`export const runtime = "nodejs"`).
 - **Auth:** NextAuth v5 (`auth.ts`); **`AUTH_SECRET`** synced into `process.env` at startup so Auth.js never hits `MissingSecret` (see `auth.ts`).
 - **Automation:** `lib/n8n/trigger.ts`, `lib/social/automation.ts`; inbound `app/api/webhooks/n8n/route.ts`.
-- **Supabase (optional):** `NEXT_PUBLIC_SUPABASE_*` for quiz writes; `SUPABASE_SERVICE_ROLE_KEY` for server-side admin list/delete.
+- **Database:** **`DATABASE_URL`** (Supabase Postgres URI). Optional `NEXT_PUBLIC_SUPABASE_*` / service role only if you add Supabase Auth or Realtime later — not used by Drizzle routes today.
 
 ---
 
@@ -134,31 +134,30 @@ Admin (after password via POST /api/admin/verify + httpOnly cookie):
 | `components/chat-panel.tsx` | Chat; shows `source` ollama/stub when returned by API. |
 | `app/icon.tsx` | Dynamic 32×32 PNG (AIA red “1”) via `next/og` **edge**. |
 | `lib/landing/dna-quiz-questions.ts` | Quiz question data. |
-| `lib/supabase/browser.ts` | Browser Supabase client (env‑gated). |
+| `app/api/candidates/route.ts` | `POST` — insert quiz candidate (Drizzle). |
 | `app/api/admin/verify/route.ts` | `POST` — sets httpOnly cookie if `ADMIN_CONSOLE_PASSWORD` matches. |
-| `app/api/admin/candidates/route.ts` | `GET` — list candidates (cookie + Supabase). |
-| `app/api/admin/candidates/[id]/route.ts` | `DELETE` — remove row (cookie + Supabase). |
+| `app/api/admin/candidates/route.ts` | `GET` — list candidates (cookie + Drizzle). |
+| `app/api/admin/candidates/[id]/route.ts` | `DELETE` — remove row (cookie + Drizzle). |
 | `app/api/chat/route.ts` | Persona + stub or Ollama. |
-| `app/api/lead/route.ts` | SQLite lead + n8n. |
+| `app/api/lead/route.ts` | Postgres lead + n8n. |
 | `auth.ts` | NextAuth; ensures `AUTH_SECRET` in `process.env`. |
-| `next.config.ts` | `better-sqlite3` external, **security headers**, **`/favicon.ico` → `/icon` rewrite**. |
+| `next.config.ts` | **Security headers**, **`/favicon.ico` → `/icon` rewrite**. |
 | `package.json` | **`dev`:** `kill-port 3002 && next dev -p 3002` (frees stuck Next dev on 3002). |
 | `.env.example` | All public/server keys **documented**; never commit real secrets. |
 
-**Not in repo:** `data/app.db`, `.env.local`, Supabase service role, production passwords.
+**Not in repo:** `.env.local`, `DATABASE_URL` secrets, production passwords.
 
 ---
 
 ## 7. Data models
 
-### `leads` (SQLite / Drizzle)
+### `leads` (PostgreSQL / Drizzle)
 
 - `id`, `created_at`, `region_code`, `province_slug`, `resolved_persona`, `email`, `user_id`
 
-### `candidates` (Supabase — optional)
+### `candidates` (PostgreSQL / Drizzle)
 
-- Intended columns: `id`, `name`, `email`, `phone`, `score`, `created_at` (see `.env.example` SQL comment).
-- **RLS** must be configured for anon insert (quiz) and service-role or policy for admin reads.
+- `id`, `name`, `email`, `phone`, `score`, `created_at` — quiz submits via `POST /api/candidates` (server insert).
 
 ---
 
@@ -166,21 +165,22 @@ Admin (after password via POST /api/admin/verify + httpOnly cookie):
 
 1. **`npm install`**
 2. **`cp .env.example .env.local`** and set:
+   - **`DATABASE_URL`** — Supabase Postgres URI (pooler port **6543** for serverless; add `?sslmode=require` if needed)
    - **`AUTH_SECRET`** (strong random)
-   - **`NEXT_PUBLIC_SUPABASE_URL`**, **`NEXT_PUBLIC_SUPABASE_ANON_KEY`** (quiz + client)
-   - **`SUPABASE_SERVICE_ROLE_KEY`** (recommended for admin API list/delete)
    - **`ADMIN_CONSOLE_PASSWORD`** (admin console)
-   - Optional: `DEMO_*`, `N8N_*`, `OLLAMA_*`, Plausible domain
-3. **`npm run dev`** — opens **[http://localhost:3002](http://localhost:3002)** (script runs **`kill-port 3002`** first to avoid stacked `next dev` processes).
-4. **`npm run build`** / **`npm test`** before deploy.
+   - Optional: `DEMO_*`, `N8N_*`, `OLLAMA_*`, Plausible domain; optional Supabase JS keys only for future Auth/Realtime
+3. **`npm run db:push`** — apply Drizzle schema to the database
+4. **`npm run dev`** — opens **[http://localhost:3002](http://localhost:3002)** (script runs **`kill-port 3002`** first to avoid stacked `next dev` processes).
+5. **`npm run build`** / **`npm test`** before deploy.
 
 ---
 
 ## 9. Implementation timeline (summary)
 
-1. Planning, language policy, `lib/i18n`, Next.js scaffold, onboarding, chat stub, SQLite, Auth, n8n, Litestream.
+1. Planning, language policy, `lib/i18n`, Next.js scaffold, onboarding, chat stub, database layer, Auth, n8n.
 2. README, Ollama optional path, Vitest (persona tests), Plausible, security headers, hero copy, auth secret fix, favicon + rewrite.
-3. **Landing + DNA quiz:** Tailwind v4, `LandingExperience`, `LandingNav`, `/onboarding` split, Supabase browser client, admin API routes, Plus Jakarta, `kill-port` on dev, push to GitHub (`main`).
+3. **Landing + DNA quiz:** Tailwind v4, `LandingExperience`, `LandingNav`, `/onboarding` split, `POST /api/candidates`, admin API routes, Plus Jakarta, `kill-port` on dev, push to GitHub (`main`).
+4. **Postgres migration:** Supabase PostgreSQL + Drizzle + `postgres`; SQLite/Litestream/`litestream.yml` deprecated or removed.
 
 **Styling:** **Tailwind CSS v4** is integrated (`@import "tailwindcss"`). Older note about “no Tailwind” is **obsolete**.
 
@@ -189,10 +189,10 @@ Admin (after password via POST /api/admin/verify + httpOnly cookie):
 ## 10. Maintenance checklist
 
 - [ ] Comms/compliance review of **landing** and **quiz** copy.
-- [ ] Supabase **RLS** policies for `candidates`; rotate keys if ever leaked.
+- [ ] Keep **`DATABASE_URL`** and credentials scoped; rotate if leaked.
 - [ ] Keep `data/geo.ts` slugs aligned with `lib/i18n/region-persona.ts`.
 - [ ] Replace stub / tune Ollama prompts + guardrails when going live.
-- [ ] Production: set **`AUTH_SECRET`**, **`ADMIN_CONSOLE_PASSWORD`**, Supabase keys on the host (never in git).
+- [ ] Production: set **`AUTH_SECRET`**, **`ADMIN_CONSOLE_PASSWORD`**, **`DATABASE_URL`** on the host (never in git).
 
 ---
 
