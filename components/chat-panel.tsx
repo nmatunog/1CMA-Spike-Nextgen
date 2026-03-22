@@ -18,6 +18,7 @@ export function ChatPanel() {
     [],
   );
   const [persona, setPersona] = useState<ChatPersonaId | null>(null);
+  const [replySource, setReplySource] = useState<"ollama" | "stub" | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -64,8 +65,10 @@ export function ChatPanel() {
       const data = (await res.json()) as {
         reply: string;
         persona: ChatPersonaId;
+        source?: "ollama" | "stub";
       };
       setPersona(data.persona);
+      setReplySource(data.source ?? null);
       setLines((prev) => [...prev, { role: "agent", text: data.reply }]);
     } finally {
       setLoading(false);
@@ -94,8 +97,15 @@ export function ChatPanel() {
           color: "var(--muted)",
         }}
       >
-        Simulated peer chat · persona:{" "}
+        Peer chat · persona:{" "}
         <span style={{ color: "var(--aia-cyan)" }}>{persona ?? "…"}</span>
+        {replySource ? (
+          <>
+            {" "}
+            · source:{" "}
+            <span style={{ color: "var(--aia-purple)" }}>{replySource}</span>
+          </>
+        ) : null}
       </div>
       <div
         style={{

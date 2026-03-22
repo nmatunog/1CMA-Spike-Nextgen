@@ -4,14 +4,17 @@
 
 This file is the **single source of truth** for product decisions, language rules, and what has been built in this repository. If a chat or IDE session closes, **open this file first** to restore context. (Cursor chat itself is not stored in this folder; export chats from the Cursor UI if you need a verbatim transcript.)
 
+**Quick setup (clone → run):** see **[README.md](./README.md)**.
+
 ---
 
 ## 1. How to reload context quickly
 
-1. Read **§2 Product vision** and **§3 Language policy** (non‑negotiable UX rules).
-2. Skim **§5 Repository map** (what each file does).
-3. Follow **§7 Local setup** to run the app.
-4. Use **§8 Implementation timeline** to see what was done in order.
+1. Skim **[README.md](./README.md)** for install, env vars, and scripts.
+2. Read **§2 Product vision** and **§3 Language policy** (non‑negotiable UX rules).
+3. Skim **§5 Repository map** (what each file does).
+4. Follow **§7 Local setup** to run the app.
+5. Use **§8 Implementation timeline** to see what was done in order.
 
 ---
 
@@ -116,6 +119,11 @@ User → Next.js pages (English UI)
 | `lib/i18n/region-persona.ts` | Allowlists + `resolveChatPersona()`. |
 | `lib/i18n/index.ts` | Barrel exports. |
 | `lib/chat/stub-reply.ts` | Persona‑aware stub strings (chat layer). |
+| `lib/chat/persona-system-prompts.ts` | System prompts for optional Ollama. |
+| `lib/chat/ollama.ts` | Calls Ollama `/api/chat` when `OLLAMA_MODEL` is set. |
+| `components/plausible-analytics.tsx` | Optional Plausible script if `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` is set. |
+| `vitest.config.ts` | Unit tests (`npm test`). |
+| `README.md` | Quick start, env table, deploy notes. |
 | `lib/db/schema.ts` | Drizzle `leads` table. |
 | `lib/db/client.ts` | SQLite connection + `CREATE TABLE IF NOT EXISTS`. |
 | `lib/storage/onboarding.ts` | Keys: `cma_onboarding_v1`, `cma_lead_synced_v1`, cookie. |
@@ -210,6 +218,8 @@ Chronological record of work agreed in the assistant session:
    - **5:** SQLite + Drizzle + `leads` table; NextAuth credentials demo; `notifyN8n` + `enqueueSocialEvent`; `litestream.yml`; inbound n8n route; `.env.example`.
 
 **Build verification:** `npm run build` and `npm run lint` succeeded after implementation.
+
+**Later iteration:** root `README.md`; optional **Ollama** in `/api/chat` with fallback stub; **Vitest** tests for `resolveChatPersona`; **Plausible** hook in layout; **security headers** in `next.config.ts`; home **hero + CTAs**; privacy copy on onboarding.
 
 ---
 

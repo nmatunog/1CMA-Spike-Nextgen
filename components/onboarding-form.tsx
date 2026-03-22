@@ -37,6 +37,7 @@ export function OnboardingForm({
 
   return (
     <section
+      id="location"
       style={{
         maxWidth: 480,
         padding: "1.5rem",
@@ -55,8 +56,8 @@ export function OnboardingForm({
         Your location
       </h1>
       <p style={{ margin: "0 0 1.25rem", color: "var(--muted)", fontSize: "0.95rem" }}>
-        All form labels are in English. We use this only to personalize the
-        optional chat tone.
+        All form labels are in English. Region and province stay in your browser
+        for chat tone only — not for legal or contract wording.
       </p>
       <label
         style={{ display: "block", marginBottom: "1rem", fontSize: "0.85rem" }}
