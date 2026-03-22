@@ -1,0 +1,40 @@
+:root {
+  --aia-red: #d31145;
+  --aia-purple: #6b2d7e;
+  --aia-cyan: #00a9ce;
+  --bg: #0b0e13;
+  --surface: #121821;
+  --surface-2: #1a2230;
+  --border: #2a3545;
+  --text: #e8ecf2;
+  --muted: #8b97a8;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  max-width: 100vw;
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--aia-cyan);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--aia-cyan);
+  outline-offset: 2px;
+}

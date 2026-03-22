@@ -1,0 +1,12 @@
+# Replicate SQLite to object storage. Run: litestream replicate -config litestream.yml
+# Docs: https://litestream.io/reference/config/
+dbs:
+  - path: ./data/app.db
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_S3_BUCKET}
+        path: 1cma-nexgen/app
+        endpoint: ${LITESTREAM_S3_ENDPOINT}
+        force-path-style: true
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}

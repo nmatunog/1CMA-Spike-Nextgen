@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.env
+.env*.local
+data/*.db
+data/*.db-journal
+data/leads-export.json
+*.log
+.DS_Store
+*.tsbuildinfo
