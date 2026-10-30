@@ -56,3 +56,10 @@ Invitation-specific payload extensions:
 Real DOB, address and especially valid-ID processing require Versa/owner agreement on purpose, required fields, disclosures, retention, access controls and an authenticated secure document workflow. The mock metadata object is not an upload API or a specification for storing real documents. The UI explicitly says never to select an actual ID. Do not turn it into live collection by merely changing an endpoint.
 
 03 is the integrated SPIKE / RA-SPIKE financial entrepreneurship pathway, developing professional practice and leadership. Licensing is a required regulatory gate before advisory work rather than the end goal. UI enrollment and mock acknowledgement never issue or guarantee a license; examination, accreditation, applicable eligibility and regulatory requirements remain necessary. Real valid-ID requirements and gender/civil-status field specifications must be verified with the licensing/integration owner.
+
+
+## Full-screen video → required signup correction
+
+The film now occupies the entire viewport rather than sharing height with the form. Overlay **Close** and **Explore** both close the film and automatically open a separate required simple signup dialog; Escape from the film and playback end take the same route. Escape/backdrop cannot bypass the signup dialog. A remembered video-completion preference shows signup directly on the next load rather than silently opening the portal. Only acknowledged mock signup opens the landing preview. This UI gate cannot capture anonymous visitors who leave, and actual signup persistence requires Versa’s API; no server authentication is implemented.
+
+Browser checks assert the film’s x/y/width/height equal the viewport at six sizes; both actions route to signup; Escape on signup keeps it open; refresh cannot bypass it; rejected/offline results never open the portal. Mobile and desktop screenshots were inspected. The supplied handoff still contains no actual intro video/captions.

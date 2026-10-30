@@ -24,7 +24,7 @@ The root Next.js application does **not** serve this subproject. Serve `spike-ne
 
 ## Review flows
 
-- The opening video screen fills the device width and dynamic viewport. A simple name/email/demo-consent form offers “Sign up & explore” instead of Close/Skip buttons. Only an acknowledged mock response opens the landing page and remembers completion as a browser preference. Native Escape dismissal remains for keyboard accessibility; opening from Watch lets reviewers retry it. No portal account is created.
+- The opening video/placeholder itself fills device width **and height**, with Close and Explore overlaid. Both buttons (and Escape or playback completion) automatically open a **separate required** name/email/demo-consent form. Only an acknowledged mock response opens the landing page. Escape/backdrop cannot dismiss the signup gate. A remembered completion preference skips repeat video only; it never bypasses signup after a fresh page load. This is a frontend mock flow, not real account creation or server authentication.
 - Dark is default; light preference persists when storage is available. The cinematic hero and official dark SPIKE artwork retain a dark background in both themes. The supplied 1CMA image also uses a dark plate to preserve white lettering without recoloring.
 - Three invitations allow direct signup. Selecting an audience lane changes contextual copy and prefills the form.
 - Optional three-question reflection uses every answer. Majority selects an invitation; ties suggest the preview. It does not assess employability, licensing, personality or earnings. Editing an answer clears its previous suggestion.

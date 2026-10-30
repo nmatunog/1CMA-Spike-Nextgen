@@ -28,3 +28,10 @@ Final owner-directed split: entry name/email; 01 contact/session details and gen
 ## Hero summary refinement
 
 Replaced the oversized ₱0 / SPIKE / 1CMA statistic strip with explanatory journey cards and equal desktop columns that stack on mobile. Desktop-dark/mobile-light screenshots inspected; full browser regression rerun with no horizontal overflow or interaction failures.
+
+
+## Full-screen video → required signup correction
+
+The film now occupies the entire viewport rather than sharing height with the form. Overlay **Close** and **Explore** both close the film and automatically open a separate required simple signup dialog; Escape from the film and playback end take the same route. Escape/backdrop cannot bypass the signup dialog. A remembered video-completion preference shows signup directly on the next load rather than silently opening the portal. Only acknowledged mock signup opens the landing preview. This UI gate cannot capture anonymous visitors who leave, and actual signup persistence requires Versa’s API; no server authentication is implemented.
+
+Browser checks assert the film’s x/y/width/height equal the viewport at six sizes; both actions route to signup; Escape on signup keeps it open; refresh cannot bypass it; rejected/offline results never open the portal. Mobile and desktop screenshots were inspected. The supplied handoff still contains no actual intro video/captions.

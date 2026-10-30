@@ -32,3 +32,10 @@ The opening film now fills device width and dynamic viewport height, with a simp
 The owner retained the third card title as **Level Up**. The broader financial entrepreneurship pathway is explained in its description and enrollment fields. Licensing is a required gate before regulated advisory practice; development continues through professional practice and leadership.
 
 The hero’s former three statistics were replaced with balanced explanatory journey cards: start with a free preview, develop through SPIKE / RA-SPIKE, and connect with 1CMA Cebu. Desktop cards have equal columns, consistent headings and short supporting copy; mobile stacks them without oversized acronym/statistic blocks.
+
+
+## Full-screen video → required signup correction
+
+The film now occupies the entire viewport rather than sharing height with the form. Overlay **Close** and **Explore** both close the film and automatically open a separate required simple signup dialog; Escape from the film and playback end take the same route. Escape/backdrop cannot bypass the signup dialog. A remembered video-completion preference shows signup directly on the next load rather than silently opening the portal. Only acknowledged mock signup opens the landing preview. This UI gate cannot capture anonymous visitors who leave, and actual signup persistence requires Versa’s API; no server authentication is implemented.
+
+Browser checks assert the film’s x/y/width/height equal the viewport at six sizes; both actions route to signup; Escape on signup keeps it open; refresh cannot bypass it; rejected/offline results never open the portal. Mobile and desktop screenshots were inspected. The supplied handoff still contains no actual intro video/captions.

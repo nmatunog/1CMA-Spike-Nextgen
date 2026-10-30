@@ -55,14 +55,16 @@ for (const dialog of document.querySelectorAll('dialog')) {
     }
   });
   dialog.addEventListener('close', () => {
-    if (dialog.id === 'intro') { $('#intro-video').pause(); resetEntry(); }
+    if (dialog.id === 'intro') $('#intro-video').pause();
+    if (dialog.id === 'entry') resetEntry();
+    if (dialog.id === 'intro' && $('#entry').open) return;
     if (dialog.id === 'signup') resetSignup();
     const trigger = returnFocus.get(dialog);
     if (trigger?.isConnected) trigger.focus({ preventScroll: true });
   });
   dialog.addEventListener('click', event => { if (event.target === dialog) {
     const box = dialog.getBoundingClientRect();
-    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) closeDialog(dialog);
+    if (dialog.id !== 'entry' && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) closeDialog(dialog);
   } });
 }
 for (const button of document.querySelectorAll('[data-close]')) button.addEventListener('click', () => closeDialog(document.getElementById(button.dataset.close)));
@@ -76,7 +78,7 @@ if (videoReady) {
   video.append(track);
   video.hidden = false;
   $('#video-placeholder').hidden = true;
-  $('#intro-description').textContent = 'Explore the SPIKE NEXT journey. You can skip the introduction and browse every invitation.';
+  $('#video-status').textContent = 'Video starts muted. Use the player controls for sound.';
   video.addEventListener('error', () => {
     $('#video-status').textContent = 'The video is unavailable. You can continue exploring below.';
     $('#video-placeholder').hidden = false;
@@ -90,6 +92,21 @@ function showIntro(trigger) {
     video.play().catch(() => { $('#video-status').textContent = 'Press Play to watch when you’re ready.'; });
   }
 }
+function openEntry() {
+  if ($('#entry').open) return;
+  if ($('#intro').open) closeDialog($('#intro'));
+  openDialog($('#entry'), $('#watch'));
+  if (demoVisitor) {
+    $('#intro-name').value = demoVisitor.name;
+    $('#intro-email').value = demoVisitor.email;
+  }
+  $('#intro-name').focus();
+}
+$('#intro-close').addEventListener('click', openEntry);
+$('#intro-explore').addEventListener('click', openEntry);
+$('#intro').addEventListener('cancel', event => { event.preventDefault(); openEntry(); });
+$('#entry').addEventListener('cancel', event => { event.preventDefault(); });
+video.addEventListener('ended', openEntry);
 $('#watch').addEventListener('click', event => showIntro(event.currentTarget));
 $('#watch-card').addEventListener('click', event => showIntro(event.currentTarget));
 let entryGeneration = 0;
@@ -126,15 +143,15 @@ $('#intro-form').addEventListener('submit', async event => {
   let result;
   try { result = await createMockAdapter({ scenario: config.mockScenario })(payload); }
   catch { result = { status: 'networkError', mode: 'mock' }; }
-  if (generation !== entryGeneration || !$('#intro').open) return;
+  if (generation !== entryGeneration || !$('#entry').open) return;
   const message = responseMessage(result);
   if (message.accepted) {
     demoVisitor = { name: payload.name, email: payload.email };
     savePreference('spike-next-skip-intro', 'true');
     $('#entry-status').textContent = 'Demo signup acknowledged. Explore the preview below; no portal account or application was created.';
     $('#entry-status').hidden = false;
-    returnFocus.set($('#intro'), $('#main'));
-    closeDialog($('#intro'));
+    returnFocus.set($('#entry'), $('#main'));
+    closeDialog($('#entry'));
     $('#main').focus({ preventScroll: true });
   } else {
     $('#intro-result').textContent = message.text;
@@ -146,6 +163,7 @@ $('#intro-form').addEventListener('submit', async event => {
 reducedMotion.addEventListener('change', event => { if (event.matches) video.pause(); });
 // Runs once on this document load; no navigation, looping timers or page-blocking loader.
 if (readPreference('spike-next-skip-intro') !== 'true') showIntro($('#watch'));
+else openEntry();
 
 const audienceCopy = {
   professional: ['Build on what you already know.', 'Explore how your professional experience could support a new learning and career direction, while asking practical questions about the transition.'],
