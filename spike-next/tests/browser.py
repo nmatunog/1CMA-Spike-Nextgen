@@ -18,6 +18,12 @@ def run():
             page.goto(BASE + '?utm_source=qa')
             page.wait_for_selector('#intro[open]')
             assert page.locator('#video-placeholder').is_visible()
+            assert page.locator('h1').inner_text() == 'Build Your Enterprise.\nOwn Your Future.'
+            page.evaluate("[...document.images].forEach(image => image.loading = 'eager')")
+            page.wait_for_function("[...document.images].every(image => image.complete && image.naturalWidth > 0)")
+            assert page.locator('[data-logo=spike] img').get_attribute('src').endswith('SPIKE_logo_dark_variant.png')
+            assert page.locator('[data-logo=versa] img').get_attribute('src').endswith('Versa_logo.png')
+            assert page.locator('.header-cma img').get_attribute('src').endswith('1CMA_logo.png')
             # Native dialog traps focus and Escape restores a meaningful opener.
             for _ in range(8):
                 page.keyboard.press('Tab')
@@ -28,8 +34,12 @@ def run():
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             page.locator('#theme').click()
             assert page.locator('html').get_attribute('data-theme') == 'light'
+            assert page.locator('[data-logo=spike] img').get_attribute('src').endswith('SPIKE_logo_dark_variant.png')
+            assert page.locator('.hero').evaluate('(element) => getComputedStyle(element).color') == 'rgb(248, 250, 252)'
             page.reload()
             assert page.locator('html').get_attribute('data-theme') == 'light'
+            assert page.locator('[data-logo=spike] img').get_attribute('src').endswith('SPIKE_logo_dark_variant.png')
+            assert page.locator('.hero').evaluate('(element) => getComputedStyle(element).color') == 'rgb(248, 250, 252)'
             page.locator('#opt-out').click()
             page.reload()
             assert not page.locator('#intro').is_visible()

@@ -27,4 +27,9 @@ Add a clean static `spike-next/` subproject inside the recruitment repository. S
 
 ## Delivery breakdown
 
-One draft PR keeps the small subproject reviewable: UI and behavior, pure adapter/fixture contract, unit/browser tests, audit and handoff documentation. Exact v4 HTML comparison, actual logo transfer and final visual QA are explicit pending tasks, not invented evidence. No backend, live lead collection, notifications or production deployment.
+One draft PR keeps the small subproject reviewable: UI and behavior, pure adapter/fixture contract, unit/browser tests, audit and handoff documentation. Initial asset blocker was resolved by the owner-uploaded handoff ZIP. The v4 adaptation and actual logo integration are documented in `V4_ALIGNMENT.md`; actual media and final owner/device review remain pending. No backend, live lead collection, notifications or production deployment.
+
+
+## Owner handoff follow-up
+
+Received the approved v4 HTML and four exact logo PNGs in `SPIKE_NEXT_v4_CODEX_HANDOFF.zip`. The recommendation remains static isolation: the baseline HTML confirms no framework runtime is necessary for this page. Replaced the initial provisional design with v4 section order, hero, dark/red/gold visual system and supplied branding; corrected unsupported prototype claims as required by NEXO #22. No backend or production portal changes.

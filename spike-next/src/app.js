@@ -21,8 +21,8 @@ function setArtwork(container, url, alt) {
   container.replaceChildren(image);
 }
 function updateBranding(theme) {
-  setArtwork($('[data-logo="spike"]'), theme === 'dark' ? config.logos.spikeDark : config.logos.spikeLight, 'SPIKE');
-  setArtwork($('[data-logo="cma"]'), config.logos.cma, '1CMA');
+  setArtwork($('[data-logo="spike"]'), config.logos.spikeDark, 'SPIKE');
+  if ($('[data-logo="cma"]')) setArtwork($('[data-logo="cma"]'), config.logos.cma, '1CMA');
   setArtwork($('[data-logo="versa"]'), config.logos.versa, 'Versa');
 }
 applyTheme(readPreference('spike-next-theme') === 'light' ? 'light' : 'dark');

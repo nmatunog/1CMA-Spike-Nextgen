@@ -1,7 +1,12 @@
-# Approved assets pending
+# Official supplied assets
 
-Place owner-supplied originals here and set local relative URLs in `src/config.js`.
+Received in `SPIKE_NEXT_v4_CODEX_HANDOFF.zip`:
 
-Required handoff: `spike_next_video_first_v4.html` (reference), `SPIKE logo.png`, `spike-logo-on-dark.png`, `1CMA LOGO.png`, actual Versa logo, approved intro video/poster/captions.
+- `SPIKE_logo_original.png` — original SPIKE artwork, retained unchanged.
+- `SPIKE_logo_dark_variant.png` — supplied dark-background treatment; used on dark brand plates in both themes.
+- `1CMA_logo.png` — supplied 1 Matunog District artwork; contained on a dark plate to preserve its white lettering.
+- `Versa_logo.png` — supplied blue wordmark; subtle “Powered by Versa” footer.
 
-No placeholder logos, generated artwork, recoloring or unverified portal asset copies are included. Text brand names in the draft identify the intended brands without pretending to be the supplied logos. Preserve transparent backgrounds and aspect ratios. Final assets and v4 comparison are required before design sign-off.
+The files are byte-identical to the ZIP; verify with `manifest.json` or `npm test`. No artwork filters, recoloring, cropping or substitute logos. Source aspect ratios are preserved with `object-fit: contain`.
+
+The ZIP has no video, poster or captions. Those remain configurable in `src/config.js` and the current UI labels the missing video clearly. No remote stock footage is presented as SPIKE/1CMA media.

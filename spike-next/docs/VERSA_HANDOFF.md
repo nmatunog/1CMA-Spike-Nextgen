@@ -38,6 +38,6 @@ Versa and owner must agree on HTTPS endpoint/schema, authentication that exposes
 
 Implement the real HTTP adapter under a separate approved change. Replace demo-only validation and consent together with approved privacy disclosures. Update response handling and acceptance tests to distinguish an actual acknowledged receipt from this mock. Do not merely switch `mode` or hide the demo label: current UI deliberately rejects live-shaped success and current form deliberately accepts only synthetic example.com/org/net emails. Review how real error codes map to accessible messages without exposing infrastructure details.
 
-Replace placeholder brand/video config only with approved local assets. Keep logos unfiltered, aspect-ratio-preserving and unrecolored. Verify dark/light artwork against approved variants; review video captions, transcript requirements, mobile playback, reduced motion and native controls on actual media.
+The exact supplied logos are now integrated and must stay unfiltered, aspect-ratio-preserving and unrecolored. The dark SPIKE variant uses a dark brand plate in both themes. Video configuration remains empty because the handoff ZIP has no footage/captions. Review actual media captions, transcript requirements, mobile playback, reduced motion and native controls before release.
 
 No migrations, CRM, API server, emails, SMS, dashboards, portal membership or production deployment are included.

@@ -1,0 +1,10 @@
+{
+  "source": "SPIKE_NEXT_v4_CODEX_HANDOFF.zip",
+  "sha256": {
+    "assets/SPIKE_logo_original.png": "69ad5275a36151ef6cd8c14fa716a87ae8b6e521246e411c4522303639b23c5c",
+    "assets/Versa_logo.png": "7d9f260d35485963eec317637515b27a1af37d0ad5c84e151294ff5f50e3ae98",
+    "assets/1CMA_logo.png": "0a54f0e69ade21625584511c35ceb99b137d1100952b0e742b26ed1c33412247",
+    "assets/SPIKE_logo_dark_variant.png": "09cea7611ba03bf9e7db23d7c53d671358254f5f5cbf9dbd39f71927e035cee3",
+    "reference/spike_next_video_first_v4.html.txt": "2cecdf2186d4dafad87a2da3784540e250d8f6d13e9b1db9c771985298dfdd79"
+  }
+}
