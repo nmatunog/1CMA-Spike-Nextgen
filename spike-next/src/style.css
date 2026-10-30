@@ -1700,3 +1700,125 @@ footer {
 
 }
 
+/* The opening film is an edge-to-edge device screen, separate from signup. */
+#intro {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  border: 0;
+  border-radius: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto;
+}
+#intro[open] { display: grid; }
+#intro > .dialog-top,
+#intro > h2,
+#intro > #intro-description,
+#intro > #video-status,
+#intro > .actions {
+  margin-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+}
+#intro .dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  align-items: center;
+  margin-block: 8px 0;
+  min-height: 48px;
+}
+#intro .dialog-top .eyebrow { margin: 0; }
+#intro > h2 { margin-block: 8px 16px; font-size: clamp(1.35rem, 3vw, 2rem); }
+#intro > .video-placeholder,
+#intro > video {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  object-fit: contain;
+  background-color: #06080d;
+}
+#intro > video { display: block; }
+#intro > #intro-description { margin-block: 12px 0; font-size: .8rem; }
+#intro > #video-status { margin-block: 8px 0; }
+#intro > #video-status:empty { display: none; }
+#intro > .actions { margin-block: 12px 16px; gap: 8px 16px; }
+#intro > .actions button { min-height: 48px; }
+@media (min-width: 768px) {
+  #intro > .dialog-top,
+  #intro > h2,
+  #intro > #intro-description,
+  #intro > #video-status,
+  #intro > .actions { margin-inline: max(32px, env(safe-area-inset-left)) max(32px, env(safe-area-inset-right)); }
+}
+@media (max-width: 500px) {
+  #intro > .actions { display: grid; grid-template-columns: 1fr; }
+  #intro > .actions .quiet { padding-inline: 8px; }
+  #intro .video-placeholder small { max-width: 30ch; }
+}
+/* Signup-first entry: edge-to-edge film above a compact mobile-first form. */
+#intro {
+  display: none;
+  grid-template-rows: none;
+  padding-top: 0;
+}
+#intro[open] { display: flex; flex-direction: column; }
+#intro > .video-placeholder,
+#intro > video {
+  flex: 1 0 160px;
+  min-height: 160px;
+  height: auto;
+  max-height: 55dvh;
+}
+.intro-entry {
+  width: min(760px, 100%);
+  margin-inline: auto;
+  padding: 20px max(20px, env(safe-area-inset-right)) 20px max(20px, env(safe-area-inset-left));
+}
+.intro-entry .eyebrow { margin: 0 0 8px; }
+.intro-entry h2 { font-size: clamp(1.35rem, 3vw, 2rem); margin: 0 0 8px; }
+.intro-entry #intro-description { margin: 0 0 16px; font-size: .8rem; }
+.intro-fields { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
+.intro-fields label { color: var(--text); margin-bottom: 6px; }
+.intro-fields label small { color: var(--muted); }
+.intro-fields .error:empty { margin-bottom: 10px; }
+#intro-form .check { margin-block: 4px 8px; font-size: .75rem; }
+#intro-form .error { margin-block: 4px 8px; }
+#intro-submit { width: 100%; min-height: 48px; }
+#intro-result:empty, #video-status:empty { display: none; }
+@media (min-width: 600px) {
+  .intro-fields { grid-template-columns: 1fr 1fr; }
+  .intro-entry { padding-block: 24px; }
+}
+@media (max-height: 500px) {
+  #intro > .video-placeholder, #intro > video { flex-basis: 140px; min-height: 140px; }
+}
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+textarea:focus-visible { outline: 3px solid var(--warm); outline-offset: 4px; }
+textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--error); }
+.enrollment-details { margin-block: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.enrollment-details h3 { font-size: 1rem; line-height: 1.5; }
+.enrollment-details .fine { text-align: left; margin-block: 8px 16px; }
+#supporting-document { max-width: 100%; font-size: .8rem; }
+#supporting-document::file-selector-button { padding: 8px; margin-right: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface2); color: var(--text); }
+.intro-goal { grid-column: 1 / -1; }
+#formal-choice { padding: 12px; margin-top: 16px; border: 1px solid var(--line); border-radius: 8px; }

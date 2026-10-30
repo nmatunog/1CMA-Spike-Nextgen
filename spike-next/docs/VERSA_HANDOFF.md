@@ -20,7 +20,7 @@ Versa owns backend integration. This is a **proposed** boundary, not a claim abo
 }
 ```
 
-Attribution is optional and allowlisted: only three UTM code fields matching `[a-zA-Z0-9_-]{1,64}`. No raw URL, arbitrary query or referrer is forwarded. Campaign naming must exclude personal information. Audience and reflection remain browser-memory values until demo submission; reflection is optional. No phone number is collected.
+Attribution is optional and allowlisted: only three UTM code fields matching `[a-zA-Z0-9_-]{1,64}`. No raw URL, arbitrary query or referrer is forwarded. Campaign naming must exclude personal information. Audience and reflection remain browser-memory values until demo submission; reflection is optional. Contact/mobile details are requested only at invitation enrollment, after the simple entry signup. No real details should be used in this demo.
 
 Results:
 
@@ -41,3 +41,18 @@ Implement the real HTTP adapter under a separate approved change. Replace demo-o
 The exact supplied logos are now integrated and must stay unfiltered, aspect-ratio-preserving and unrecolored. The dark SPIKE variant uses a dark brand plate in both themes. Video configuration remains empty because the handoff ZIP has no footage/captions. Review actual media captions, transcript requirements, mobile playback, reduced motion and native controls before release.
 
 No migrations, CRM, API server, emails, SMS, dashboards, portal membership or production deployment are included.
+
+
+## Owner-directed progressive enrollment update
+
+The opening entry is now full-device-width, video-first, with a simple fictional name/email form and explicit demo consent. “Sign up & explore” waits for an acknowledged mock response, then opens the landing preview; it does not create a portal account. Name/email may prefill invitation forms from browser memory only. Closing/reset cancels stale response handling. Native Escape remains accessible without Close/Skip buttons.
+
+Invitation-specific payload extensions:
+
+- **01 / preview:** base name/email/audience/invitation/consent plus `enrollment: { mobile, contactMode, availability, gender, questions? }`. Contact mode is virtual, cebu or discuss.
+- **02 / literacy:** same contact/session details, plus top-level `businessGoal` (3–500 characters) and `enrollment: { topic, dateOfBirth, address, civilStatus }`. Topic is budgeting, protection, planning or explore. Date is a real calendar date in the past (ISO YYYY-MM-DD); residence address is 5–300 characters. Gender (01) and civil status (02) include `prefer-not` during exploration; 03 requires new, complete gender/civil-status selections and rejects `prefer-not`. None is used to score or recommend a career path. All details are fictional for preview.
+- **03 / pathway:** contact/session details plus `enrollment: { formal: true, gender, civilStatus, occupation, education, motivation, commitment, document: { provided: true, type, size } }`. Dummy document may be PDF/PNG/JPEG, nonempty and at most 5 MiB. No filename, file bytes, FileReader, binary request or upload is used; the selected File stays only in the input until cleared. Choice change, dialog close/reset and acknowledged response clear the selection.
+
+Real DOB, address and especially valid-ID processing require Versa/owner agreement on purpose, required fields, disclosures, retention, access controls and an authenticated secure document workflow. The mock metadata object is not an upload API or a specification for storing real documents. The UI explicitly says never to select an actual ID. Do not turn it into live collection by merely changing an endpoint.
+
+03 is the integrated SPIKE / RA-SPIKE financial entrepreneurship pathway, developing professional practice and leadership. Licensing is a required regulatory gate before advisory work rather than the end goal. UI enrollment and mock acknowledgement never issue or guarantee a license; examination, accreditation, applicable eligibility and regulatory requirements remain necessary. Real valid-ID requirements and gender/civil-status field specifications must be verified with the licensing/integration owner.

@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { audiences, invitations, validateCandidate, reflect, attribution, createMockAdapter, responseMessage } from './candidate.js';
 
 const $ = selector => document.querySelector(selector);
+let demoVisitor = null;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const readPreference = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const savePreference = (key, value) => { try { localStorage.setItem(key, value); } catch { /* Private browsing: session controls still work. */ } };
@@ -54,7 +55,7 @@ for (const dialog of document.querySelectorAll('dialog')) {
     }
   });
   dialog.addEventListener('close', () => {
-    if (dialog.id === 'intro') $('#intro-video').pause();
+    if (dialog.id === 'intro') { $('#intro-video').pause(); resetEntry(); }
     if (dialog.id === 'signup') resetSignup();
     const trigger = returnFocus.get(dialog);
     if (trigger?.isConnected) trigger.focus({ preventScroll: true });
@@ -91,9 +92,56 @@ function showIntro(trigger) {
 }
 $('#watch').addEventListener('click', event => showIntro(event.currentTarget));
 $('#watch-card').addEventListener('click', event => showIntro(event.currentTarget));
-$('#opt-out').addEventListener('click', () => {
-  savePreference('spike-next-skip-intro', 'true');
-  closeDialog($('#intro'));
+let entryGeneration = 0;
+function resetEntry() {
+  entryGeneration++;
+  $('#intro-form').reset();
+  $('#intro-submit').disabled = false;
+  $('#intro-submit').textContent = 'Sign up & explore →';
+  $('#intro-form').removeAttribute('aria-busy');
+  for (const key of ['name', 'email', 'consent']) {
+    $(`#intro-${key}-error`).textContent = '';
+    $(`#intro-${key}`).removeAttribute('aria-invalid');
+  }
+  $('#intro-result').textContent = '';
+}
+$('#intro-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if ($('#intro-submit').disabled) return;
+  const payload = { name: $('#intro-name').value.trim(), email: $('#intro-email').value.trim(),
+    consent: $('#intro-consent').checked, consentVersion: 'sprint-01-demo-only',
+    invitation: 'preview', audience: 'professional', version: 1,
+    attribution: attribution(location.search), diagnostic: null };
+  const errors = validateCandidate(payload);
+  for (const key of ['name', 'email', 'consent']) {
+    $(`#intro-${key}-error`).textContent = errors[key] || '';
+    $(`#intro-${key}`).setAttribute('aria-invalid', String(Boolean(errors[key])));
+  }
+  const first = Object.keys(errors)[0];
+  if (first) { $(`#intro-${first}`).focus(); return; }
+  const generation = ++entryGeneration;
+  $('#intro-submit').disabled = true;
+  $('#intro-submit').textContent = 'Confirming demo…';
+  $('#intro-form').setAttribute('aria-busy', 'true');
+  let result;
+  try { result = await createMockAdapter({ scenario: config.mockScenario })(payload); }
+  catch { result = { status: 'networkError', mode: 'mock' }; }
+  if (generation !== entryGeneration || !$('#intro').open) return;
+  const message = responseMessage(result);
+  if (message.accepted) {
+    demoVisitor = { name: payload.name, email: payload.email };
+    savePreference('spike-next-skip-intro', 'true');
+    $('#entry-status').textContent = 'Demo signup acknowledged. Explore the preview below; no portal account or application was created.';
+    $('#entry-status').hidden = false;
+    returnFocus.set($('#intro'), $('#main'));
+    closeDialog($('#intro'));
+    $('#main').focus({ preventScroll: true });
+  } else {
+    $('#intro-result').textContent = message.text;
+    $('#intro-submit').disabled = false;
+    $('#intro-submit').textContent = 'Sign up & explore →';
+    $('#intro-form').removeAttribute('aria-busy');
+  }
 });
 reducedMotion.addEventListener('change', event => { if (event.matches) video.pause(); });
 // Runs once on this document load; no navigation, looping timers or page-blocking loader.
@@ -132,6 +180,17 @@ $('#reflection-form').addEventListener('change', () => {
 const signup = $('#signup');
 let requestGeneration = 0;
 let pending = false;
+const fieldSelector = key => ({ audience: '#signup-audience', contactMode: '#contact-mode', document: '#supporting-document', businessGoal: '#business-goal', dateOfBirth: '#date-of-birth', civilStatus: '#civil-status', pathwayGender: '#pathway-gender', pathwayCivilStatus: '#pathway-civil-status' }[key] || `#${key}`);
+function updateEnrollment() {
+  const selected = $('#invitation').value;
+  $('#preview-details').hidden = selected !== 'preview';
+  $('#literacy-details').hidden = selected !== 'literacy';
+  $('#pathway-details').hidden = selected !== 'pathway';
+  $('#enrollment-title').textContent = `Enrollment details · ${invitations[selected]}`;
+  // Do not retain a document selection when leaving pathway enrollment.
+  if (selected !== 'pathway') $('#supporting-document').value = '';
+}
+$('#invitation').addEventListener('change', updateEnrollment);
 function showStep(step) {
   $('#signup-step-one').hidden = step !== 1;
   $('#signup-step-two').hidden = step !== 2;
@@ -139,9 +198,9 @@ function showStep(step) {
   $(step === 1 ? '#invitation' : '#name').focus();
 }
 function clearErrors() {
-  for (const key of ['name', 'email', 'invitation', 'audience', 'consent']) {
+  for (const key of ['name', 'email', 'invitation', 'audience', 'consent', 'mobile', 'contactMode', 'availability', 'topic', 'occupation', 'education', 'motivation', 'commitment', 'document', 'businessGoal', 'dateOfBirth', 'address', 'gender', 'civilStatus', 'pathwayGender', 'pathwayCivilStatus']) {
     $(`#${key}-error`).textContent = '';
-    $(key === 'audience' ? '#signup-audience' : `#${key}`).removeAttribute('aria-invalid');
+    $(fieldSelector(key)).removeAttribute('aria-invalid');
   }
 }
 function resetSignup() {
@@ -151,7 +210,7 @@ function resetSignup() {
   clearErrors();
   $('#signup-result').textContent = '';
   $('#signup-submit').disabled = false;
-  $('#signup-submit').textContent = 'Submit demo request ↗';
+  $('#signup-submit').textContent = 'Submit demo enrollment ↗';
   $('#signup-form').removeAttribute('aria-busy');
   $('#signup-step-one').hidden = false;
   $('#signup-step-two').hidden = true;
@@ -161,6 +220,8 @@ function showSignup(invitation, trigger) {
   resetSignup();
   $('#invitation').value = invitations[invitation] ? invitation : 'preview';
   $('#signup-audience').value = audience;
+  if (demoVisitor) { $('#name').value = demoVisitor.name; $('#email').value = demoVisitor.email; }
+  updateEnrollment();
   $('#mock-scenario').value = config.mockScenario;
   openDialog(signup, trigger);
   $('#invitation').focus();
@@ -186,6 +247,22 @@ $('#signup-form').addEventListener('submit', async event => {
     consentVersion: 'sprint-01-demo-only',
     attribution: attribution(location.search),
     diagnostic: reflectionAnswers ? [...reflectionAnswers] : null,
+    ...($('#invitation').value === 'literacy' ? { businessGoal: $('#business-goal').value.trim() } : {}),
+    enrollment: {
+      mobile: $('#mobile').value.trim(), contactMode: $('#contact-mode').value,
+      availability: $('#availability').value.trim(),
+      ...($('#invitation').value === 'preview' ? { gender: $('#gender').value, questions: $('#questions').value.trim() } : {}),
+      ...($('#invitation').value === 'literacy' ? { civilStatus: $('#civil-status').value, topic: $('#topic').value, dateOfBirth: $('#date-of-birth').value, address: $('#address').value.trim() } : {}),
+      ...($('#invitation').value === 'pathway' ? {
+        formal: true, gender: $('#pathway-gender').value, civilStatus: $('#pathway-civil-status').value,
+        occupation: $('#occupation').value.trim(), education: $('#education').value,
+        motivation: $('#motivation').value.trim(), commitment: $('#commitment').value,
+        document: $('#supporting-document').files[0] ? {
+          provided: true, type: $('#supporting-document').files[0].type,
+          size: $('#supporting-document').files[0].size,
+        } : null,
+      } : {}),
+    },
   };
   const errors = validateCandidate(payload);
   const keys = Object.keys(errors);
@@ -193,9 +270,9 @@ $('#signup-form').addEventListener('submit', async event => {
     showStep(keys.some(key => ['audience', 'invitation'].includes(key)) ? 1 : 2);
     for (const key of keys) {
       $(`#${key}-error`).textContent = errors[key];
-      $(key === 'audience' ? '#signup-audience' : `#${key}`).setAttribute('aria-invalid', 'true');
+      $(fieldSelector(key)).setAttribute('aria-invalid', 'true');
     }
-    $(keys[0] === 'audience' ? '#signup-audience' : `#${keys[0]}`).focus();
+    $(fieldSelector(keys[0])).focus();
     return;
   }
   pending = true;
@@ -210,13 +287,24 @@ $('#signup-form').addEventListener('submit', async event => {
   if (generation !== requestGeneration || !signup.open) return;
   pending = false;
   $('#signup-submit').disabled = false;
-  $('#signup-submit').textContent = 'Submit demo request ↗';
+  $('#signup-submit').textContent = 'Submit demo enrollment ↗';
   $('#signup-form').removeAttribute('aria-busy');
   const message = responseMessage(result);
   if (message.accepted) {
     $('#name').value = '';
     $('#email').value = '';
     $('#consent').checked = false;
+    $('#supporting-document').value = '';
+    $('#occupation').value = '';
+    $('#motivation').value = '';
+    $('#date-of-birth').value = '';
+    $('#address').value = '';
+    $('#mobile').value = '';
+    $('#business-goal').value = '';
+    $('#gender').value = '';
+    $('#civil-status').value = '';
+    $('#pathway-gender').value = '';
+    $('#pathway-civil-status').value = '';
   }
   $('#signup-result').textContent = message.text;
   $('#signup-result').focus();
