@@ -15,23 +15,16 @@ Executed 2026-10-30 on Node 24.19.0 and local Chromium via Python Playwright.
 The approved v4 HTML and all four exact PNGs have now been integrated. Source/asset SHA-256 tests verify byte-for-byte integrity. Expanded Chromium checks assert the v4 hero heading, successful loading of every logo image, exact logo URLs and dark-brand-plate treatment in light mode. `docs/V4_ALIGNMENT.md` records visual/content adaptations. Actual video/captions, autoplay failure across Safari/iOS/Android, screen reader announcements and physical-device behavior remain to be checked with approved media and final owner styling review. No backend or production deployment was tested or performed. No full legacy Next.js build was run: it is outside the isolated subproject and its files are unchanged.
 
 
-## Full-width opening video follow-up
+## Current regression coverage
 
-The opening intro now fills the device width and dynamic viewport height. The owner then requested signup-first entry: Close/Skip/opt-out buttons are replaced by fictional name, demo email, explicit demo consent and “Sign up & explore.” Accepted response opens the landing page and stores only a completion preference; rejected/offline replies stay open, and stale responses after Escape cannot open it. Video/placeholder has no card gutters or rounded corners; playback uses `object-fit: contain` to preserve footage framing. Safe-area padding protects controls. Signup retains its separate dialog layout. Regression coverage now includes 320×568 and 844×390 landscape, plus the four original sizes; asserts intro/media edge-to-edge bounds and a reachable signup button, with no Close/Skip buttons. Small-height screens scroll within the entry; native Escape remains accessible.
+Full-screen film bounds and optional signup behavior are checked at 320×568, 360×800, 390×844, **470×900**, 844×390 landscape, 768×1024 and 1440×1000. The tests cover Close → suggestion → Not now → browsing, Explore → Sign up, Escape dismissal of video/suggestion/forms, visible close controls, remembered preference allowing direct browsing and exact spaced heading text at mobile widths.
 
+Enrollment validation remains: 01 contact details and gender; 02 DOB/residence address/civil status/business goal; 03 Level Up background, complete gender/civil status and dummy documents. The script verifies dummy file type checks, accepted mock acknowledgement and cleared document selection. Fourteen unit/asset/contrast test groups cover adapter errors, dates, fields and original artwork integrity.
 
-## Progressive enrollment follow-up
+Actual video/captions, screen-reader and physical-device QA remain pending; no live applicant data or ID files are used. Real privacy/consent, AIA brand approval and public-copy cleanup remain prelaunch items. No backend, merge or deployment is included.
 
-Final owner-directed split: entry name/email; 01 contact/session details and gender; 02 fictional DOB/residence address/civil status plus a simple business goal; 03 background and dummy supporting documents. Gender/civil status offer Prefer not to say only in 01/02; 03 requires complete selections and neither field is a diagnostic input. Browser regression verifies the 02-specific fields, 03 background visibility, missing/unsupported dummy documents, accepted dummy PDF metadata and zero upload requests. Entry rejected/offline fixtures stay open; stale entry replies after Escape do not show acknowledgement. Unit tests cover invitation-specific validation, impossible/future birth dates, address requirements and unsupported/oversized/missing documents. No real PII/ID or file content was used.
+## Current video and signup behavior — Issue #22 review
 
+The owner review relayed in https://github.com/nmatunog/NEXO/issues/22#issuecomment-6527125465 supersedes the earlier hard signup gate. The film fills the viewport. Close, Explore, Escape or video completion returns to the page and shows a non-modal **“Sign up to proceed and explore?”** suggestion. Sign up opens a simple form; Not now, close or Escape dismisses the suggestion. Signup forms have visible close controls and dismiss with Escape. Browsing and existing invitation CTAs stay available without registration or diagnostic. A video preference never forces signup on a return visit.
 
-## Hero summary refinement
-
-Replaced the oversized ₱0 / SPIKE / 1CMA statistic strip with explanatory journey cards and equal desktop columns that stack on mobile. Desktop-dark/mobile-light screenshots inspected; full browser regression rerun with no horizontal overflow or interaction failures.
-
-
-## Full-screen video → required signup correction
-
-The film now occupies the entire viewport rather than sharing height with the form. Overlay **Close** and **Explore** both close the film and automatically open a separate required simple signup dialog; Escape from the film and playback end take the same route. Escape/backdrop cannot bypass the signup dialog. A remembered video-completion preference shows signup directly on the next load rather than silently opening the portal. Only acknowledged mock signup opens the landing preview. This UI gate cannot capture anonymous visitors who leave, and actual signup persistence requires Versa’s API; no server authentication is implemented.
-
-Browser checks assert the film’s x/y/width/height equal the viewport at six sizes; both actions route to signup; Escape on signup keeps it open; refresh cannot bypass it; rejected/offline results never open the portal. Mobile and desktop screenshots were inspected. The supplied handoff still contains no actual intro video/captions.
+Three benefit headings preserve word spacing when their line breaks are hidden at phone widths, including 470px. Both the simple signup and later invitation form keep close buttons visible while scrolling. This remains an in-memory mock with no human-verification claim, live applicant persistence or real document upload. Before launch, real-data privacy/consent, AIA brand/compliance approval and public-copy cleanup remain pending.

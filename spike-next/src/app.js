@@ -64,7 +64,7 @@ for (const dialog of document.querySelectorAll('dialog')) {
   });
   dialog.addEventListener('click', event => { if (event.target === dialog) {
     const box = dialog.getBoundingClientRect();
-    if (dialog.id !== 'entry' && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) closeDialog(dialog);
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) closeDialog(dialog);
   } });
 }
 for (const button of document.querySelectorAll('[data-close]')) button.addEventListener('click', () => closeDialog(document.getElementById(button.dataset.close)));
@@ -95,18 +95,34 @@ function showIntro(trigger) {
 function openEntry() {
   if ($('#entry').open) return;
   if ($('#intro').open) closeDialog($('#intro'));
-  openDialog($('#entry'), $('#watch'));
+  openDialog($('#entry'), $('#suggestion-signup'));
   if (demoVisitor) {
     $('#intro-name').value = demoVisitor.name;
     $('#intro-email').value = demoVisitor.email;
   }
   $('#intro-name').focus();
 }
-$('#intro-close').addEventListener('click', openEntry);
-$('#intro-explore').addEventListener('click', openEntry);
-$('#intro').addEventListener('cancel', event => { event.preventDefault(); openEntry(); });
-$('#entry').addEventListener('cancel', event => { event.preventDefault(); });
-video.addEventListener('ended', openEntry);
+function showSignupSuggestion() {
+  $('#signup-suggestion').hidden = false;
+  savePreference('spike-next-skip-intro', 'true');
+  returnFocus.set($('#intro'), $('#suggestion-signup'));
+  closeDialog($('#intro'));
+  $('#suggestion-signup').focus({ preventScroll: true });
+}
+function dismissSuggestion() {
+  $('#signup-suggestion').hidden = true;
+  $('#main').focus({ preventScroll: true });
+}
+$('#intro-close').addEventListener('click', showSignupSuggestion);
+$('#intro-explore').addEventListener('click', showSignupSuggestion);
+$('#intro').addEventListener('cancel', event => { event.preventDefault(); showSignupSuggestion(); });
+video.addEventListener('ended', showSignupSuggestion);
+$('#suggestion-signup').addEventListener('click', openEntry);
+$('#suggestion-later').addEventListener('click', dismissSuggestion);
+$('#suggestion-close').addEventListener('click', dismissSuggestion);
+$('#signup-suggestion').addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); dismissSuggestion(); }
+});
 $('#watch').addEventListener('click', event => showIntro(event.currentTarget));
 $('#watch-card').addEventListener('click', event => showIntro(event.currentTarget));
 let entryGeneration = 0;
@@ -152,6 +168,7 @@ $('#intro-form').addEventListener('submit', async event => {
     $('#entry-status').hidden = false;
     returnFocus.set($('#entry'), $('#main'));
     closeDialog($('#entry'));
+    $('#signup-suggestion').hidden = true;
     $('#main').focus({ preventScroll: true });
   } else {
     $('#intro-result').textContent = message.text;
@@ -163,7 +180,7 @@ $('#intro-form').addEventListener('submit', async event => {
 reducedMotion.addEventListener('change', event => { if (event.matches) video.pause(); });
 // Runs once on this document load; no navigation, looping timers or page-blocking loader.
 if (readPreference('spike-next-skip-intro') !== 'true') showIntro($('#watch'));
-else openEntry();
+// Returning visitors can browse directly; signup CTAs remain available.
 
 const audienceCopy = {
   professional: ['Build on what you already know.', 'Explore how your professional experience could support a new learning and career direction, while asking practical questions about the transition.'],

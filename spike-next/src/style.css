@@ -1940,3 +1940,35 @@ textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--err
   #intro-explore { width: 100%; }
   #entry .intro-entry { padding: 24px 20px; }
 }
+.signup-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 22px;
+  margin-block: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.signup-suggestion h2 { font-size: 1.15rem; line-height: 1.4; margin: 0 0 6px; letter-spacing: -.3px; }
+.signup-suggestion p { color: var(--muted); font-size: .85rem; margin: 0; }
+.suggestion-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.icon-close { min-width: 44px; padding-inline: 10px; }
+#entry .dialog-top,
+#signup > .dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+  padding-block: 8px;
+}
+#entry .dialog-top .eyebrow { margin: 0; }
+#entry .dialog-top { align-items: center; }
+#entry [data-close], #signup [data-close] { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+@media (max-width: 500px) {
+  .signup-suggestion { padding: 18px; }
+  .suggestion-actions { width: 100%; }
+  .suggestion-actions .primary { flex: 1; }
+}

@@ -14,7 +14,7 @@ Source: owner-uploaded `SPIKE_NEXT_v4_CODEX_HANDOFF.zip`. Supplied HTML is archi
 | Technology / Versa section | Preserves the technology-collaboration section's two-column composition. Fictitious telemetry, portal capabilities, live dispatch and bank-grade security claims removed. Versa acknowledgement uses actual wordmark subtly in footer. |
 | 1CMA Cebu agency hub | Preserved agency section; actual logo replaces unverifiable executive-suite stock photo. Removed unverified leader credentials, promotional rankings and guaranteed outcomes. |
 | Closing invitation + mobile CTA | Preserved “Build What’s Next,” direct preview action and persistent mobile signup. |
-| Intro popup / theme / progressive signup | Accessible native dialogs, full-device-width video entry with simple “Sign up & explore” demo form, persistent theme/entry-completion preferences, two-step invitation signup and acknowledged mock responses. The signup-first, full-width entry follows the owner’s subsequent direction rather than the original Close/Skip presentation. |
+| Intro popup / theme / progressive signup | Accessible native dialogs, full-device-width video entry with simple “Sign up & explore” demo form, persistent theme/entry-completion preferences, two-step invitation signup and acknowledged mock responses. The optional signup suggestion follows the owner’s latest review direction. |
 
 The production UI uses semantic HTML, local CSS and ES modules, rather than the prototype's Tailwind CDN, unpinned Lucide runtime and inline event handlers. System font fallbacks keep preview independent of third-party requests; exact Plus Jakarta Sans/Inter metrics are not claimed without licensed local font files. Native disclosure elements and visible controls improve keyboard access. No source prototype scripts execute in the review app.
 
@@ -27,15 +27,17 @@ All four original PNGs are retained without pixel changes. The original SPIKE ar
 
 ## Subsequent owner direction
 
-The opening film now fills device width and dynamic viewport height, with a simple fictional name/email/demo-consent form in place of Close/Skip buttons. “Sign up & explore” requires an acknowledged mock response before opening the landing preview. Native Escape remains accessible. Later enrollment is progressive: 01 contact details and gender; 02 DOB, residence address, civil status and business goal; 03 background, development commitment and dummy ID/supporting-document selection. The initial entry does not collect those later fields or create a real portal account.
+The full-screen opening film leads to a dismissible signup suggestion and optional simple form; visitors can browse without signing up. Later enrollment is progressive: 01 contact details and gender; 02 DOB, residence address, civil status and business goal; 03 background, development commitment and dummy ID/supporting-document selection. The initial entry does not collect those later fields or create a real portal account.
 
 The owner retained the third card title as **Level Up**. The broader financial entrepreneurship pathway is explained in its description and enrollment fields. Licensing is a required gate before regulated advisory practice; development continues through professional practice and leadership.
 
 The hero’s former three statistics were replaced with balanced explanatory journey cards: start with a free preview, develop through SPIKE / RA-SPIKE, and connect with 1CMA Cebu. Desktop cards have equal columns, consistent headings and short supporting copy; mobile stacks them without oversized acronym/statistic blocks.
 
 
-## Full-screen video → required signup correction
 
-The film now occupies the entire viewport rather than sharing height with the form. Overlay **Close** and **Explore** both close the film and automatically open a separate required simple signup dialog; Escape from the film and playback end take the same route. Escape/backdrop cannot bypass the signup dialog. A remembered video-completion preference shows signup directly on the next load rather than silently opening the portal. Only acknowledged mock signup opens the landing preview. This UI gate cannot capture anonymous visitors who leave, and actual signup persistence requires Versa’s API; no server authentication is implemented.
 
-Browser checks assert the film’s x/y/width/height equal the viewport at six sizes; both actions route to signup; Escape on signup keeps it open; refresh cannot bypass it; rejected/offline results never open the portal. Mobile and desktop screenshots were inspected. The supplied handoff still contains no actual intro video/captions.
+## Current video and signup behavior — Issue #22 review
+
+The owner review relayed in https://github.com/nmatunog/NEXO/issues/22#issuecomment-6527125465 supersedes the earlier hard signup gate. The film fills the viewport. Close, Explore, Escape or video completion returns to the page and shows a non-modal **“Sign up to proceed and explore?”** suggestion. Sign up opens a simple form; Not now, close or Escape dismisses the suggestion. Signup forms have visible close controls and dismiss with Escape. Browsing and existing invitation CTAs stay available without registration or diagnostic. A video preference never forces signup on a return visit.
+
+Three benefit headings preserve word spacing when their line breaks are hidden at phone widths, including 470px. Both the simple signup and later invitation form keep close buttons visible while scrolling. This remains an in-memory mock with no human-verification claim, live applicant persistence or real document upload. Before launch, real-data privacy/consent, AIA brand/compliance approval and public-copy cleanup remain pending.

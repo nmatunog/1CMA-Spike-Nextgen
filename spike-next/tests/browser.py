@@ -8,6 +8,11 @@ BASE = 'http://127.0.0.1:4173/'
 def enter(page, action='#intro-explore'):
     if page.locator('#intro').is_visible():
         page.locator(action).click()
+    if not page.locator('#entry').is_visible():
+        if not page.locator('#signup-suggestion').is_visible():
+            page.locator('#watch').click()
+            page.locator('#intro-explore').click()
+        page.locator('#suggestion-signup').click()
     page.wait_for_selector('#entry[open]')
     page.locator('#intro-name').fill('Demo Visitor')
     page.locator('#intro-email').fill('visitor@example.com')
@@ -28,7 +33,7 @@ def run():
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path='/usr/bin/chromium', args=['--no-sandbox'])
         checks = []
-        for width, height in [(320,568),(360,800),(390,844),(844,390),(768,1024),(1440,1000)]:
+        for width, height in [(320,568),(360,800),(390,844),(470,900),(844,390),(768,1024),(1440,1000)]:
             context = browser.new_context(viewport={'width':width,'height':height})
             page = context.new_page()
             errors, external, methods = [], [], []
@@ -48,12 +53,34 @@ def run():
             for _ in range(6):
                 page.keyboard.press('Tab')
                 assert page.evaluate("document.querySelector('#intro').contains(document.activeElement)")
-            # Close moves to signup; it never exposes the landing page.
+            # Close lands on a browsable page with an optional, dismissible prompt.
             page.locator('#intro-close').click()
-            page.wait_for_selector('#entry[open]')
-            assert not page.locator('#intro').is_visible()
+            page.wait_for_selector('#signup-suggestion', state='visible')
+            assert not page.locator('#entry').is_visible()
+            page.locator('#suggestion-later').click()
+            assert not page.locator('dialog[open]').count()
+            assert not page.locator('#signup-suggestion').is_visible()
+            headings = page.locator('.hero-benefit h2').all_inner_texts()
+            assert [' '.join(text.split()) for text in headings] == ['Explore the opportunity.', 'Learn through SPIKE / RA-SPIKE.', 'Explore with 1CMA.']
+            page.locator('#watch').click()
             page.keyboard.press('Escape')
-            assert page.locator('#entry').is_visible()
+            page.wait_for_selector('#signup-suggestion', state='visible')
+            page.keyboard.press('Escape')
+            assert not page.locator('#signup-suggestion').is_visible()
+            page.locator('#watch').click()
+            page.locator('#intro-explore').click()
+            page.locator('#suggestion-signup').click()
+            page.wait_for_selector('#entry[open]')
+            close = page.locator('#entry [data-close]')
+            assert close.is_visible()
+            bounds = close.bounding_box()
+            assert 0 <= bounds['y'] and bounds['y']+bounds['height'] <= height+1
+            close.click()
+            assert not page.locator('#entry').is_visible()
+            page.locator('#suggestion-signup').click()
+            page.keyboard.press('Escape')
+            page.wait_for_selector('#entry', state='hidden')
+            page.locator('#suggestion-signup').click()
             page.locator('#intro-submit').click()
             assert page.locator('#intro-name').get_attribute('aria-invalid') == 'true'
             enter(page)
@@ -64,19 +91,12 @@ def run():
             page.wait_for_function("[...document.images].every(image => image.complete && image.naturalWidth > 0)")
             page.locator('#theme').click()
             assert page.locator('html').get_attribute('data-theme') == 'light'
-            # Returning preference never bypasses signup: it skips only the video.
+            # Returning visitors browse directly; signup and existing CTAs remain available.
             page.reload()
-            page.wait_for_selector('#entry[open]')
-            assert not page.locator('#intro').is_visible()
-            enter(page)
+            assert not page.locator('dialog[open]').count()
             assert page.locator('html').get_attribute('data-theme') == 'light'
-            # Explore and Escape from video also route to the simple form.
             page.locator('#watch').click()
             enter(page, '#intro-explore')
-            page.locator('#watch').click()
-            page.keyboard.press('Escape')
-            page.wait_for_selector('#entry[open]')
-            enter(page)
             page.locator('[data-audience=parent]').click()
             assert page.locator('#audience-title').inner_text() == 'Make space for your next chapter.'
             for name,value in [('goal','literacy'),('interest','literacy'),('pace','pathway')]:
@@ -100,7 +120,7 @@ def run():
             assert set(methods) == {'GET'} and not external and not errors
             assert sorted(page.evaluate('Object.keys(localStorage)')) == ['spike-next-skip-intro','spike-next-theme']
             assert page.evaluate('document.cookie') == ''
-            checks.append({'viewport':[width,height],'fullscreen_video_and_required_signup':'passed','external_requests':external,'console_errors':errors})
+            checks.append({'viewport':[width,height],'fullscreen_video_optional_prompt_and_mobile_headings':'passed','external_requests':external,'console_errors':errors})
             context.close()
         # Signup still works when reduced motion is requested and storage is denied.
         context = browser.new_context(viewport={'width':390,'height':844},reduced_motion='reduce')
@@ -127,6 +147,9 @@ def run():
         page.locator('#supporting-document').set_input_files({'name':'dummy.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 dummy only'})
         page.locator('#signup-submit').click()
         page.wait_for_function('!document.querySelector("#signup-submit").disabled')
+        close = page.locator('#signup [data-close]')
+        bounds = close.bounding_box()
+        assert 0 <= bounds['y'] and bounds['y']+bounds['height'] <= 845
         assert 'Demo acknowledged' in page.locator('#signup-result').inner_text()
         assert page.locator('#supporting-document').evaluate('(element)=>element.files.length') == 0
         context.close()
@@ -136,14 +159,17 @@ def run():
             context.route('**/src/config.js',lambda route,request,state=scenario:route.fulfill(content_type='text/javascript',body=config_source.replace("mockScenario: 'accepted'","mockScenario: '"+state+"'")))
             page=context.new_page();page.goto(BASE)
             page.locator('#intro-explore').click()
+            page.locator('#suggestion-signup').click()
             page.locator('#intro-name').fill('Demo Visitor');page.locator('#intro-email').fill('visitor@example.com');page.locator('#intro-consent').check()
             page.locator('#intro-submit').click()
             page.wait_for_function('!document.querySelector("#intro-submit").disabled')
             assert page.locator('#entry').is_visible()
             assert expected in page.locator('#intro-result').inner_text()
-            assert page.evaluate("localStorage.getItem('spike-next-skip-intro')") is None
+            assert page.locator('#signup-suggestion').is_visible()
+            page.keyboard.press('Escape')
+            page.wait_for_selector('#entry', state='hidden')
             context.close()
-        checks.append({'reduced_motion_storage_denial_document_validation_and_failure_gate':'passed'})
+        checks.append({'reduced_motion_storage_denial_visible_close_document_validation_and_dismissible_failure':'passed'})
         browser.close();print(json.dumps(checks,indent=2))
 
 if __name__=='__main__': run()

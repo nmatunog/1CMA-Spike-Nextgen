@@ -45,7 +45,7 @@ No migrations, CRM, API server, emails, SMS, dashboards, portal membership or pr
 
 ## Owner-directed progressive enrollment update
 
-The opening entry is now full-device-width, video-first, with a simple fictional name/email form and explicit demo consent. “Sign up & explore” waits for an acknowledged mock response, then opens the landing preview; it does not create a portal account. Name/email may prefill invitation forms from browser memory only. Closing/reset cancels stale response handling. Native Escape remains accessible without Close/Skip buttons.
+The opening film is full-device-width and full-height. A dismissible suggestion offers an optional fictional name/email signup with demo consent; no portal account is created. Name/email may prefill invitation forms from browser memory only. Closing/reset cancels stale response handling. Visible close controls and Escape dismiss the forms.
 
 Invitation-specific payload extensions:
 
@@ -58,8 +58,10 @@ Real DOB, address and especially valid-ID processing require Versa/owner agreeme
 03 is the integrated SPIKE / RA-SPIKE financial entrepreneurship pathway, developing professional practice and leadership. Licensing is a required regulatory gate before advisory work rather than the end goal. UI enrollment and mock acknowledgement never issue or guarantee a license; examination, accreditation, applicable eligibility and regulatory requirements remain necessary. Real valid-ID requirements and gender/civil-status field specifications must be verified with the licensing/integration owner.
 
 
-## Full-screen video → required signup correction
 
-The film now occupies the entire viewport rather than sharing height with the form. Overlay **Close** and **Explore** both close the film and automatically open a separate required simple signup dialog; Escape from the film and playback end take the same route. Escape/backdrop cannot bypass the signup dialog. A remembered video-completion preference shows signup directly on the next load rather than silently opening the portal. Only acknowledged mock signup opens the landing preview. This UI gate cannot capture anonymous visitors who leave, and actual signup persistence requires Versa’s API; no server authentication is implemented.
 
-Browser checks assert the film’s x/y/width/height equal the viewport at six sizes; both actions route to signup; Escape on signup keeps it open; refresh cannot bypass it; rejected/offline results never open the portal. Mobile and desktop screenshots were inspected. The supplied handoff still contains no actual intro video/captions.
+## Current video and signup behavior — Issue #22 review
+
+The owner review relayed in https://github.com/nmatunog/NEXO/issues/22#issuecomment-6527125465 supersedes the earlier hard signup gate. The film fills the viewport. Close, Explore, Escape or video completion returns to the page and shows a non-modal **“Sign up to proceed and explore?”** suggestion. Sign up opens a simple form; Not now, close or Escape dismisses the suggestion. Signup forms have visible close controls and dismiss with Escape. Browsing and existing invitation CTAs stay available without registration or diagnostic. A video preference never forces signup on a return visit.
+
+Three benefit headings preserve word spacing when their line breaks are hidden at phone widths, including 470px. Both the simple signup and later invitation form keep close buttons visible while scrolling. This remains an in-memory mock with no human-verification claim, live applicant persistence or real document upload. Before launch, real-data privacy/consent, AIA brand/compliance approval and public-copy cleanup remain pending.
