@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPIKE NEXT | Strategic Pathway for Innovation, Knowledge & Enterprise</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            obsidian: '#06080D',
+            obsidianElevated: '#0B0F19',
+            obsidianSurface: '#121726',
+            cardDark: '#161D2E',
+            borderDark: 'rgba(255, 255, 255, 0.08)',
+            borderHighlight: 'rgba(229, 9, 20, 0.35)',
+            // SPIKE Venture Studio
+            spikeRed: '#E50914',
+            spikeRedGlow: '#FF2E3E',
+            // 1CMA / AIA Philippines
+            cmaGold: '#D4AF37',
+            cmaGoldGlow: '#F5D77F',
+            cmaCrimson: '#8B0018',
+            // Versa Ecosystem Accents
+            versaCyan: '#00E5FF',
+            versaEmerald: '#10B981',
+            versaBlue: '#0284C7',
+          },
+          fontFamily: {
+            heading: ['"Plus Jakarta Sans"', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'glow-spin': 'spin 30s linear infinite',
+            'float-slow': 'float 7s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 3s ease-in-out infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-8px)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.4' },
+              '50%': { opacity: '0.8' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #06080D;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1E2638;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #E50914;
+    }
+    .hero-gradient-overlay {
+      background: linear-gradient(180deg, 
+        rgba(6, 8, 13, 0.45) 0%, 
+        rgba(6, 8, 13, 0.85) 60%, 
+        #06080D 100%
+      );
+    }
+    .glass-panel {
+      background: rgba(11, 15, 25, 0.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card-interactive {
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card-interactive:hover {
+      border-color: rgba(229, 9, 20, 0.5);
+      box-shadow: 0 16px 36px -12px rgba(229, 9, 20, 0.28);
+      transform: translateY(-4px);
+    }
+    .spike-glow {
+      box-shadow: 0 0 32px -4px rgba(229, 9, 20, 0.45);
+    }
+    .versa-badge-glow {
+      box-shadow: 0 0 20px -2px rgba(0, 229, 255, 0.25);
+    }
+    .video-vignette {
+      box-shadow: inset 0 0 100px rgba(6, 8, 13, 0.9);
+    }
+  </style>
+
+  <style id="theme-system">
+    /* SPIKE NEXT visitor theme: dark remains the cinematic default. */
+    body { transition: background-color .25s ease, color .25s ease; }
+    .theme-switch { display:inline-flex; align-items:center; gap:7px; padding:9px 11px; border:1px solid rgba(148,163,184,.4); border-radius:12px; color:#e2e8f0; background:rgba(15,23,42,.6); cursor:pointer; flex-shrink:0; }
+    .theme-switch:focus-visible { outline:3px solid #e50914; outline-offset:3px; }
+    .theme-switch .sun-icon { display:none; }
+    body.theme-light .theme-switch .sun-icon { display:block; }
+    body.theme-light .theme-switch .moon-icon { display:none; }
+    body.theme-light { background:#f7f8fb !important; color:#263247; }
+    body.theme-light nav { background:rgba(255,255,255,.96) !important; border-color:#e2e8f0 !important; }
+    body.theme-light nav .text-white { color:#152033 !important; }
+    body.theme-light nav .text-slate-300, body.theme-light nav .text-slate-400 { color:#475569 !important; }
+    body.theme-light nav button.bg-spikeRed, body.theme-light nav button.bg-spikeRed * { color:#fff !important; }
+    body.theme-light .theme-switch { color:#263247; background:#f1f5f9; border-color:#cbd5e1; }
+    body.theme-light section, body.theme-light footer { background:#f7f8fb !important; border-color:#e2e8f0 !important; }
+    body.theme-light section:nth-of-type(odd) { background:#eef2f7 !important; }
+    body.theme-light section .glass-panel, body.theme-light section .bg-obsidianSurface,
+    body.theme-light section .bg-obsidianElevated, body.theme-light section .bg-obsidian,
+    body.theme-light footer .bg-obsidianSurface, body.theme-light footer .bg-obsidianElevated {
+      background:rgba(255,255,255,.94) !important; border-color:#dce3ed !important;
+      box-shadow:0 5px 18px rgba(15,23,42,.04);
+    }
+    body.theme-light section .text-white, body.theme-light footer .text-white { color:#162235 !important; }
+    body.theme-light section .text-slate-200, body.theme-light section .text-slate-300,
+    body.theme-light section .text-slate-400, body.theme-light footer .text-slate-300,
+    body.theme-light footer .text-slate-400, body.theme-light footer .text-slate-500 {
+      color:#475569 !important;
+    }
+    body.theme-light section .text-slate-500, body.theme-light section .text-slate-600 { color:#64748b !important; }
+    body.theme-light section button.bg-spikeRed, body.theme-light section button.bg-spikeRed *,
+    body.theme-light section .bg-spikeRed button, body.theme-light section button.bg-amber-500,
+    body.theme-light section button.bg-cmaGold { color:#fff !important; }
+    body.theme-light section button.bg-cmaGold { color:#111827 !important; }
+    body.theme-light section .border-slate-800, body.theme-light section .border-slate-700,
+    body.theme-light footer .border-slate-800 { border-color:#dce3ed !important; }
+    body.theme-light #signupModal .glass-panel, body.theme-light #videoModal .glass-panel { background:#fff !important; color:#1e293b; }
+    body.theme-light #signupModal .text-white, body.theme-light #videoModal .text-white { color:#172033 !important; }
+    body.theme-light #signupModal .text-slate-300, body.theme-light #signupModal .text-slate-400,
+    body.theme-light #videoModal .text-slate-300 { color:#475569 !important; }
+    body.theme-light #signupModal input, body.theme-light #signupModal select,
+    body.theme-light #signupModal .bg-obsidianSurface { background:#f8fafc !important; color:#172033 !important; }
+    body.theme-light #signupModal button.bg-spikeRed, body.theme-light #signupModal button.bg-spikeRed * ,
+    body.theme-light #videoModal button.bg-spikeRed { color:#fff !important; }
+    body.theme-light #mobileMenu { background:#fff !important; }
+    body.theme-light .md\\:hidden.fixed.bottom-0 { background:rgba(255,255,255,.98) !important; border-color:#cbd5e1 !important; }
+    body.theme-light .md\\:hidden.fixed.bottom-0 .text-white { color:#172033 !important; }
+    body.theme-light .md\\:hidden.fixed.bottom-0 button.bg-spikeRed { color:#fff !important; }
+    /* Hero remains cinematic/dark in both modes for video legibility. */
+    body.theme-light header .text-white { color:#fff !important; }
+    body.theme-light header .text-slate-300 { color:#e2e8f0 !important; }
+    @media (prefers-reduced-motion: reduce) {
+      body, .glass-card-interactive { transition:none !important; }
+      .animate-glow-spin, .animate-ping, .animate-pulse { animation:none !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-obsidian text-slate-200 font-sans antialiased selection:bg-spikeRed selection:text-white pb-20 md:pb-0">
+
+  <!-- ================= TOP NAVIGATION ================= -->
+  <nav class="fixed top-0 left-0 right-0 z-40 bg-obsidian/85 backdrop-blur-xl border-b border-borderDark transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      
+      <!-- Brand Lockup: SPIKE + 1CMA -->
+      <div class="flex items-center gap-3.5 sm:gap-5">
+        <!-- SPIKE Starburst Logo -->
+        <a href="#" class="flex items-center gap-2.5 group">
+          <div class="relative w-8 h-8 flex-shrink-0">
+            <svg class="w-8 h-8 text-spikeRed transition-transform duration-500 group-hover:rotate-45" viewBox="0 0 100 100" fill="currentColor">
+              <rect x="44" y="5" width="12" height="90" rx="6" />
+              <rect x="5" y="44" width="90" height="12" rx="6" />
+              <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(45 50 50)" />
+              <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(-45 50 50)" />
+              <circle cx="50" cy="50" r="11" fill="#06080D" />
+            </svg>
+          </div>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-1.5 leading-none">
+              <span class="font-heading font-extrabold text-xl tracking-tight text-white">SPIKE</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-spikeRed/20 text-spikeRed font-bold border border-spikeRed/40">NEXT</span>
+            </div>
+            <span class="text-[9px] tracking-[0.22em] font-medium uppercase text-slate-400 mt-1">Venture Studio</span>
+          </div>
+        </a>
+
+        <!-- Elegant Vertical Separator -->
+        <div class="h-6 w-[1px] bg-slate-800"></div>
+
+        <!-- 1 Matunog District (1CMA) AIA Lockup -->
+        <div class="flex items-center gap-2">
+          <!-- 1CMA Crown Symbol -->
+          <svg class="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" viewBox="0 0 100 100" fill="none">
+            <path d="M15 72 L85 72 L80 78 L20 78 Z" fill="#D4AF37" />
+            <polygon points="50,14 53,24 63,24 55,30 58,40 50,34 42,40 45,30 37,24 47,24" fill="#E50914" />
+            <path d="M50 28 L35 70 L48 70 L50 35 L52 70 L65 70 Z" fill="#E50914" />
+            <path d="M18 42 L28 70 L34 70 L25 45 Z" fill="#D4AF37" />
+            <path d="M82 42 L72 70 L66 70 L75 45 Z" fill="#D4AF37" />
+            <path d="M22 45 L32 68 L28 68 Z" fill="#8B0018" />
+            <path d="M78 45 L68 68 L72 68 Z" fill="#8B0018" />
+          </svg>
+          <div class="hidden sm:flex flex-col leading-tight">
+            <span class="text-xs font-bold text-white tracking-wide">1 MATUNOG DISTRICT</span>
+            <span class="text-[10px] text-slate-400">1CMA · AIA Philippines</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Desktop Navigation -->
+      <div class="hidden lg:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider text-slate-300">
+        <a href="#audiences" class="hover:text-white transition-colors">Venture Tracks</a>
+        <a href="#diagnostic" class="hover:text-white transition-colors">Diagnostic</a>
+        <a href="#ladder" class="hover:text-white transition-colors">SPIKE / RA-SPIKE</a>
+        <a href="#ecosystem" class="hover:text-white transition-colors flex items-center gap-1.5">
+          <span>Platform Stack</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-versaCyan animate-pulse"></span>
+        </a>
+        <a href="#cma" class="hover:text-white transition-colors">Cebu Agency Hub</a>
+      </div>
+
+      <!-- Action Cluster -->
+      <div class="flex items-center gap-3">
+        <button id="themeToggle" class="theme-switch" type="button" aria-label="Switch to light theme" aria-pressed="false" title="Switch light/dark theme">
+          <svg class="moon-icon" aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg>
+          <svg class="sun-icon" aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+          <span class="hidden sm:inline text-[11px]" id="themeToggleText">Dark</span>
+        </button>
+        <!-- Powered by Versa subtle pill -->
+        <a href="#ecosystem" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-700/80 text-[10px] text-slate-400 hover:border-versaCyan/40 hover:text-white transition-all">
+          <span class="w-1.5 h-1.5 rounded-full bg-versaCyan"></span>
+          <span>Versa Tech</span>
+        </a>
+
+        <button onclick="openVideoModal()" class="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:text-white glass-panel hover:bg-slate-800 transition-all border border-slate-700/80">
+          <i data-lucide="play" class="w-3.5 h-3.5 text-spikeRed fill-spikeRed"></i>
+          <span>Watch 60s Reel</span>
+        </button>
+
+        <button onclick="openModal('Main Navigation')" class="px-4 sm:px-5 py-2.5 rounded-xl text-xs font-heading font-extrabold uppercase tracking-wider bg-spikeRed hover:bg-spikeRedGlow text-white spike-glow transition-all transform hover:-translate-y-0.5">
+          Join Free Preview
+        </button>
+
+        <!-- Mobile Drawer Toggle -->
+        <button id="mobileMenuBtn" class="lg:hidden text-slate-300 hover:text-white p-2" aria-label="Toggle Navigation">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Drawer Menu -->
+    <div id="mobileMenu" class="hidden lg:hidden bg-obsidianElevated border-b border-borderDark px-5 py-5 space-y-3.5">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <p class="text-xs font-bold text-white">1 MATUNOG DISTRICT (1CMA)</p>
+          <p class="text-[10px] text-slate-400">AIA Philippines Incubation Hub</p>
+        </div>
+        <span class="text-[10px] px-2 py-0.5 rounded bg-versaCyan/15 text-versaCyan font-mono">Versa Engine</span>
+      </div>
+      <a href="#audiences" class="block py-1.5 text-sm text-slate-300 hover:text-white" onclick="toggleMobileMenu()">Tailored Venture Tracks</a>
+      <a href="#diagnostic" class="block py-1.5 text-sm text-slate-300 hover:text-white" onclick="toggleMobileMenu()">60s Venture Diagnostic</a>
+      <a href="#ladder" class="block py-1.5 text-sm text-slate-300 hover:text-white" onclick="toggleMobileMenu()">SPIKE / RA-SPIKE Pathway</a>
+      <a href="#ecosystem" class="block py-1.5 text-sm text-slate-300 hover:text-white" onclick="toggleMobileMenu()">Versa Platform Ecosystem</a>
+      <a href="#cma" class="block py-1.5 text-sm text-slate-300 hover:text-white" onclick="toggleMobileMenu()">1CMA District Leadership</a>
+      <div class="pt-2 flex gap-2">
+        <button onclick="toggleMobileMenu(); openVideoModal()" class="w-1/2 py-2.5 rounded-xl glass-panel text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5">
+          <i data-lucide="play" class="w-3.5 h-3.5 text-spikeRed fill-spikeRed"></i>
+          <span>60s Reel</span>
+        </button>
+        <button onclick="toggleMobileMenu(); openModal('Mobile Navigation')" class="w-1/2 py-2.5 rounded-xl bg-spikeRed text-white font-heading font-bold text-xs uppercase tracking-wider">
+          Apply Now
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ================= IMMERSIVE VIDEO HERO ================= -->
+  <header class="relative min-h-[92vh] flex items-center justify-center overflow-hidden pt-20">
+    
+    <!-- Background Looping Cinema Video -->
+    <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <video id="heroBgVideo" muted loop playsinline preload="none" class="w-full h-full object-cover scale-105 filter brightness-[0.55] contrast-[1.15]">
+        <!-- High-res ambient looping video of modern creative boardrooms and founders -->
+        <source src="https://assets.mixkit.co/videos/preview/mixkit-group-of-people-discussing-in-a-meeting-room-4819-large.mp4" type="video/mp4">
+      </video>
+      <div class="absolute inset-0 hero-gradient-overlay"></div>
+    </div>
+
+    <!-- Ambient SPIKE Starburst Rotation Glow -->
+    <div class="absolute inset-0 z-[1] pointer-events-none flex items-center justify-center opacity-25">
+      <svg class="w-[640px] h-[640px] text-spikeRed/30 animate-glow-spin" viewBox="0 0 100 100" fill="currentColor">
+        <rect x="47" y="0" width="6" height="100" />
+        <rect x="0" y="47" width="100" height="6" />
+        <rect x="47" y="0" width="6" height="100" transform="rotate(45 50 50)" />
+        <rect x="47" y="0" width="6" height="100" transform="rotate(-45 50 50)" />
+      </svg>
+    </div>
+
+    <!-- Hero Content Layer -->
+    <div class="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8 pb-16">
+      
+      <!-- Institutional Credentials Badge -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-obsidianElevated/90 backdrop-blur-md border border-slate-700/80 mb-6 text-xs text-slate-300 shadow-xl">
+        <span class="w-2 h-2 rounded-full bg-spikeRed animate-ping"></span>
+        <span>Incubation Gateway of <strong class="text-white">1 Matunog District</strong> · AIA Philippines</span>
+      </div>
+
+      <!-- Concise High-Impact Headline (Visual first, Low Verbosity) -->
+      <h1 class="font-heading font-black text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight text-white leading-[1.08]">
+        Build Your Enterprise. <br />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-rose-400 to-amber-300">
+          Own Your Future.
+        </span>
+      </h1>
+
+      <!-- Short Punchy Sub-Hero Statement -->
+      <p class="mt-6 text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
+        Discover financial entrepreneurship with 1CMA in Cebu. Start with a free preview, build your financial knowledge, and explore your next career step through <strong class="text-white">The SPIKE Method</strong>.
+      </p>
+
+      <!-- Action Cluster -->
+      <div class="mt-9 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto sm:max-w-none">
+        <button onclick="openModal('Financial Entrepreneur Preview')" class="w-full sm:w-auto px-8 py-4 rounded-xl font-heading font-extrabold text-xs sm:text-sm tracking-wider uppercase bg-spikeRed hover:bg-spikeRedGlow text-white spike-glow transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 group">
+          <span>Join the Free Preview</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
+        </button>
+
+        <button onclick="openVideoModal()" class="w-full sm:w-auto px-7 py-4 rounded-xl font-heading font-semibold text-xs sm:text-sm text-white glass-panel hover:bg-slate-800 border border-slate-700 transition-all flex items-center justify-center gap-2.5">
+          <div class="w-5 h-5 rounded-full bg-spikeRed flex items-center justify-center">
+            <i data-lucide="play" class="w-2.5 h-2.5 text-white fill-white ml-0.5"></i>
+          </div>
+          <span>Watch 60-Sec Intro Reel</span>
+        </button>
+      </div>
+
+      <!-- Quick Metrics Strip with Versa & 1CMA Elements -->
+      <div class="mt-14 pt-8 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+        <div class="p-2 sm:p-3">
+          <div class="font-heading font-extrabold text-2xl sm:text-3xl text-white">₱0</div>
+          <p class="text-xs text-slate-400 mt-0.5">Preview Registration Fee</p>
+        </div>
+        <div class="p-2 sm:p-3">
+          <div class="font-heading font-extrabold text-2xl sm:text-3xl text-cmaGold">MDRT</div>
+          <p class="text-xs text-slate-400 mt-0.5">Global Practice Benchmark</p>
+        </div>
+        <div class="p-2 sm:p-3">
+          <div class="font-heading font-extrabold text-2xl sm:text-3xl text-versaCyan">100%</div>
+          <p class="text-xs text-slate-400 mt-0.5">Cloud Practice Infrastructure</p>
+        </div>
+        <div class="p-2 sm:p-3">
+          <div class="font-heading font-extrabold text-2xl sm:text-3xl text-white">1CMA</div>
+          <p class="text-xs text-slate-400 mt-0.5">Cebu Matunog Agency Hub</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Video Audio Controller (Corner UI) -->
+    <div class="absolute bottom-5 right-5 z-20 hidden md:flex items-center gap-2 bg-obsidian/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800 text-xs text-slate-400">
+      <span class="w-2 h-2 rounded-full bg-neonMint"></span>
+      <span class="text-[10px] font-mono uppercase">Cebu Studio Ambient</span>
+      <button onclick="toggleHeroAudio()" id="heroAudioBtn" class="hover:text-white ml-1">
+        <i data-lucide="volume-x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+
+  <!-- ================= FREE ENTRY JOURNEY (PRIMARY CONVERSION MESSAGE) ================= -->
+  <section id="free-journey" class="py-16 sm:py-20 bg-obsidianElevated border-t border-borderDark" aria-labelledby="free-journey-title">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-10">
+        <span class="text-xs font-bold uppercase tracking-[.2em] text-spikeRed">Your first step is free</span>
+        <h2 id="free-journey-title" class="mt-3 text-3xl sm:text-4xl font-heading font-extrabold text-white">Explore. Learn. Grow.</h2>
+        <p class="mt-3 text-sm sm:text-base text-slate-400">No need to decide on a new career today. Start by discovering the opportunity and building your financial knowledge.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-7">
+        <article class="glass-panel rounded-2xl p-6 sm:p-7 border border-slate-800 flex flex-col gap-4 glass-card-interactive">
+          <div class="flex justify-between items-center"><span class="text-cmaGold text-xs font-mono font-bold">01 / DISCOVER</span><i data-lucide="compass" class="w-6 h-6 text-spikeRed"></i></div>
+          <h3 class="font-heading font-bold text-xl text-white">Join the Free Financial Entrepreneur Preview</h3>
+          <p class="text-sm text-slate-400 leading-relaxed flex-1">See what financial entrepreneurs do, meet the 1CMA community, and explore whether the path fits you.</p>
+          <button onclick="openModal('Financial Entrepreneur Preview')" class="w-full rounded-xl bg-spikeRed py-3 text-white font-heading font-bold text-xs uppercase tracking-wider">Reserve My Free Spot</button>
+        </article>
+        <article class="glass-panel rounded-2xl p-6 sm:p-7 border border-slate-800 flex flex-col gap-4 glass-card-interactive">
+          <div class="flex justify-between items-center"><span class="text-cmaGold text-xs font-mono font-bold">02 / LEARN</span><i data-lucide="book-open" class="w-6 h-6 text-cmaGold"></i></div>
+          <h3 class="font-heading font-bold text-xl text-white">Attend Free Financial Literacy Sessions</h3>
+          <p class="text-sm text-slate-400 leading-relaxed flex-1">Build practical understanding of money, protection, and financial planning—useful skills whether or not you pursue the career.</p>
+          <button onclick="openModal('Financial Literacy Sessions')" class="w-full rounded-xl border border-slate-600 bg-obsidianSurface py-3 text-white font-heading font-bold text-xs uppercase tracking-wider">Explore Free Sessions</button>
+        </article>
+        <article class="glass-panel rounded-2xl p-6 sm:p-7 border border-slate-800 flex flex-col gap-4 glass-card-interactive">
+          <div class="flex justify-between items-center"><span class="text-cmaGold text-xs font-mono font-bold">03 / LEVEL UP</span><i data-lucide="trending-up" class="w-6 h-6 text-versaEmerald"></i></div>
+          <h3 class="font-heading font-bold text-xl text-white">Level Up with SPIKE / RA-SPIKE</h3>
+          <p class="text-sm text-slate-400 leading-relaxed flex-1">Explore the integrated SPIKE Method and Rookie Academy (RA-SPIKE) program: progress from career discovery and guided learning to professional readiness, financial advisory practice, and leadership development.</p>
+          <button onclick="document.getElementById('ladder').scrollIntoView({behavior:'smooth'})" class="w-full rounded-xl border border-slate-600 bg-obsidianSurface py-3 text-white font-heading font-bold text-xs uppercase tracking-wider">Explore SPIKE / RA-SPIKE</button>
+        </article>
+      </div>
+      <p class="mt-6 text-center text-xs text-slate-500">The preview and financial literacy sessions are free. Later training and licensing requirements may differ; participation does not guarantee appointment or earnings.</p>
+    </div>
+  </section>
+
+  <!-- ================= THREE AUDIENCE TRACKS (VISUAL CARDS) ================= -->
+  <section id="audiences" class="py-20 bg-obsidianElevated border-t border-borderDark relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto mb-12">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-spikeRed/15 text-spikeRed font-mono text-xs font-bold border border-spikeRed/30 mb-3">
+          SPECIALIZED COHORT LANES
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-heading font-extrabold text-white">Tailored for Ambitious Builders</h2>
+        <p class="mt-2 text-slate-400 text-sm sm:text-base">We do not offer a generic job. We offer structured pathways built around your life stage and transferable skills.</p>
+      </div>
+
+      <!-- 3 Visual Grid Cards with Rich Photography -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+        
+        <!-- Track 1: Gen Y Mid-Career Pivot -->
+        <div class="glass-panel rounded-2xl overflow-hidden glass-card-interactive border border-slate-800 flex flex-col group">
+          <div class="relative h-48 overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80" alt="Executive Career" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-obsidianElevated via-transparent to-transparent"></div>
+            <span class="absolute top-4 left-4 px-2.5 py-1 rounded bg-spikeRed/90 text-white font-mono text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+              Lane 01 · Corporate Pivot
+            </span>
+          </div>
+          <div class="p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <h3 class="text-xl font-heading font-bold text-white group-hover:text-red-400 transition-colors">Gen Y / Mid-Career</h3>
+              <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                Repurpose your management experience, negotiation track record, and professional network into high-yield financial advisory equity.
+              </p>
+              <div class="mt-4 space-y-2 text-xs text-slate-300">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-spikeRed"></i>
+                  <span>Transition without career reset</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-spikeRed"></i>
+                  <span>MDRT global excellence fast-track</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-[11px] text-slate-500">Evening / Flex Incubation</span>
+              <button onclick="openModal('Gen Y Mid-Career Pivot')" class="text-xs font-bold text-spikeRed group-hover:text-white flex items-center gap-1">
+                <span>Select Track</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track 2: Young Couples & Parents -->
+        <div class="glass-panel rounded-2xl overflow-hidden glass-card-interactive border border-slate-800 flex flex-col group">
+          <div class="relative h-48 overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=800&q=80" alt="Family Practice" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-obsidianElevated via-transparent to-transparent"></div>
+            <span class="absolute top-4 left-4 px-2.5 py-1 rounded bg-amber-500/90 text-obsidian font-mono text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+              Lane 02 · Family Enterprise
+            </span>
+          </div>
+          <div class="p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <h3 class="text-xl font-heading font-bold text-white group-hover:text-amber-300 transition-colors">Couples & Parents</h3>
+              <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                Build an advisory enterprise that respects family calendar sovereignty, offering joint leadership options and generational legacy.
+              </p>
+              <div class="mt-4 space-y-2 text-xs text-slate-300">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-cmaGold"></i>
+                  <span>Schedule sovereignty for parents</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-cmaGold"></i>
+                  <span>Co-leadership agency partnership</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-[11px] text-slate-500">Autonomous Hours</span>
+              <button onclick="openModal('Family Enterprise Track')" class="text-xs font-bold text-cmaGold group-hover:text-white flex items-center gap-1">
+                <span>Select Track</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track 3: Gen Z & Senior Students -->
+        <div class="glass-panel rounded-2xl overflow-hidden glass-card-interactive border border-slate-800 flex flex-col group">
+          <div class="relative h-48 overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80" alt="Gen Z Launchpad" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-obsidianElevated via-transparent to-transparent"></div>
+            <span class="absolute top-4 left-4 px-2.5 py-1 rounded bg-versaEmerald/90 text-obsidian font-mono text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+              Lane 03 · Launchpad
+            </span>
+          </div>
+          <div class="p-6 flex-1 flex flex-col justify-between">
+            <div>
+              <h3 class="text-xl font-heading font-bold text-white group-hover:text-emerald-300 transition-colors">Gen Z & Seniors</h3>
+              <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                Bypass traditional low-yield entry salaries. Master real-world client acquisition, behavioral finance, and agency management.
+              </p>
+              <div class="mt-4 space-y-2 text-xs text-slate-300">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-versaEmerald"></i>
+                  <span>Zero-tuition GIYA curriculum</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check" class="w-3.5 h-3.5 text-versaEmerald"></i>
+                  <span>Sponsored Insurance Commission exam</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-[11px] text-slate-500">IC License Prep</span>
+              <button onclick="openModal('Gen Z Launchpad Track')" class="text-xs font-bold text-versaEmerald group-hover:text-white flex items-center gap-1">
+                <span>Select Track</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Regulatory Guardrail Note for Students -->
+      <div class="mt-8 max-w-4xl mx-auto p-3.5 rounded-xl bg-obsidianSurface/80 border border-slate-800 flex items-center gap-3 text-xs text-slate-400">
+        <i data-lucide="info" class="w-4 h-4 text-cmaGold flex-shrink-0"></i>
+        <span><strong>Student Regulatory Safeguard:</strong> University students participate strictly in GIYA simulation & business education. Insurance advisory consultations and commissions require formal Insurance Commission (IC) licensing.</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 60-SECOND INTERACTIVE VENTURE DIAGNOSTIC ================= -->
+  <section id="diagnostic" class="py-20 bg-obsidian relative overflow-hidden">
+    <!-- Crimson & Versa Ambient Glows -->
+    <div class="absolute -top-32 left-1/4 w-96 h-96 bg-spikeRed/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-32 right-1/4 w-96 h-96 bg-versaCyan/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 relative z-10">
+      
+      <div class="text-center mb-10">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-spikeRed/15 text-spikeRed font-mono text-xs font-bold border border-spikeRed/30">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          INTERACTIVE FIT TEST
+        </span>
+        <h2 class="mt-3 font-heading font-black text-3xl sm:text-4xl text-white">Find Your Ideal Pathway in 60s</h2>
+        <p class="mt-2 text-slate-400 text-sm">Select your preferences to discover which 1CMA development lane fits your ambition.</p>
+      </div>
+
+      <!-- Diagnostic Interactive Shell -->
+      <div class="glass-panel rounded-2xl p-6 sm:p-10 border border-slate-700/80 shadow-2xl relative" id="diagnosticBox">
+        
+        <!-- Step Indicator -->
+        <div class="flex items-center justify-between mb-8 pb-4 border-b border-borderDark">
+          <span id="quizStepText" class="text-xs font-mono font-bold text-spikeRed">STEP 1 OF 3: CURRENT CAREER STAGE</span>
+          <div class="w-36 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div id="quizBar" class="bg-gradient-to-r from-spikeRed via-amber-400 to-versaCyan h-1.5 w-1/3 transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <!-- Question 1 -->
+        <div id="q1" class="quiz-question space-y-3">
+          <h3 class="text-lg sm:text-xl font-heading font-bold text-white">Where are you currently focusing your professional energy?</h3>
+          <div class="space-y-2.5 pt-2">
+            <button onclick="setQuizAnswer('milestone', 'midcareer', 2)" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-spikeRed transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-red-300">Mid-Career Corporate Manager / Executive</p>
+                <p class="text-xs text-slate-400 mt-0.5">Seeking higher income scalability and ownership of an independent book of business.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-spikeRed transition-colors"></i>
+            </button>
+            <button onclick="setQuizAnswer('milestone', 'family', 2)" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-cmaGold transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-amber-300">Parent / Married Couple Seeking Family Enterprise</p>
+                <p class="text-xs text-slate-400 mt-0.5">Wanting substantial enterprise yield without giving up family time or school runs.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-cmaGold transition-colors"></i>
+            </button>
+            <button onclick="setQuizAnswer('milestone', 'genz', 2)" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-versaEmerald transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-emerald-300">Graduating Senior / Gen Z High Achiever</p>
+                <p class="text-xs text-slate-400 mt-0.5">Ready to skip entry salaries and master high-ticket client advisory and leadership.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-versaEmerald transition-colors"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div id="q2" class="quiz-question hidden space-y-3">
+          <h3 class="text-lg sm:text-xl font-heading font-bold text-white">What is your primary commercial ambition?</h3>
+          <div class="space-y-2.5 pt-2">
+            <button onclick="setQuizAnswer('ambition', 'advisory', 3)" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-spikeRed transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-red-300">Master Wealth Advisor (MDRT Specialization)</p>
+                <p class="text-xs text-slate-400 mt-0.5">Work closely with Cebu business owners, corporate executives, and family offices.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-spikeRed transition-colors"></i>
+            </button>
+            <button onclick="setQuizAnswer('ambition', 'agency', 3)" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-cmaGold transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-amber-300">District Agency Leader & Unit Builder</p>
+                <p class="text-xs text-slate-400 mt-0.5">Recruit, mentor, and lead a productive team of licensed financial entrepreneurs.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-cmaGold transition-colors"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div id="q3" class="quiz-question hidden space-y-3">
+          <h3 class="text-lg sm:text-xl font-heading font-bold text-white">How much weekly bandwidth can you allocate initially?</h3>
+          <div class="space-y-2.5 pt-2">
+            <button onclick="completeQuizResult('Guided Explorer Track')" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-spikeRed transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-red-300">6 – 10 Hours / Week (Evening & Weekend Sprints)</p>
+                <p class="text-xs text-slate-400 mt-0.5">Validate the model while preserving your current daytime professional commitments.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-spikeRed transition-colors"></i>
+            </button>
+            <button onclick="completeQuizResult('Accelerated Practice Builder')" class="w-full text-left p-4 rounded-xl bg-obsidianSurface hover:bg-cardDark border border-slate-700/80 hover:border-cmaGold transition-all flex items-center justify-between group">
+              <div>
+                <p class="text-sm font-semibold text-white group-hover:text-amber-300">20+ Hours / Week (Full-Focus Cohort Acceleration)</p>
+                <p class="text-xs text-slate-400 mt-0.5">Rapidly progress through licensing, casework, and agency unit formation.</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-cmaGold transition-colors"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Result Card -->
+        <div id="qResult" class="hidden text-center py-4 space-y-6">
+          <div class="w-14 h-14 rounded-full bg-spikeRed/15 text-spikeRed mx-auto flex items-center justify-center border border-spikeRed/30 spike-glow">
+            <svg class="w-7 h-7" viewBox="0 0 100 100" fill="currentColor">
+              <rect x="44" y="5" width="12" height="90" rx="6" />
+              <rect x="5" y="44" width="90" height="12" rx="6" />
+              <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(45 50 50)" />
+              <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(-45 50 50)" />
+            </svg>
+          </div>
+          <div>
+            <span class="text-xs uppercase tracking-widest font-mono text-spikeRed font-bold">Recommended Matched Track</span>
+            <h3 id="resultTitle" class="text-2xl sm:text-3xl font-heading font-extrabold text-white mt-1">Accelerated Practice Builder</h3>
+            <p id="resultDescription" class="text-slate-300 text-sm max-w-lg mx-auto mt-2 leading-relaxed">
+              Your profile is matched for the <strong>SPIKE Foundation Track</strong> with direct mentorship from 1 Matunog District leadership.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-obsidianSurface border border-slate-800 max-w-md mx-auto text-left flex items-start gap-3">
+            <i data-lucide="check-circle" class="w-5 h-5 text-versaEmerald flex-shrink-0 mt-0.5"></i>
+            <div>
+              <p class="text-xs font-semibold text-white">Guaranteed Free Orientation Session</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Attend in person at 1CMA Hub Cebu or via private Zoom webinar.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button onclick="openModalWithTrackResult()" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-spikeRed hover:bg-spikeRedGlow text-white font-heading font-bold text-xs uppercase tracking-wider spike-glow transition-all">
+              Claim Track & Book Session
+            </button>
+            <button onclick="restartQuiz()" class="text-xs text-slate-400 hover:text-white underline">
+              Retake Fit Test
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= THE SPIKE METHOD LADDER ================= -->
+  <section id="ladder" class="py-20 bg-obsidianElevated border-t border-borderDark">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-3xl mx-auto mb-14">
+        <span class="text-xs font-mono font-bold text-spikeRed tracking-widest uppercase">GIYA INSTITUTE · SPIKE / RA-SPIKE INTEGRATED PROGRAM</span>
+        <h2 class="mt-2 text-3xl sm:text-4xl font-heading font-extrabold text-white">Your Path to Financial Entrepreneurship</h2>
+        <p class="mt-2 text-slate-400 text-sm sm:text-base">The integrated SPIKE Method and RA-SPIKE Rookie Academy pathway—progressive learning, field development, mentoring, and advancement toward a professional financial advisory career.</p>
+      </div>
+
+      <!-- Progressive 6-Stage Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- 01 Discover -->
+        <div class="glass-panel p-6 rounded-2xl glass-card-interactive border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-3">
+            <span class="w-8 h-8 rounded-lg bg-spikeRed/20 text-spikeRed font-mono font-bold flex items-center justify-center text-xs border border-spikeRed/30">01</span>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase">Assessment</span>
+          </div>
+          <h3 class="text-lg font-heading font-bold text-white">Discover</h3>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Attend the SPIKE Orientation session. Assess demographic shifts, wealth advisory economics, and agency culture with zero financial pressure.
+          </p>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-versaEmerald">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>No upfront costs or commitments</span>
+          </div>
+        </div>
+
+        <!-- 02 Explore -->
+        <div class="glass-panel p-6 rounded-2xl glass-card-interactive border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-3">
+            <span class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 font-mono font-bold flex items-center justify-center text-xs border border-blue-500/30">02</span>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase">Foundation</span>
+          </div>
+          <h3 class="text-lg font-heading font-bold text-white">Explore</h3>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            GIYA Institute core modules: behavioral finance, risk profiling protocols, and professional ethics of client stewardship.
+          </p>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-versaEmerald">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>GIYA Certified syllabus</span>
+          </div>
+        </div>
+
+        <!-- 03 Develop -->
+        <div class="glass-panel p-6 rounded-2xl glass-card-interactive border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-3">
+            <span class="w-8 h-8 rounded-lg bg-cmaGold/20 text-cmaGold font-mono font-bold flex items-center justify-center text-xs border border-cmaGold/30">03</span>
+            <span class="text-[11px] font-semibold text-cmaGold uppercase">Regulatory IC</span>
+          </div>
+          <h3 class="text-lg font-heading font-bold text-white">Develop</h3>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Insurance Commission (IC) licensing examination and formal accreditation with AIA Philippines. Begin regulated advisory casework.
+          </p>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-versaEmerald">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Official IC License Issued</span>
+          </div>
+        </div>
+
+        <!-- 04 Build -->
+        <div class="glass-panel p-6 rounded-2xl glass-card-interactive border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-3">
+            <span class="w-8 h-8 rounded-lg bg-versaEmerald/20 text-versaEmerald font-mono font-bold flex items-center justify-center text-xs border border-versaEmerald/30">04</span>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase">Practice</span>
+          </div>
+          <h3 class="text-lg font-heading font-bold text-white">Build</h3>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Acquire and manage high-net-worth clients, business protection plans, and premier estate preservation with senior 1CMA mentors.
+          </p>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-versaEmerald">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>MDRT Global Standards Track</span>
+          </div>
+        </div>
+
+        <!-- 05 Lead -->
+        <div class="glass-panel p-6 rounded-2xl glass-card-interactive border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-3">
+            <span class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 font-mono font-bold flex items-center justify-center text-xs border border-purple-500/30">05</span>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase">Leadership</span>
+          </div>
+          <h3 class="text-lg font-heading font-bold text-white">Lead</h3>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Form your own unit within 1 Matunog District. Recruit, coach incoming associates, and manage multi-advisor operations.
+          </p>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-versaEmerald">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Unit Manager Accreditation</span>
+          </div>
+        </div>
+
+        <!-- 06 Enterprise -->
+        <div class="glass-panel p-6 rounded-2xl glass-card-interactive border border-slate-800 relative">
+          <div class="flex items-center justify-between mb-3">
+            <span class="w-8 h-8 rounded-lg bg-spikeRed/20 text-spikeRed font-mono font-bold flex items-center justify-center text-xs border border-spikeRed/30">06</span>
+            <span class="text-[11px] font-semibold text-amber-300 uppercase">Equity</span>
+          </div>
+          <h3 class="text-lg font-heading font-bold text-white">Enterprise</h3>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Direct an independent agency district under 1CMA / AIA Philippines. Own an equity-generating enterprise with multi-generational succession.
+          </p>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center gap-1.5 text-[11px] text-versaEmerald">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Agency Director Status</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= VERSA ECOSYSTEM & DIGITAL STACK ================= -->
+  <!-- Seamlessly integrates Versa's modern tech identity without confusing it with insurance commissions -->
+  <section id="ecosystem" class="py-20 bg-obsidian relative overflow-hidden">
+    <!-- Versa Cyan Accent Glow -->
+    <div class="absolute top-1/2 right-10 w-80 h-80 bg-versaCyan/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Left Column: Modern Tech Stack Concept -->
+        <div class="lg:col-span-6 space-y-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300 versa-badge-glow">
+            <span class="w-2 h-2 rounded-full bg-versaCyan"></span>
+            <span>Technology Engine: <strong class="text-white">Powered by Versa</strong></span>
+          </div>
+
+          <h2 class="text-3xl sm:text-4xl font-heading font-extrabold text-white">
+            Built for Modern Founders, Not Paperwork.
+          </h2>
+
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+            Old-school agencies drown in paper files and manual follow-ups. SPIKE NEXT candidates leverage the high-efficiency digital infrastructure provided by <strong class="text-white">Versa</strong>, enabling instant lead dispatch, interactive client onboarding, and real-time business telemetry.
+          </p>
+
+          <div class="space-y-4 pt-2">
+            <div class="flex items-start gap-3.5">
+              <div class="p-2 rounded-lg bg-versaCyan/15 text-versaCyan mt-0.5">
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h4 class="font-heading font-bold text-white text-sm">Mobile-First Practice Portal</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Manage prospect pipelines, track licensing progress, and schedule advisory consultations directly from your phone.</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5">
+              <div class="p-2 rounded-lg bg-versaEmerald/15 text-versaEmerald mt-0.5">
+                <i data-lucide="zap" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h4 class="font-heading font-bold text-white text-sm">Instant Candidate Routing</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Automated connection to 1CMA district leadership in Cebu with zero bureaucratic friction.</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5">
+              <div class="p-2 rounded-lg bg-spikeRed/15 text-spikeRed mt-0.5">
+                <i data-lucide="shield-check" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h4 class="font-heading font-bold text-white text-sm">Institutional Security & Privacy</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Bank-grade client data protection compliant with Philippine Data Privacy Act standards.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Digital Interface Preview -->
+        <div class="lg:col-span-6">
+          <div class="glass-panel rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-4 border-b border-borderDark text-xs">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+                <span class="text-slate-400 font-mono ml-2 text-[11px]">spike-dashboard.versa.cloud</span>
+              </div>
+              <span class="px-2 py-0.5 rounded bg-versaCyan/15 text-versaCyan font-mono text-[10px] font-bold">LIVE TELEMETRY</span>
+            </div>
+
+            <!-- Simulated Dashboard UI Preview -->
+            <div class="mt-5 space-y-4">
+              <div class="grid grid-cols-3 gap-3">
+                <div class="p-3 rounded-xl bg-obsidianSurface border border-slate-800">
+                  <p class="text-[10px] text-slate-400 uppercase font-mono">Stage</p>
+                  <p class="text-sm font-bold text-white mt-1">GIYA Level 2</p>
+                  <p class="text-[10px] text-versaEmerald mt-0.5">On Schedule</p>
+                </div>
+                <div class="p-3 rounded-xl bg-obsidianSurface border border-slate-800">
+                  <p class="text-[10px] text-slate-400 uppercase font-mono">IC License</p>
+                  <p class="text-sm font-bold text-cmaGold mt-1">Prep Phase</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">Mock 94%</p>
+                </div>
+                <div class="p-3 rounded-xl bg-obsidianSurface border border-slate-800">
+                  <p class="text-[10px] text-slate-400 uppercase font-mono">District Hub</p>
+                  <p class="text-sm font-bold text-spikeRed mt-1">1CMA Cebu</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">AIA Partner</p>
+                </div>
+              </div>
+
+              <!-- Live Activity Feed in Dashboard -->
+              <div class="p-4 rounded-xl bg-obsidianSurface border border-slate-800 space-y-2.5">
+                <p class="text-xs font-semibold text-white">Upcoming Cohort Session</p>
+                <div class="flex items-center justify-between text-xs text-slate-400">
+                  <span class="flex items-center gap-1.5">
+                    <i data-lucide="video" class="w-3.5 h-3.5 text-spikeRed"></i>
+                    <span>Cebu Mastermind Clinic (In-Person & Zoom)</span>
+                  </span>
+                  <span class="font-mono text-white text-[11px]">Saturday 10:00 AM</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-5 pt-4 border-t border-borderDark flex items-center justify-between text-[11px] text-slate-400">
+              <span>Platform engine provided by Versa Solutions</span>
+              <a href="https://versa.com.ph" target="_blank" rel="noopener noreferrer" class="text-versaCyan hover:underline font-semibold flex items-center gap-1">
+                <span>versa.com.ph</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 1 MATUNOG DISTRICT (1CMA) AGENCY HUB ================= -->
+  <section id="cma" class="py-20 bg-obsidianElevated border-t border-borderDark">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Left: 1CMA Hub Image & Crown Badge -->
+        <div class="lg:col-span-5 order-2 lg:order-1">
+          <div class="glass-panel rounded-2xl overflow-hidden border border-slate-700/80 shadow-2xl relative">
+            <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" alt="1CMA Cebu Agency Hub" class="w-full h-72 object-cover" />
+            <div class="p-6 bg-obsidianSurface">
+              <div class="flex items-center gap-3">
+                <svg class="w-8 h-8 flex-shrink-0" viewBox="0 0 100 100" fill="none">
+                  <path d="M15 72 L85 72 L80 78 L20 78 Z" fill="#D4AF37" />
+                  <polygon points="50,14 53,24 63,24 55,30 58,40 50,34 42,40 45,30 37,24 47,24" fill="#E50914" />
+                  <path d="M50 28 L35 70 L48 70 L50 35 L52 70 L65 70 Z" fill="#E50914" />
+                  <path d="M18 42 L28 70 L34 70 L25 45 Z" fill="#D4AF37" />
+                  <path d="M82 42 L72 70 L66 70 L75 45 Z" fill="#D4AF37" />
+                </svg>
+                <div>
+                  <h4 class="font-heading font-bold text-white text-sm">1 Matunog District Executive Suites</h4>
+                  <p class="text-xs text-slate-400">Cebu City · AIA Philippines Prime Agency</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: 1CMA Culture -->
+        <div class="lg:col-span-7 space-y-6 order-1 lg:order-2">
+          <div class="flex items-center gap-2 text-cmaGold text-xs font-bold uppercase tracking-widest">
+            <i data-lucide="crown" class="w-4 h-4"></i>
+            <span>1 MATUNOG DISTRICT · CEBU MATUNOG AGENCY</span>
+          </div>
+
+          <h2 class="text-3xl sm:text-4xl font-heading font-extrabold text-white">
+            Where Cebu’s Elite Financial Leaders Are Formed.
+          </h2>
+
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+            We reject high-pressure cold calling and traditional pushy tactics. 1CMA builds respected, consultative financial advisors who protect family wealth and structure commercial enterprises across Central Visayas.
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div class="p-4 rounded-xl bg-obsidian/70 border border-slate-800">
+              <h5 class="font-heading font-bold text-white text-sm">Senior Direct Mentorship</h5>
+              <p class="text-xs text-slate-400 mt-1">Learn alongside MDRT qualifiers and agency managers with multi-decade track records in Cebu.</p>
+            </div>
+            <div class="p-4 rounded-xl bg-obsidian/70 border border-slate-800">
+              <h5 class="font-heading font-bold text-white text-sm">AIA Philippines Backing</h5>
+              <p class="text-xs text-slate-400 mt-1">Over a century of financial rock-solid protection and premier wealth solutions.</p>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button onclick="openModal('1CMA In-Person Visit')" class="px-6 py-3 rounded-xl bg-cmaGold hover:bg-cmaGoldGlow text-obsidian font-heading font-bold text-xs uppercase tracking-wider transition-all">
+              Schedule Cebu Hub Visit
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= FINAL HIGH-CONVERSION CTA ================= -->
+  <section class="py-24 bg-gradient-to-b from-obsidianElevated to-obsidian border-t border-borderDark text-center relative overflow-hidden">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
+      
+      <!-- SPIKE Starburst Symbol Center -->
+      <svg class="w-12 h-12 text-spikeRed mx-auto mb-4" viewBox="0 0 100 100" fill="currentColor">
+        <rect x="44" y="5" width="12" height="90" rx="6" />
+        <rect x="5" y="44" width="90" height="12" rx="6" />
+        <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(45 50 50)" />
+        <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(-45 50 50)" />
+        <circle cx="50" cy="50" r="11" fill="#06080D" />
+      </svg>
+
+      <h2 class="text-3xl sm:text-5xl font-heading font-black text-white tracking-tight">
+        Build What’s Next.
+      </h2>
+      <p class="mt-4 text-slate-300 text-sm sm:text-base max-w-xl mx-auto">
+        Your next step starts with a free Financial Entrepreneur Preview. Discover the opportunity first, then choose how far you want to develop.
+      </p>
+
+      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <button onclick="openModal('Bottom Conversion CTA')" class="w-full sm:w-auto px-9 py-4 rounded-xl bg-spikeRed hover:bg-spikeRedGlow text-white font-heading font-extrabold text-xs uppercase tracking-wider spike-glow transition-all">
+          Join the Free Preview
+        </button>
+        <button onclick="scrollToDiagnostic()" class="w-full sm:w-auto px-7 py-4 rounded-xl bg-obsidianSurface hover:bg-slateDark text-slate-300 hover:text-white font-heading font-semibold text-xs border border-slate-700 transition-all">
+          Take 60s Diagnostic
+        </button>
+      </div>
+
+      <p class="mt-5 text-[11px] text-slate-500">
+        Strict Privacy: All inquiries are evaluated confidentially by 1CMA Practice Directors.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= COMPLIANT FOOTER ================= -->
+  <footer class="bg-obsidian border-t border-borderDark py-12 text-slate-400 text-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <!-- Brand Hierarchy -->
+        <div class="flex items-center gap-3">
+          <svg class="w-7 h-7 text-spikeRed flex-shrink-0" viewBox="0 0 100 100" fill="currentColor">
+            <rect x="44" y="5" width="12" height="90" rx="6" />
+            <rect x="5" y="44" width="90" height="12" rx="6" />
+            <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(45 50 50)" />
+            <rect x="44" y="5" width="12" height="90" rx="6" transform="rotate(-45 50 50)" />
+          </svg>
+          <div>
+            <p class="text-sm font-heading font-bold text-white">SPIKE NEXT</p>
+            <p class="text-[11px] text-slate-500">Venture Studio of 1 Matunog District (1CMA) · AIA Philippines</p>
+          </div>
+        </div>
+
+        <!-- Ecosystem Logos & Distinct Versa Attribution -->
+        <div class="flex items-center gap-4 text-[11px]">
+          <span>AIA Philippines Partner</span>
+          <span class="text-slate-700">•</span>
+          <span>GIYA Institute Framework</span>
+          <span class="text-slate-700">•</span>
+          <a href="https://versa.com.ph/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 px-3 py-2 rounded-lg bg-obsidianSurface/50 border border-slate-800 text-slate-300 hover:border-slate-700 transition-all">
+            <span class="text-slate-400 whitespace-nowrap">Powered by</span>
+            <img src="data:image/png;base64,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" alt="Versa" class="h-5 w-auto object-contain" loading="lazy" decoding="async" />
+          </a>
+        </div>
+      </div>
+
+      <!-- Regulatory Disclosures -->
+      <div class="p-4 rounded-xl bg-obsidianElevated border border-slate-800/80 space-y-2 text-[11px] leading-relaxed text-slate-500">
+        <p>
+          <strong>Institutional Disclosures:</strong> SPIKE NEXT is an independent recruitment and entrepreneurial development gateway operated by 1 Matunog District (1CMA), representing AIA Philippines. SPIKE is a proprietary educational methodology presented by GIYA Institute. This portal functions solely for candidate discovery, competency evaluation, and career exploration in financial entrepreneurship.
+        </p>
+        <p>
+          Versa is a collaborating technology partner providing digital platform infrastructure; Versa subscriptions, platform features, and affiliate rewards are strictly independent of regulated AIA Philippines financial advisory compensation. Insurance advisory activities and products are regulated by the Insurance Commission of the Philippines (IC). Career outcomes, earnings, and advancement depend entirely on individual performance and regulatory accreditation; no guaranteed earnings are implied.
+        </p>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-900 text-[11px] text-slate-600">
+        <p>© 2026 1 Matunog District (1CMA) · All Rights Reserved.</p>
+        <div class="flex gap-4">
+          <a href="#" class="hover:text-slate-400">Data Privacy</a>
+          <a href="#" class="hover:text-slate-400">Regulatory Terms</a>
+          <a href="#" class="hover:text-slate-400">1CMA Compliance</a>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ================= PERSISTENT MOBILE ACTION BAR ================= -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-30 p-3 bg-obsidian/95 backdrop-blur-md border-t border-borderDark flex items-center gap-2">
+    <div class="flex-1">
+      <p class="text-xs font-heading font-bold text-white truncate">SPIKE NEXT Cohort</p>
+      <p class="text-[10px] text-slate-400">1CMA · AIA Philippines</p>
+    </div>
+    <button onclick="scrollToDiagnostic()" class="px-3.5 py-2.5 rounded-lg bg-obsidianSurface text-slate-200 text-xs font-semibold border border-slate-700">
+      Fit Test
+    </button>
+    <button onclick="openModal('Sticky Mobile')" class="px-5 py-2.5 rounded-lg bg-spikeRed text-white font-heading font-bold text-xs uppercase tracking-wider spike-glow">
+      Apply
+    </button>
+  </div>
+
+  <!-- ================= VIDEO PREVIEW MODAL ================= -->
+  <div id="videoModal" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+    <div class="glass-panel rounded-2xl w-full max-w-3xl overflow-hidden border border-slate-700/80 shadow-2xl relative">
+      <div class="p-4 flex items-center justify-between border-b border-borderDark">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-spikeRed animate-ping"></span>
+          <span id="videoModalTitle" class="text-xs font-bold text-white">Discover SPIKE NEXT · Video preview</span>
+        </div>
+        <button id="videoCloseBtn" onclick="closeVideoModal()" aria-label="Close introductory video" class="text-slate-400 hover:text-white p-2">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="relative aspect-video bg-black">
+        <video id="modalVideoPlayer" controls muted playsinline preload="metadata" class="w-full h-full object-cover" aria-label="Temporary sample video footage">
+          <source src="https://assets.mixkit.co/videos/preview/mixkit-group-of-people-discussing-in-a-meeting-room-4819-large.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div id="videoAutoplayNote" class="px-4 pt-3 text-[11px] text-slate-300 bg-obsidianElevated" role="status">Video starts muted. Use the player controls to enable sound.</div>
+      <div class="px-4 pt-2 text-[11px] text-amber-300 bg-obsidianElevated">Sample footage only — the actual SPIKE NEXT / 1CMA introduction video will replace this.</div>
+      <div class="p-4 bg-obsidianElevated flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <button onclick="closeVideoModal()" class="px-4 py-2 rounded-lg border border-slate-600 text-slate-200 text-xs font-semibold">Skip Video</button>
+        <button onclick="closeVideoModal(); openModal('Financial Entrepreneur Preview')" class="px-4 py-2 rounded-lg bg-spikeRed hover:bg-spikeRedGlow text-white text-xs font-bold uppercase tracking-wider">
+          Join the Free Preview
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 2-STEP PROGRESSIVE ONBOARDING MODAL ================= -->
+  <div id="signupModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+    <div class="glass-panel rounded-2xl w-full max-w-lg p-6 sm:p-8 border border-slate-700/80 shadow-2xl relative my-8">
+      
+      <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-3">
+        <span id="modalBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-spikeRed/20 text-spikeRed font-bold border border-spikeRed/30">
+          STEP 1 OF 2: CONTACT DETAILS
+        </span>
+      </div>
+
+      <h3 class="text-xl sm:text-2xl font-heading font-bold text-white">Register for a Free SPIKE NEXT Session</h3>
+      <p class="text-xs text-slate-400 mt-1" id="modalSub">Choose your interest and share your contact details. Registration is free.</p>
+
+      <!-- Step 1 Form -->
+      <form id="step1Form" onsubmit="handleStep1Submit(event)" class="mt-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+          <input type="text" id="candName" required placeholder="e.g. Maria Santos" class="w-full px-4 py-2.5 rounded-xl bg-obsidianSurface border border-slate-700 text-white text-sm focus:border-spikeRed focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Mobile (Philippines)</label>
+            <input type="tel" id="candPhone" required placeholder="09XX XXX XXXX" class="w-full px-4 py-2.5 rounded-xl bg-obsidianSurface border border-slate-700 text-white text-sm focus:border-spikeRed focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+            <input type="email" id="candEmail" required placeholder="maria@domain.com" class="w-full px-4 py-2.5 rounded-xl bg-obsidianSurface border border-slate-700 text-white text-sm focus:border-spikeRed focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Selected Primary Track</label>
+          <select id="candTrack" class="w-full px-4 py-2.5 rounded-xl bg-obsidianSurface border border-slate-700 text-white text-sm focus:border-spikeRed focus:outline-none">
+            <option value="Gen Y Mid-Career Pivot">Gen Y / Mid-Career Strategic Pivot</option>
+            <option value="Family Enterprise Track">Couples & Family Enterprise</option>
+            <option value="Gen Z Launchpad Track">Gen Z & Student Launchpad</option>
+            <option value="Accelerated Practice Builder">Accelerated Practice Builder</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="sessionInterest" class="block text-xs font-semibold text-slate-300 mb-1">I want to</label>
+          <select id="sessionInterest" class="w-full px-4 py-2.5 rounded-xl bg-obsidianSurface border border-slate-700 text-white text-sm focus:border-spikeRed focus:outline-none">
+            <option value="Financial Entrepreneur Preview">Join the free Financial Entrepreneur Preview</option>
+            <option value="Financial Literacy Sessions">Attend free Financial Literacy Sessions</option>
+            <option value="SPIKE Learning Pathway">Explore the Financial Entrepreneur learning pathway</option>
+          </select>
+        </div>
+        <div class="pt-2">
+          <button type="submit" class="w-full py-3 rounded-xl bg-spikeRed hover:bg-spikeRedGlow text-white font-heading font-bold text-xs uppercase tracking-wider transition-all spike-glow flex items-center justify-center gap-2">
+            <span>Continue to Final Details</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <p class="text-[10px] text-slate-500 text-center">
+          1 Matunog District & AIA Philippines Confidential Privacy Standards Applied.
+        </p>
+      </form>
+
+      <!-- Step 2 Form (Lightweight Profiling) -->
+      <form id="step2Form" onsubmit="handleStep2Submit(event)" class="mt-6 space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Current Milestone</label>
+          <select id="candStatus" class="w-full px-4 py-2.5 rounded-xl bg-obsidianSurface border border-slate-700 text-white text-sm focus:border-spikeRed focus:outline-none">
+            <option value="Employed Corporate">Corporate Professional / Seeking Autonomy</option>
+            <option value="Business Owner">Business Owner / Freelance Consultant</option>
+            <option value="Parent">Parent Seeking Flexible Schedule</option>
+            <option value="Student">Graduating Senior / University Student</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Preferred Interaction Mode</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="p-3 rounded-xl border border-slate-700 bg-obsidianSurface flex items-center gap-2 cursor-pointer hover:border-slate-500">
+              <input type="radio" name="meetMode" value="Cebu District Hub" checked class="text-spikeRed">
+              <span>In-Person (Cebu Hub)</span>
+            </label>
+            <label class="p-3 rounded-xl border border-slate-700 bg-obsidianSurface flex items-center gap-2 cursor-pointer hover:border-slate-500">
+              <input type="radio" name="meetMode" value="Virtual Zoom" class="text-spikeRed">
+              <span>Virtual (Zoom)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2">
+          <button type="button" onclick="backToStep1()" class="w-1/3 py-3 rounded-xl bg-slateDark text-slate-300 font-semibold text-xs hover:bg-slate-700 transition-all">
+            Back
+          </button>
+          <button type="submit" class="w-2/3 py-3 rounded-xl bg-spikeRed hover:bg-spikeRedGlow text-white font-heading font-bold text-xs uppercase tracking-wider spike-glow transition-all">
+            Confirm Application
+          </button>
+        </div>
+      </form>
+
+      <!-- Success Screen -->
+      <div id="modalSuccess" class="hidden text-center py-6 space-y-4">
+        <div class="w-14 h-14 rounded-full bg-spikeRed/20 text-spikeRed mx-auto flex items-center justify-center border border-spikeRed/30 spike-glow">
+          <i data-lucide="check" class="w-7 h-7"></i>
+        </div>
+        <h4 class="text-xl font-heading font-bold text-white">Prototype Form Completed</h4>
+        <p class="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
+          This is a UI demonstration only. Your details were not submitted to Versa or 1CMA. Live registration will be enabled after backend integration.
+        </p>
+        <div class="p-3 bg-obsidianSurface rounded-xl border border-slate-800 text-[11px] text-slate-400">
+          No email or SMS has been sent from this prototype.
+        </div>
+        <button onclick="closeModal()" class="w-full py-2.5 rounded-xl bg-slateDark hover:bg-slate-700 text-white text-xs font-semibold">
+          Return to Portal
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+    });
+
+
+    // Accessible, persistent color theme switch.
+    (function() {
+      const toggle = document.getElementById('themeToggle');
+      const label = document.getElementById('themeToggleText');
+      let saved = 'dark';
+      try { saved = localStorage.getItem('spike-next-theme') || 'dark'; } catch (_) {}
+      function applyTheme(theme) {
+        const light = theme === 'light';
+        document.body.classList.toggle('theme-light', light);
+        document.documentElement.style.colorScheme = light ? 'light' : 'dark';
+        toggle.setAttribute('aria-pressed', String(light));
+        toggle.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+        toggle.setAttribute('title', light ? 'Switch to dark theme' : 'Switch to light theme');
+        if (label) label.textContent = light ? 'Light' : 'Dark';
+        try { localStorage.setItem('spike-next-theme', theme); } catch (_) {}
+      }
+      applyTheme(saved);
+      toggle.addEventListener('click', () => applyTheme(document.body.classList.contains('theme-light') ? 'dark' : 'light'));
+    })();
+    // Mobile Menu
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+    });
+
+    function toggleMobileMenu() {
+      mobileMenu.classList.add('hidden');
+    }
+
+    function scrollToDiagnostic() {
+      const el = document.getElementById('diagnostic');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Hero Audio Controls
+    const heroBgVideo = document.getElementById('heroBgVideo');
+    const heroAudioBtn = document.getElementById('heroAudioBtn');
+    let isMuted = true;
+
+    function toggleHeroAudio() {
+      if (!heroBgVideo) return;
+      isMuted = !isMuted;
+      heroBgVideo.muted = isMuted;
+      heroAudioBtn.innerHTML = isMuted 
+        ? '<i data-lucide="volume-x" class="w-4 h-4"></i>' 
+        : '<i data-lucide="volume-2" class="w-4 h-4 text-spikeRed"></i>';
+      lucide.createIcons();
+    }
+
+    // Video Modal
+    const videoModal = document.getElementById('videoModal');
+    const modalVideoPlayer = document.getElementById('modalVideoPlayer');
+
+    let videoPreviousFocus = null;
+    function openVideoModal() {
+      videoPreviousFocus = document.activeElement;
+      videoModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      if (modalVideoPlayer) {
+        modalVideoPlayer.muted = true; // autoplay sound is blocked on most mobile browsers
+        modalVideoPlayer.currentTime = 0;
+        const attempt = modalVideoPlayer.play();
+        if (attempt && typeof attempt.catch === 'function') attempt.catch(() => {
+          // If autoplay is blocked, native video controls allow manual playback.
+          const status = document.getElementById('videoAutoplayNote');
+          if (status) status.textContent = 'Tap play to watch the introductory preview.';
+        });
+      }
+      document.getElementById('videoCloseBtn').focus();
+    }
+
+    function closeVideoModal() {
+      // Start muted ambient hero only after the foreground introduction is dismissed.
+      const ambient = document.getElementById('heroBgVideo');
+      if (ambient && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const ambientPlay = ambient.play();
+        if (ambientPlay && typeof ambientPlay.catch === 'function') ambientPlay.catch(() => {});
+      }
+      videoModal.classList.add('hidden');
+      if (modalVideoPlayer) { modalVideoPlayer.pause(); modalVideoPlayer.currentTime = 0; }
+      document.body.style.overflow = '';
+      if (videoPreviousFocus && typeof videoPreviousFocus.focus === 'function') videoPreviousFocus.focus();
+    }
+
+    // Play the placeholder orientation clip immediately after page initialization.
+    // Users can dismiss it or unmute using the native player controls.
+    window.addEventListener('DOMContentLoaded', () => {
+      openVideoModal();
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches && modalVideoPlayer) modalVideoPlayer.pause();
+    });
+    videoModal.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const focusable = [...videoModal.querySelectorAll('button, video[controls]')].filter(el => !el.disabled);
+      if (!focusable.length) return;
+      if (event.shiftKey && document.activeElement === focusable[0]) { event.preventDefault(); focusable.at(-1).focus(); }
+      else if (!event.shiftKey && document.activeElement === focusable.at(-1)) { event.preventDefault(); focusable[0].focus(); }
+    });
+
+    // Diagnostic Tool Logic
+    let diagnosticAnswers = {};
+
+    function setQuizAnswer(key, value, nextStep) {
+      diagnosticAnswers[key] = value;
+      document.getElementById('q1').classList.add('hidden');
+      document.getElementById('q2').classList.add('hidden');
+      document.getElementById('q3').classList.add('hidden');
+
+      if (nextStep === 2) {
+        document.getElementById('q2').classList.remove('hidden');
+        document.getElementById('quizStepText').innerText = 'STEP 2 OF 3: STRATEGIC AMBITION';
+        document.getElementById('quizBar').style.width = '66%';
+      } else if (nextStep === 3) {
+        document.getElementById('q3').classList.remove('hidden');
+        document.getElementById('quizStepText').innerText = 'STEP 3 OF 3: TIME COMMITMENT';
+        document.getElementById('quizBar').style.width = '100%';
+      }
+      lucide.createIcons();
+    }
+
+    function completeQuizResult(trackOutcome) {
+      diagnosticAnswers['trackResult'] = trackOutcome;
+      document.getElementById('q3').classList.add('hidden');
+      document.getElementById('quizStepText').innerText = 'DIAGNOSTIC COMPLETED';
+
+      const resultBox = document.getElementById('qResult');
+      resultBox.classList.remove('hidden');
+
+      const titleEl = document.getElementById('resultTitle');
+      if (titleEl) titleEl.innerText = trackOutcome;
+      lucide.createIcons();
+    }
+
+    function restartQuiz() {
+      diagnosticAnswers = {};
+      document.getElementById('qResult').classList.add('hidden');
+      document.getElementById('q2').classList.add('hidden');
+      document.getElementById('q3').classList.add('hidden');
+      document.getElementById('q1').classList.remove('hidden');
+      document.getElementById('quizStepText').innerText = 'STEP 1 OF 3: CURRENT CAREER STAGE';
+      document.getElementById('quizBar').style.width = '33%';
+      lucide.createIcons();
+    }
+
+    // Signup Modal & Progressive Profiling
+    const signupModal = document.getElementById('signupModal');
+    let candidateRecord = {};
+
+    function openModal(trackDefault = 'Gen Y Mid-Career Pivot') {
+      signupModal.classList.remove('hidden');
+      const interestSelect = document.getElementById('sessionInterest');
+      if (interestSelect) {
+        interestSelect.value = trackDefault === 'Financial Literacy Sessions' ? 'Financial Literacy Sessions' : trackDefault === 'SPIKE Learning Pathway' ? 'SPIKE Learning Pathway' : 'Financial Entrepreneur Preview';
+      }
+      const trackSelect = document.getElementById('candTrack');
+      if (trackSelect) {
+        for (let i = 0; i < trackSelect.options.length; i++) {
+          if (trackSelect.options[i].value.includes(trackDefault) || trackDefault.includes(trackSelect.options[i].value)) {
+            trackSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
+
+      document.getElementById('step1Form').classList.remove('hidden');
+      document.getElementById('step2Form').classList.add('hidden');
+      document.getElementById('modalSuccess').classList.add('hidden');
+      document.getElementById('modalBadge').innerText = 'STEP 1 OF 2: CONTACT DETAILS';
+      document.getElementById('modalSub').innerText = 'Enter your information to receive the 1CMA onboarding packet.';
+      lucide.createIcons();
+    }
+
+    function openModalWithTrackResult() {
+      const outcome = diagnosticAnswers['trackResult'] || 'Accelerated Practice Builder';
+      openModal(outcome);
+    }
+
+    function closeModal() {
+      signupModal.classList.add('hidden');
+    }
+
+    function handleStep1Submit(e) {
+      e.preventDefault();
+      candidateRecord.name = document.getElementById('candName').value;
+      candidateRecord.phone = document.getElementById('candPhone').value;
+      candidateRecord.email = document.getElementById('candEmail').value;
+      candidateRecord.track = document.getElementById('candTrack').value;
+      candidateRecord.sessionInterest = document.getElementById('sessionInterest').value;
+
+      document.getElementById('step1Form').classList.add('hidden');
+      document.getElementById('step2Form').classList.remove('hidden');
+      document.getElementById('modalBadge').innerText = 'STEP 2 OF 2: PROFESSIONAL BACKGROUND';
+      document.getElementById('modalSub').innerText = 'Help us assign your dedicated 1CMA Practice Mentor.';
+      lucide.createIcons();
+    }
+
+    function backToStep1() {
+      document.getElementById('step2Form').classList.add('hidden');
+      document.getElementById('step1Form').classList.remove('hidden');
+      document.getElementById('modalBadge').innerText = 'STEP 1 OF 2: CONTACT DETAILS';
+    }
+
+    function handleStep2Submit(e) {
+      e.preventDefault();
+      candidateRecord.milestone = document.getElementById('candStatus').value;
+      candidateRecord.meetMode = document.querySelector('input[name="meetMode"]:checked')?.value || 'Cebu District Hub';
+
+      document.getElementById('step2Form').classList.add('hidden');
+      document.getElementById('modalSuccess').classList.remove('hidden');
+      document.getElementById('modalBadge').innerText = 'DEMO FLOW COMPLETED';
+      document.getElementById('modalSub').innerText = '';
+      lucide.createIcons();
+    }
+
+    // Modal dismiss listeners
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!signupModal.classList.contains('hidden')) closeModal();
+        if (!videoModal.classList.contains('hidden')) closeVideoModal();
+      }
+    });
+
+    signupModal.addEventListener('click', (e) => {
+      if (e.target === signupModal) closeModal();
+    });
+
+    videoModal.addEventListener('click', (e) => {
+      if (e.target === videoModal) closeVideoModal();
+    });
+  </script>
+</body>
+</html>

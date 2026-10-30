@@ -1,0 +1,1 @@
+{"name":"spike-next-frontend","private":true,"type":"module","scripts":{"dev":"python3 -m http.server 4173 --bind 127.0.0.1","test":"node --test tests/*.test.mjs","check":"node --check src/app.js && node --check src/candidate.js && node --check src/config.js"},"engines":{"node":">=20"}}
