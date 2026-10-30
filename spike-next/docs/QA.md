@@ -23,3 +23,8 @@ The opening intro now fills the device width and dynamic viewport height. The ow
 ## Progressive enrollment follow-up
 
 Final owner-directed split: entry name/email; 01 contact/session details and gender; 02 fictional DOB/residence address/civil status plus a simple business goal; 03 background and dummy supporting documents. Gender/civil status offer Prefer not to say only in 01/02; 03 requires complete selections and neither field is a diagnostic input. Browser regression verifies the 02-specific fields, 03 background visibility, missing/unsupported dummy documents, accepted dummy PDF metadata and zero upload requests. Entry rejected/offline fixtures stay open; stale entry replies after Escape do not show acknowledgement. Unit tests cover invitation-specific validation, impossible/future birth dates, address requirements and unsupported/oversized/missing documents. No real PII/ID or file content was used.
+
+
+## Hero summary refinement
+
+Replaced the oversized ₱0 / SPIKE / 1CMA statistic strip with explanatory journey cards and equal desktop columns that stack on mobile. Desktop-dark/mobile-light screenshots inspected; full browser regression rerun with no horizontal overflow or interaction failures.
