@@ -1,3 +1,5 @@
+> **Versa team / SPIKE NEXT landing page:** start at [`VERSA_START_HERE.md`](./VERSA_START_HERE.md). The rest of this README describes an older, separate app.
+
 # 1CMA NextGen
 
 Peer-led recruitment exploration: **AIA Next Gen landing** (roadmap + **DNA quiz**), **English-first** forms on `/onboarding`, **persona-aware** chat (stub or [Ollama](https://ollama.com)), **[Supabase](https://supabase.com) PostgreSQL** (via Drizzle + `postgres`) for leads and quiz candidates, **n8n** webhooks. The old SQLite + Litestream setup is removed (`litestream.yml` deleted).
