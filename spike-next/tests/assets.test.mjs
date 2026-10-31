@@ -12,6 +12,8 @@ test('all supplied originals and archived v4 baseline match handoff checksums', 
 test('runtime HTML has local modules/artwork, no remote runtime or invented logos', () => {
   const html = readFileSync(new URL('index.html', root), 'utf8');
   assert.ok(html.includes('Build Your Enterprise.'));
+  assert.ok(html.includes('<h3>Level Up</h3>'));
+  assert.ok(html.includes('Licensing is a required gate before regulated advisory work.'));
   assert.ok(html.includes('RA-SPIKE Rookie Academy'));
   assert.equal(/(?:src|href)=["'](?:https?:)?\/\//i.test(html), false);
   assert.equal(/<svg/i.test(html), false);

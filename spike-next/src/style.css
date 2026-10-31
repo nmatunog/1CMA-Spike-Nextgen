@@ -1700,3 +1700,275 @@ footer {
 
 }
 
+/* The opening film is an edge-to-edge device screen, separate from signup. */
+#intro {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  border: 0;
+  border-radius: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto;
+}
+#intro[open] { display: grid; }
+#intro > .dialog-top,
+#intro > h2,
+#intro > #intro-description,
+#intro > #video-status,
+#intro > .actions {
+  margin-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+}
+#intro .dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  align-items: center;
+  margin-block: 8px 0;
+  min-height: 48px;
+}
+#intro .dialog-top .eyebrow { margin: 0; }
+#intro > h2 { margin-block: 8px 16px; font-size: clamp(1.35rem, 3vw, 2rem); }
+#intro > .video-placeholder,
+#intro > video {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  object-fit: contain;
+  background-color: #06080d;
+}
+#intro > video { display: block; }
+#intro > #intro-description { margin-block: 12px 0; font-size: .8rem; }
+#intro > #video-status { margin-block: 8px 0; }
+#intro > #video-status:empty { display: none; }
+#intro > .actions { margin-block: 12px 16px; gap: 8px 16px; }
+#intro > .actions button { min-height: 48px; }
+@media (min-width: 768px) {
+  #intro > .dialog-top,
+  #intro > h2,
+  #intro > #intro-description,
+  #intro > #video-status,
+  #intro > .actions { margin-inline: max(32px, env(safe-area-inset-left)) max(32px, env(safe-area-inset-right)); }
+}
+@media (max-width: 500px) {
+  #intro > .actions { display: grid; grid-template-columns: 1fr; }
+  #intro > .actions .quiet { padding-inline: 8px; }
+  #intro .video-placeholder small { max-width: 30ch; }
+}
+/* Signup-first entry: edge-to-edge film above a compact mobile-first form. */
+#intro {
+  display: none;
+  grid-template-rows: none;
+  padding-top: 0;
+}
+#intro[open] { display: flex; flex-direction: column; }
+#intro > .video-placeholder,
+#intro > video {
+  flex: 1 0 160px;
+  min-height: 160px;
+  height: auto;
+  max-height: 55dvh;
+}
+.intro-entry {
+  width: min(760px, 100%);
+  margin-inline: auto;
+  padding: 20px max(20px, env(safe-area-inset-right)) 20px max(20px, env(safe-area-inset-left));
+}
+.intro-entry .eyebrow { margin: 0 0 8px; }
+.intro-entry h2 { font-size: clamp(1.35rem, 3vw, 2rem); margin: 0 0 8px; }
+.intro-entry #intro-description { margin: 0 0 16px; font-size: .8rem; }
+.intro-fields { display: grid; grid-template-columns: 1fr; gap: 0 16px; }
+.intro-fields label { color: var(--text); margin-bottom: 6px; }
+.intro-fields label small { color: var(--muted); }
+.intro-fields .error:empty { margin-bottom: 10px; }
+#intro-form .check { margin-block: 4px 8px; font-size: .75rem; }
+#intro-form .error { margin-block: 4px 8px; }
+#intro-submit { width: 100%; min-height: 48px; }
+#intro-result:empty, #video-status:empty { display: none; }
+@media (min-width: 600px) {
+  .intro-fields { grid-template-columns: 1fr 1fr; }
+  .intro-entry { padding-block: 24px; }
+}
+@media (max-height: 500px) {
+  #intro > .video-placeholder, #intro > video { flex-basis: 140px; min-height: 140px; }
+}
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+textarea:focus-visible { outline: 3px solid var(--warm); outline-offset: 4px; }
+textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--error); }
+.enrollment-details { margin-block: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.enrollment-details h3 { font-size: 1rem; line-height: 1.5; }
+.enrollment-details .fine { text-align: left; margin-block: 8px 16px; }
+#supporting-document { max-width: 100%; font-size: .8rem; }
+#supporting-document::file-selector-button { padding: 8px; margin-right: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface2); color: var(--text); }
+.intro-goal { grid-column: 1 / -1; }
+#formal-choice { padding: 12px; margin-top: 16px; border: 1px solid var(--line); border-radius: 8px; }
+/* Hero journey: explanatory benefits, not disconnected headline statistics. */
+.hero-facts {
+  max-width: 1040px;
+  margin: 44px auto 24px;
+  padding: 0;
+  border: 0;
+  gap: 16px;
+  text-align: left;
+}
+.hero-benefit {
+  padding: 24px;
+  border: 1px solid #59677f;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #161d2e99, #0b0f19cc);
+}
+.benefit-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #f5d77f;
+  margin-bottom: 18px;
+}
+.hero-facts .benefit-kicker span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #738098;
+  border-radius: 8px;
+  font-size: .6rem;
+  color: #bac6d8;
+  letter-spacing: 0;
+}
+.hero-benefit h2 {
+  margin: 0 0 14px;
+  color: #f8fafc;
+  font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+  font-weight: 750;
+  letter-spacing: -.4px;
+  line-height: 1.35;
+}
+.hero-benefit p {
+  color: #bac6d8;
+  font-size: .8rem;
+  line-height: 1.7;
+  margin: 0;
+}
+.hero-facts .hero-benefit p strong {
+  display: inline;
+  color: #f8fafc;
+  font-size: inherit;
+  font-weight: 650;
+}
+@media (max-width: 700px) {
+  .hero-facts { grid-template-columns: 1fr; gap: 12px; max-width: 480px; margin-top: 32px; }
+  .hero-benefit { padding: 22px; }
+  .benefit-kicker { margin-bottom: 10px; }
+  .hero-benefit h2 { font-size: 1.3rem; margin-bottom: 10px; }
+  .hero-benefit h2 br { display: none; }
+  .hero-benefit p { font-size: .85rem; }
+}
+/* Full-viewport film first; both overlay actions move to the signup gate. */
+#intro, #intro[open] {
+  padding: 0;
+  overflow: hidden;
+}
+#intro[open] { display: block; }
+#intro > .video-placeholder,
+#intro > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  object-fit: cover;
+}
+.intro-overlay-top,
+.intro-overlay-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  color: #f8fafc;
+  padding-inline: max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right));
+}
+.intro-overlay-top {
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: 40px;
+  background: linear-gradient(#06080de6, transparent);
+}
+#intro-title { color: #f8fafc; font-size: .85rem; font-weight: 700; }
+#intro-close { background: #06080dcc; color: #f8fafc; border-color: #bac6d8; min-height: 48px; }
+.intro-overlay-bottom {
+  bottom: 0;
+  padding-top: 44px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, #06080df5);
+  text-align: center;
+}
+#intro-explore { min-width: 180px; min-height: 48px; }
+.intro-overlay-bottom p { color: #bac6d8; font-size: .75rem; margin: 8px 0 0; }
+#entry { width: min(620px, calc(100% - 24px)); padding: 0; }
+#entry .intro-entry { width: 100%; }
+@media (max-width: 500px) {
+  #intro-explore { width: 100%; }
+  #entry .intro-entry { padding: 24px 20px; }
+}
+.signup-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 22px;
+  margin-block: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.signup-suggestion h2 { font-size: 1.15rem; line-height: 1.4; margin: 0 0 6px; letter-spacing: -.3px; }
+.signup-suggestion p { color: var(--muted); font-size: .85rem; margin: 0; }
+.suggestion-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.icon-close { min-width: 44px; padding-inline: 10px; }
+#entry .dialog-top,
+#signup > .dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+  padding-block: 8px;
+}
+#entry .dialog-top .eyebrow { margin: 0; }
+#entry .dialog-top { align-items: center; }
+#entry [data-close], #signup [data-close] { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+@media (max-width: 500px) {
+  .signup-suggestion { padding: 18px; }
+  .suggestion-actions { width: 100%; }
+  .suggestion-actions .primary { flex: 1; }
+}
