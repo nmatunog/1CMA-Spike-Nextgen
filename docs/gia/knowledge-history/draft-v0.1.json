@@ -1,0 +1,34 @@
+[
+  {
+    "id": "KP-LIT-01",
+    "topic": "literacy",
+    "version": "0.1",
+    "owner": "Nilo",
+    "status": "draft",
+    "audience": "public",
+    "source": "https://github.com/nmatunog/1CMA-Spike-Nextgen/issues/4",
+    "effective": "2026-11-04",
+    "reviewBy": "2026-12-04",
+    "answers": {
+      "en": "Financial Literacy is free. You may start with learning or explore the free Financial Entrepreneurship Preview directly.",
+      "ceb": "Libre ang Financial Literacy. Mahimo kang magsugod sa pagkat-on o modiretso sa libreng Financial Entrepreneurship Preview.",
+      "tl": "Libre ang Financial Literacy. Maaari kang magsimula sa pag-aaral o dumiretso sa libreng Financial Entrepreneurship Preview."
+    }
+  },
+  {
+    "id": "KP-FEP-01",
+    "topic": "fep",
+    "version": "0.1",
+    "owner": "Nilo",
+    "status": "draft",
+    "audience": "public",
+    "source": "https://github.com/nmatunog/NEXO/issues/27",
+    "effective": "2026-11-04",
+    "reviewBy": "2026-12-04",
+    "answers": {
+      "en": "The Financial Entrepreneurship Preview (FEP) is free. You can book directly without completing Financial Literacy. Choose an available session below.",
+      "ceb": "Libre ang Financial Entrepreneurship Preview (FEP). Mahimo kang magpa-book bisan wala pa mahuman ang Financial Literacy. Pilia ang available nga sesyon sa ubos.",
+      "tl": "Libre ang Financial Entrepreneurship Preview (FEP). Maaari kang mag-book kahit hindi pa tapos sa Financial Literacy. Pumili ng available na session sa ibaba."
+    }
+  }
+]

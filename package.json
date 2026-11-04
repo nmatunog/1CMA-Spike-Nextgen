@@ -10,7 +10,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "build:gia:offline": "node tests/gia/build-offline.mjs",
+    "demo:gia": "node tests/gia/demo-server.mjs",
+    "test:gia:browser": "playwright test"
   },
   "dependencies": {
     "drizzle-orm": "^0.41.0",
@@ -21,6 +24,9 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@electric-sql/pglite-socket": "^0.2.18",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.8",

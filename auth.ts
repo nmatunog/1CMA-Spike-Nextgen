@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { verifyStaff } from "@/lib/gia/staff-credentials.mjs";
 
 const DEV_AUTH_SECRET =
   "dev-only-auth-secret-min-32-chars-set-auth-secret-in-env-local";
@@ -38,6 +39,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
+        const staff = verifyStaff(credentials?.email, credentials?.password, process.env.RECRUITMENT_STAFF_ACCOUNTS);
+        if (staff) return staff;
         const email = process.env.DEMO_USER_EMAIL;
         const password = process.env.DEMO_USER_PASSWORD;
         if (!email || !password) return null;
@@ -52,4 +55,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 14 },
+  callbacks: {
+    session({ session, token }) {
+      if (session.user) session.user.id = token.sub || "";
+      return session;
+    },
+  },
 });
