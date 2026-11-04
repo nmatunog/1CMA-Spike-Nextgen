@@ -4,6 +4,7 @@ import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { respond } from '@/lib/gia/engine.mjs';
 import { perform } from '@/lib/gia/workflow.mjs';
 import { repository, listSessions } from '@/lib/gia/repository';
+import { sameOrigin } from '@/lib/gia/origin';
 export const runtime = 'nodejs';
 function secret() {
   const s = process.env.GIA_SESSION_SECRET;
@@ -22,7 +23,7 @@ async function identity() {
 }
 export async function POST(req: Request) {
   if (process.env.GIA_PILOT_ENABLED !== 'true') return NextResponse.json({ error: 'pilot_disabled' }, { status: 503 });
-  if (req.headers.get('origin') !== new URL(req.url).origin) return NextResponse.json({ error: 'invalid_origin' }, { status: 403 });
+  if (!sameOrigin(req)) return NextResponse.json({ error: 'invalid_origin' }, { status: 403 });
   try {
     const raw = await req.text();
     if (raw.length > 4096) return NextResponse.json({ error: 'request_too_large' }, { status: 413 });
@@ -39,13 +40,15 @@ export async function POST(req: Request) {
       if (suppressed) return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
       // Only structured intent/citation metadata is retained, never raw chat or documents.
-      await repository.run(id, async tx => {
+      const handoff = await repository.run(id, async tx => {
         const c = await tx.findCandidate();
         if (c?.consented) {
           await tx.audit(c, { intent: response.intent, citation: response.citation || null });
+          if (response.intent === 'request_leader') return tx.handoff(c, response.reason || 'unapproved_or_unknown');
         }
+        return null;
       });
-      return NextResponse.json(response);
+      return NextResponse.json({ ...response, handoff });
     }
     if (body.action === 'list_fep_sessions') return NextResponse.json({ sessions: await listSessions() });
     if (!['consent', 'book_fep', 'request_leader', 'get_my_status', 'opt_out'].includes(body.action)) throw new Error('unknown_action');

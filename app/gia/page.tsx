@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { welcome, NOTICE } from '@/lib/gia/engine.mjs';
+import styles from './pilot.module.css';
 type Turn = { text: string; citation?: { id: string; version: string; source: string } };
 export default function Gia() {
   const [turns, setTurns] = useState<Turn[]>([{ text: welcome }]);
@@ -9,7 +10,7 @@ export default function Gia() {
   const [consent, setConsent] = useState(false);
   const [saved, setSaved] = useState(false);
   const [stopped, setStopped] = useState(false);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<{id:string;starts_at:string;seats_left:number}[]>([]);
   const [contact, setContact] = useState({ name: '', email: '' });
   const add = (text: string) => setTurns(t => [...t, { text }]);
   async function call(action: string, extra = {}) {
@@ -28,7 +29,7 @@ export default function Gia() {
     } catch { add('The service could not be reached. Your request is not confirmed. Please retry.'); }
     finally { setBusy(false); }
   }
-  return <main style={{ maxWidth: 760, margin: 'auto', padding: '24px 16px', display: 'grid', gap: 20 }}>
+  return <main className={styles.pilot} style={{ maxWidth: 760, margin: 'auto', padding: '24px 16px', display: 'grid', gap: 20 }}>
     <header><p>1CMA · Controlled synthetic-data pilot</p><h1>GIA — Your 1CMA AI Guide</h1><p>Learning does not authorize you to sell insurance or give insurance advice.</p><a href='/gia/privacy'>Privacy notice</a></header>
     <section aria-label='Conversation' aria-live='polite' style={{ display: 'grid', gap: 12 }}>{turns.map((t, i) => <article key={i} style={{ padding: 16, border: '1px solid #64748b', borderRadius: 12, overflowWrap: 'anywhere' }}><p>{t.text}</p>{t.citation && <a href={t.citation.source}>{t.citation.id} · v{t.citation.version}</a>}</article>)}</section>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{['Join Free Financial Literacy', 'Explore Free Financial Entrepreneurship Preview', 'Talk to a 1CMA Leader'].map(label => <button disabled={busy || stopped} key={label} onClick={() => call('message', { text: label })}>{label}</button>)}</div>

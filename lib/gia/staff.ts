@@ -6,6 +6,7 @@ export async function staff() {
   if (!secret || secret.length < 32 || /placeholder|dev-only/.test(secret)) return null;
   const session = await auth();
   const email = session?.user?.email?.toLowerCase();
+  if (!email || session?.user?.id !== `staff:${email}`) return null;
   const role = staffRole(email, process.env.RECRUITMENT_STAFF_ROLES);
   return role && email ? { email, role } : null;
 }

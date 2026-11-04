@@ -34,9 +34,16 @@ CREATE TABLE IF NOT EXISTS candidate_handoffs (
   reason text NOT NULL, urgency text NOT NULL DEFAULT 'normal', state text NOT NULL DEFAULT 'open',
   due_at timestamptz NOT NULL DEFAULT now() + interval '24 hours', escalate_at timestamptz NOT NULL DEFAULT now() + interval '18 hours',
   resolution text, gia_could_answer boolean NOT NULL DEFAULT false, general_answer text,
-  created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(candidate_id,reason)
+  created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_handoff ON candidate_handoffs(candidate_id,reason) WHERE state IN ('open','acknowledged');
+CREATE OR REPLACE FUNCTION prevent_candidate_event_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'candidate_events is append-only'; END;
+$$;
+DROP TRIGGER IF EXISTS protect_candidate_events ON candidate_events;
+CREATE TRIGGER protect_candidate_events BEFORE UPDATE OR DELETE ON candidate_events FOR EACH ROW EXECUTE FUNCTION prevent_candidate_event_mutation();
 -- No direct browser/Supabase anonymous access. Server uses its restricted DB role.
+ALTER TABLE candidates ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS gia_suppressions(identity text PRIMARY KEY);
 ALTER TABLE gia_suppressions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON gia_suppressions FROM PUBLIC;

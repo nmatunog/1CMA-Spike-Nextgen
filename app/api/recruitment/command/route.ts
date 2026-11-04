@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { staff } from '@/lib/gia/staff';
 import { sql } from '@/lib/gia/repository';
+import { sameOrigin } from '@/lib/gia/origin';
 export const runtime = 'nodejs';
 export async function GET() {
   const actor = await staff();
@@ -13,7 +14,7 @@ export async function GET() {
 export async function PATCH(req: Request) {
   const actor = await staff();
   if (!actor) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (req.headers.get('origin') !== new URL(req.url).origin) return NextResponse.json({ error: 'invalid_origin' }, { status: 403 });
+  if (!sameOrigin(req)) return NextResponse.json({ error: 'invalid_origin' }, { status: 403 });
   try {
     const raw = await req.text();
     if (raw.length > 6000) throw new Error('invalid');
@@ -23,7 +24,9 @@ export async function PATCH(req: Request) {
     if (!stages.includes(b.stage) || typeof b.nextAction !== 'string' || b.nextAction.length > 500 || typeof b.resolution !== 'string' || b.resolution.length > 2000 || typeof b.generalAnswer !== 'string' || b.generalAnswer.length > 2000) throw new Error('invalid');
     if (b.assignedLeader && !['leader','admin'].includes(JSON.parse(process.env.RECRUITMENT_STAFF_ROLES || '{}')[b.assignedLeader])) throw new Error('invalid');
     if (b.dueAt && !Number.isFinite(Date.parse(b.dueAt))) throw new Error('invalid');
-    await sql().begin(async t => {
+    await sql().begin(async transaction => {
+      // postgres TransactionSql omits its runtime tagged-template call signature.
+      const t = transaction as typeof transaction & ((parts: TemplateStringsArray, ...values: unknown[]) => Promise<import("postgres").Row[]>);
       const [c] = await t`SELECT * FROM candidates WHERE id=${b.id} AND (${actor.role}='admin' OR assigned_leader=${actor.email}) FOR UPDATE`;
       if (!c || c.stage === 'opt_out') throw new Error('forbidden');
       if (actor.role !== 'admin' && b.assignedLeader !== c.assigned_leader) throw new Error('forbidden');

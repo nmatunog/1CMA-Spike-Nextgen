@@ -28,7 +28,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     return NextResponse.json({ ok: true });
-  } catch (e) {
+  } catch {
     const message = "Service unavailable";
     return NextResponse.json({ error: message }, { status: 503 });
   }

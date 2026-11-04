@@ -33,7 +33,7 @@ export async function GET() {
             : String(c.createdAt),
       })),
     });
-  } catch (e) {
+  } catch {
     const message = "Service unavailable";
     return NextResponse.json({ error: message }, { status: 503 });
   }
