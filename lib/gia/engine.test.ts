@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { respond, knowledge, approved, welcome } from './engine.mjs';
 import { staffRole, canAccess } from './access.mjs';
 const now = new Date('2026-11-04T12:00:00Z');
-// TEST FIXTURES ONLY: never shipped as approved knowledge to the route.
-const pack = knowledge.map(e => ({ ...e, status: 'approved', approvedBy: 'Nilo', approvedOn: '2026-11-04' }));
+// Exercise the real owner-approved pack at its effective date.
+const pack = knowledge;
 describe('approved knowledge and language boundaries', () => {
   it('discloses AI and STOP', () => { expect(welcome).toContain('AI'); expect(welcome).toContain('STOP'); });
-  it('never serves the unapproved shipping pack', () => { expect(respond('financial literacy').intent).toBe('request_leader'); });
+  it('serves the approved shipping pack with a citation', () => { expect(respond('financial literacy','en',knowledge,now).citation).toMatchObject({id:'KP-LIT-01',version:'0.2'}); });
+  it('still refuses draft answers', () => { expect(respond('financial literacy','en',knowledge.map(e=>({...e,status:'draft'})),now).intent).toBe('request_leader'); });
   for (const q of ['financial literacy','what is financial literacy','tell me about financial literacy','Join Free Financial Literacy','is financial literacy free','literacy','FEP','what is FEP','is FEP free','I am interested in FEP','I want FEP','Explore Free Financial Entrepreneurship Preview']) {
     it(`cites approved answer: ${q}`, () => { const r = respond(q,'en',pack,now); expect(r.citation?.id).toMatch(/^KP-/); expect(r.language).toBe('en'); });
   }
@@ -16,7 +17,7 @@ describe('approved knowledge and language boundaries', () => {
   it('keeps English regardless of geography', () => { expect(respond('I live in Cebu').language).toBe('en'); });
   it('does not infer a language request from a language mention', () => { expect(respond('My class is in Cebuano').language).toBe('en'); });
   it('honors STOP during booking and polite requests', () => { expect(respond('Book FEP, actually STOP please').intent).toBe('opt_out'); });
-  it('serves a translated fixture after explicit request', () => { const lang = respond('Bisaya').language; expect(respond('FEP',lang,pack,now).text).toContain('Libre'); });
+  it('serves the translated approved answer after explicit request', () => { const lang = respond('Bisaya').language; expect(respond('FEP',lang,pack,now).text).toContain('Libre'); });
   for (const override of [{status:'draft'},{status:'retired'},{audience:'staff-only'},{reviewBy:'2026-11-03'},{effective:'2026-11-05'},{approvedBy:'Claude'},{approvedOn:''},{approvedOn:'2026-11-05'}]) {
     it(`rejects invalid approval ${JSON.stringify(override)}`, () => { expect(approved({...pack[0], ...override},now)).toBe(false); });
   }

@@ -34,10 +34,14 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await page.getByRole('button',{name:'Save consent and contact'}).click();
   await expect(page.getByText('Your consent and contact have been saved for recruitment follow-up.')).toBeVisible();
   await page.getByRole('button',{name:'Join Free Financial Literacy'}).click();
-  await expect(page.getByText('I do not have an approved answer for that yet. I can connect you with a 1CMA leader.')).toBeVisible();
+  await expect(page.getByText('Financial Literacy is free. You may start with learning or explore the free Financial Entrepreneurship Preview directly.')).toBeVisible();
+  await expect(page.getByRole('link',{name:'KP-LIT-01 · v0.2'})).toBeVisible();
   await page.getByRole('textbox',{name:'Message GIA'}).fill('Bisaya');
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await expect(page.getByText('Sige, mag-Bisaya ta. Unsa akong ikatabang?')).toBeVisible();
+  await page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'}).click();
+  await expect(page.getByText(/Libre ang Financial Entrepreneurship Preview/)).toBeVisible();
+  await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toBeVisible();
   await page.getByRole('button',{name:'Show FEP sessions'}).click();
   await expect(page.getByRole('button',{name:'Book this FEP'})).toBeVisible();
   await page.getByRole('button',{name:'Book this FEP'}).click();
@@ -74,6 +78,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   const visible = await leaderContext.request.get('/api/recruitment/command');
   const records = (await visible.json()).candidates;
   expect(records.every((r:{assigned_leader:string})=>r.assigned_leader===access.leaderEmail)).toBe(true);
+  await page.screenshot({path:'work/gia-approved-flow.png',fullPage:true});
   await page.getByRole('button',{name:'STOP / opt out'}).click();
   await expect(page.getByText('You are opted out. No further follow-up will be sent.')).toBeVisible();
   await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();

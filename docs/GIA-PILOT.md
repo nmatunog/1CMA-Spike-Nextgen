@@ -10,9 +10,11 @@ GIA adds `/gia`, `/gia/privacy`, `/api/gia`, `/recruitment/command` and `/api/re
 
 The FAQ engine has no model API, retrieval from private sources, payments, uploads or outgoing messages. Unknown/restricted questions offer escalation; after consent they automatically create an idempotent leader handoff with a structured reason. Raw messages and document contents are never saved or copied to handoffs. Audit events contain only intent, citation/version and workflow metadata. Handoffs include the three approved learning-loop fields; none automatically become approved answers.
 
-## Knowledge approval is still a blocker
+## Knowledge approval recorded
 
-The two initial literacy/FEP rows remain **drafts**. Acceptance of the template/test set in NEXO #27 was not approval of individual answers. Only Nilo may approve those rows. The shipping application therefore escalates the literacy question; automated approved-answer checks use clearly marked fixtures only. Do not call the complete twelve-step approved-answer demonstration passed. Once Nilo approves source-backed entries, set their approval identity/date and effective/review dates, review translations, and rerun the full Claude evaluation set. SPIKE fees, licensing documents, eligibility and coding details are not served from drafts or invented.
+Nilo approved the exact Financial Literacy and FEP answers in this conversation on November 4, 2026. Both are now active at version 0.2, audience public, effective November 4 and due for review December 4. See [the approval record](gia/knowledge-approval-2026-11-04.md) for exact wording, scope and sources. Earlier 0.1 drafts are archived separately. English is the approved source; Bisaya/Tagalog translations preserve its meaning and are served only when requested.
+
+Tests now exercise the actual approved shipping pack, including the browser demonstration. Broader Knowledge Pack coverage and Claude's complete business evaluation remain outstanding. SPIKE fees, licensing documents, eligibility, earnings and refund answers have not been approved by this decision.
 
 ## Reproduce locally with synthetic data
 
@@ -53,10 +55,10 @@ Configure `DATABASE_URL`, a real random `AUTH_SECRET`, a distinct random `GIA_SE
 
 ## Validation and limits
 
-Validation on November 4, 2026: **108/108 Vitest tests passed** (five suites); lint/type checking and the Next.js build passed with the offline font fixture. Chromium enabled-pilot run: **4 passed, 1 intentionally skipped** (disabled-mode test). Separate disabled-pilot run: **1 passed**. Browser sizes: 390×844 and 1440×1000. The browser scenario uses real HTTP, signed visitor sessions, the PostgreSQL wire driver, two individual staff logins and database writes; it does not mock the workflow API.
+Validation on November 4, 2026: **109/109 Vitest tests passed** (five suites); lint/type checking and the Next.js build passed with the offline font fixture. Chromium enabled-pilot run: **4 passed, 1 intentionally skipped** (disabled-mode test). Separate disabled-pilot run: **1 passed**. Browser sizes: 390×844 and 1440×1000. The browser scenario uses real HTTP, signed visitor sessions, the PostgreSQL wire driver, two individual staff logins and database writes; it does not mock the workflow API.
 
-Automated suites cover approved fixture answers, draft/retired/restricted/expired/future/conflicting entries, 60+ distinct FAQ and adversarial cases, explicit language requests, documents, STOP during booking, consent, failed/full/duplicate bookings, repeated and resolved handoffs, immutable audit events, roles, anonymous API denial and forged legacy cookies.
+Automated suites cover the real owner-approved answers, draft/retired/restricted/expired/future/conflicting entries, 60+ distinct FAQ and adversarial cases, explicit language requests, documents, STOP during booking, consent, failed/full/duplicate bookings, repeated and resolved handoffs, immutable audit events, roles, anonymous API denial and forged legacy cookies.
 
 Production repository SQL is exercised against embedded PostgreSQL. Unit SQL tests skip the advisory-lock statement; the local wire-protocol browser demo uses the actual PostgreSQL driver and locking calls. Hosted PostgreSQL multi-connection contention, Supabase policy deployment, crash recovery, email delivery, OTP, real messaging, retention/deletion and the full Claude 78-case business acceptance evaluation are **not certified** by these tests.
 
-Chromium checks run at 390px and 1440px, check horizontal overflow, and exercise visitor consent → unapproved-answer escalation → Bisaya → FEP saved → leader request → individual staff login → assignment/follow-up → leader-only access/update → STOP. Screenshots live in `docs/gia/screenshots/`. No hosted staging preview was provisioned. Independent QA by Claude and Nilo acceptance are required before merge/deployment.
+Chromium checks run at 390px and 1440px, check horizontal overflow, and exercise visitor consent → approved literacy answer and citation → Bisaya → approved FEP answer and citation → FEP saved → leader request → individual staff login → assignment/follow-up → leader-only access/update → STOP. Screenshots live in `docs/gia/screenshots/`. No hosted staging preview was provisioned. Independent QA by Claude and Nilo acceptance are required before merge/deployment.
