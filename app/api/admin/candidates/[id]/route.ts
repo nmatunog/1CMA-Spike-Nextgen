@@ -1,16 +1,13 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { staff } from "@/lib/gia/staff";
 import { getDb } from "@/lib/db/client";
 import { candidates } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 
-const COOKIE = "admin_verified";
-
 async function assertAdmin() {
-  const jar = await cookies();
-  return jar.get(COOKIE)?.value === "1";
+  return (await staff())?.role === "admin";
 }
 
 export async function DELETE(
@@ -32,7 +29,7 @@ export async function DELETE(
     }
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Database error";
+    const message = "Service unavailable";
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

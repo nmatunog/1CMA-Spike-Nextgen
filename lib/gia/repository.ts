@@ -1,0 +1,61 @@
+import postgres from 'postgres';
+let client: ReturnType<typeof postgres> | undefined;
+export function sql() {
+  if (!process.env.DATABASE_URL) throw new Error('database_unavailable');
+  return client ||= postgres(process.env.DATABASE_URL, { max: 4, prepare: false });
+}
+export const repository = {
+  async run(identity: string, fn: (tx: any) => Promise<any>) {
+    return sql().begin(async t => {
+      await t`SELECT pg_advisory_xact_lock(hashtextextended(${identity}, 0))`;
+      const event = async (id: string, kind: string, metadata = {}) => { await t`INSERT INTO candidate_events(candidate_id,kind,actor,metadata) VALUES(${id},${kind},'gia',${t.json(metadata)})`; };
+      return fn({
+        async audit(c: any, metadata: any) { await event(c.id, 'gia.turn', metadata); },
+        async suppressed() { return (await t`SELECT 1 FROM gia_suppressions WHERE identity=${identity}`).length > 0; },
+        async suppressIdentity() { await t`INSERT INTO gia_suppressions(identity) VALUES(${identity}) ON CONFLICT DO NOTHING`; },
+        async findCandidate() {
+          const rows = await t`SELECT c.*, EXISTS(SELECT 1 FROM candidate_consents s WHERE s.candidate_id=c.id AND s.source='gia_web_session' AND s.purpose='recruitment' AND s.revoked_at IS NULL) AS consented FROM candidates c JOIN candidate_identities i ON i.candidate_id=c.id WHERE i.source='gia_web_session' AND i.external_id=${identity} FOR UPDATE OF c`;
+          return rows[0];
+        },
+        async createCandidate(input: { name: string; email: string }) {
+          const [c] = await t`INSERT INTO candidates(name,email,phone,score) VALUES(${input.name},${input.email},'',0) RETURNING *`;
+          await t`INSERT INTO candidate_identities(source,external_id,candidate_id) VALUES('gia_web_session',${identity},${c.id})`;
+          await event(c.id, 'candidate.created');
+          return c;
+        },
+        async consent(c: any, notice: string) {
+          const rows = await t`INSERT INTO candidate_consents(candidate_id,source,purpose,notice_version) VALUES(${c.id},'gia_web_session','recruitment',${notice}) ON CONFLICT DO NOTHING RETURNING candidate_id`;
+          if (rows.length) await event(c.id, 'consent.granted', { notice });
+        },
+        async optOut(c: any) {
+          await t`UPDATE candidates SET stage='opt_out',next_action=NULL,due_at=NULL WHERE id=${c.id}`;
+          await t`UPDATE candidate_consents SET revoked_at=now() WHERE candidate_id=${c.id} AND revoked_at IS NULL`;
+          await t`UPDATE candidate_handoffs SET state='cancelled' WHERE candidate_id=${c.id} AND state='open'`;
+          await t`INSERT INTO gia_suppressions(identity) VALUES(${identity}) ON CONFLICT DO NOTHING`;
+          if (c.stage !== 'opt_out') await event(c.id, 'opt_out');
+        },
+        async handoff(c: any, reason: string) {
+          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason) VALUES(${c.id},${reason}) ON CONFLICT DO NOTHING RETURNING id,due_at`;
+          if (inserted.length) await event(c.id, 'handoff.created', { reason });
+          const [h] = inserted.length ? inserted : await t`SELECT id,due_at FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${reason}`;
+          return h;
+        },
+        async book(c: any, sessionId: string) {
+          const [s] = await t`SELECT * FROM fep_sessions WHERE id=${sessionId} FOR UPDATE`;
+          if (!s || s.cancelled || new Date(s.starts_at) <= new Date()) throw new Error('session_unavailable');
+          const existing = await t`SELECT id FROM fep_bookings WHERE candidate_id=${c.id} AND session_id=${sessionId}`;
+          if (existing.length) return existing[0];
+          const [count] = await t`SELECT count(*)::int AS n FROM fep_bookings WHERE session_id=${sessionId}`;
+          if (count.n >= s.capacity) throw new Error('session_full');
+          const [b] = await t`INSERT INTO fep_bookings(candidate_id,session_id) VALUES(${c.id},${sessionId}) RETURNING id`;
+          await t`UPDATE candidates SET stage='fep_booked' WHERE id=${c.id} AND stage IN ('new_lead','contacted','not_now')`;
+          await event(c.id, 'fep.booked', { sessionId });
+          return b;
+        },
+      });
+    });
+  },
+};
+export async function listSessions() {
+  return sql()`SELECT s.id,s.starts_at,GREATEST(s.capacity-count(b.id)::int,0) AS seats_left FROM fep_sessions s LEFT JOIN fep_bookings b ON b.session_id=s.id WHERE NOT s.cancelled AND s.starts_at > now() GROUP BY s.id ORDER BY s.starts_at LIMIT 20`;
+}
