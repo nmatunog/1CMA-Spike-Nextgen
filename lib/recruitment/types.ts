@@ -87,6 +87,8 @@ export type CandidateDetail = QueueCandidate & {
 export type DuplicateFlag = {
   id: string;
   matchOn: string;
+  /** Name-only matches with different email/phone are possible, not identity duplicates. */
+  possible: boolean;
   leftId: string;
   rightId: string;
   leftName: string;

@@ -76,9 +76,9 @@ const PRIVILEGES = {
   gia_turns: { select: true, insert: true, update: false, delete: false },
   gia_retention_config: { select: true, insert: false, update: false, delete: false },
   candidate_channel_prefs: { select: true, insert: true, update: true, delete: false },
-  user_accounts: { select: true, insert: true, update: true, delete: false },
-  program_enrollments: { select: true, insert: true, update: true, delete: false },
-  program_roles: { select: true, insert: true, update: true, delete: false },
+  user_accounts: { select: true, insert: false, update: false, delete: false },
+  program_enrollments: { select: true, insert: false, update: false, delete: false },
+  program_roles: { select: true, insert: false, update: false, delete: false },
   evaluation_form_configs: { select: true, insert: false, update: false, delete: false },
   candidate_evaluations: { select: true, insert: true, update: false, delete: false },
 } as const;

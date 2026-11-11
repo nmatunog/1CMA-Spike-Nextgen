@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
       ? body.metadata as Record<string, unknown>
       : {};
-    await ingestGiaEngagementEvent(sql(), {
+    await ingestGiaEngagementEvent(sql(), actor, {
       candidateId: String(body.candidateId || ''),
       kind,
       actor: actor.email,
@@ -28,7 +28,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    if (message === 'suppressed') return NextResponse.json({ error: message }, { status: 403 });
+    if (message === 'forbidden' || message === 'suppressed') {
+      return NextResponse.json({ error: message }, { status: 403 });
+    }
     if (message === 'not_found') return NextResponse.json({ error: message }, { status: 404 });
     return NextResponse.json({ error: 'invalid' }, { status: 400 });
   }

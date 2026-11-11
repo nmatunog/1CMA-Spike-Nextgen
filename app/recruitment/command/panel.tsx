@@ -362,7 +362,7 @@ export default function Command() {
       {data?.role === 'admin' && (
         <section className={styles.intake}>
           <h2>Manual intake</h2>
-          <p className={styles.meta}>Consent is never inferred. Leave the box unchecked unless the person gave informed consent in this conversation.</p>
+          <p className={styles.meta}>Consent is never inferred and is not required to capture. Leave the box unchecked unless the person gave informed consent in this conversation. Consent unknown means they cannot be messaged.</p>
           <form className={styles.filters} onSubmit={intake}>
             <label className={styles.field}>Name
               <input name="iname" required maxLength={120} />
@@ -442,7 +442,11 @@ export default function Command() {
           {(data.duplicates || []).map((dup) => (
             <div className={styles.card} key={dup.id}>
               <p><strong>{dup.leftName}</strong> / <strong>{dup.rightName}</strong></p>
-              <p className={styles.meta}>Possible duplicate on {dup.matchOn}. Auto-merge is blocked until a contact is verified.</p>
+              <p className={styles.meta}>
+                {dup.possible || dup.matchOn === 'name'
+                  ? 'Possible name match (email or phone differs). This is not a duplicate identity.'
+                  : `Possible duplicate on ${dup.matchOn}. Auto-merge is blocked until a contact is verified.`}
+              </p>
               <div className={styles.actions}>
                 <button type="button" onClick={() => setSelected(dup.leftId)}>{dup.leftName}</button>
                 <button type="button" onClick={() => setSelected(dup.rightId)}>{dup.rightName}</button>
@@ -534,7 +538,10 @@ export default function Command() {
             <div>
               <h2>{row.name}</h2>
               <p className={styles.meta}>Stage {row.stage} · Literacy {row.literacy_status} · SPIKE paid {row.spike_paid ? 'yes' : 'no'}</p>
-              <p className={styles.meta}>Contact (authorized record) · {row.email || 'no email'} · {row.phone || 'no phone'} · consent {row.consent_status || 'none'}</p>
+              <p className={styles.meta}>Contact (authorized record) · {row.email || 'no email'} · {row.phone || 'no phone'} · consent {row.consent_status || 'unknown'}</p>
+              {row.consent_status !== 'granted' && (
+                <p className={styles.meta}>Cannot be messaged — consent {row.consent_status || 'unknown'}.</p>
+              )}
               <p className={styles.meta}>Campaign {row.campaign || 'none'} · channel {row.capture_channel || 'none'} · registered {row.registered_at ? formatManilaStamp(row.registered_at) : 'n/a'}</p>
               <p className={styles.meta}>Versa lead {row.versa_lead_ref || 'none'} · SPIKE learner {row.spike_learner_ref || 'none'} · interest {row.program_interest || 'none'}</p>
               <p className={styles.meta}>

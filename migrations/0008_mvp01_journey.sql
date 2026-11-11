@@ -160,9 +160,9 @@ END
 $$;
 
 GRANT SELECT, INSERT, UPDATE ON candidate_channel_prefs TO gia_app;
-GRANT SELECT, INSERT, UPDATE ON user_accounts TO gia_app;
-GRANT SELECT, INSERT, UPDATE ON program_enrollments TO gia_app;
-GRANT SELECT, INSERT, UPDATE ON program_roles TO gia_app;
+GRANT SELECT ON user_accounts TO gia_app;
+GRANT SELECT ON program_enrollments TO gia_app;
+GRANT SELECT ON program_roles TO gia_app;
 GRANT SELECT ON evaluation_form_configs TO gia_app;
 GRANT SELECT, INSERT ON candidate_evaluations TO gia_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO gia_app;

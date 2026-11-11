@@ -29,13 +29,14 @@ test('MVP 01 capture → register → evaluate → engage persists in Command Ce
   await page.getByRole('button', { name: 'Save prospect' }).click();
   await expect(page.getByRole('status')).toContainText(/Prospect captured/);
   await expect(page.getByRole('status')).toContainText(/consent unknown/);
+  await expect(page.getByRole('status')).toContainText(/cannot be messaged/);
 
   await page.goto('/recruitment/command');
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await expect(page.locator('dt', { hasText: 'Captured' })).toBeVisible();
   await expect(page.getByRole('heading', { name: NAME }).first()).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: NAME, exact: true }).first().click();
-  await expect(page.getByText(/consent unknown/)).toBeVisible();
+  await expect(page.getByText('Cannot be messaged — consent unknown.')).toBeVisible();
   await expect(page.getByText(/Campaign mvp01-synthetic/)).toBeVisible();
   const follow = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save follow-up' }) });
   await follow.getByLabel('Assigned leader email').fill(access.leaderEmail);

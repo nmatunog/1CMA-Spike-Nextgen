@@ -58,6 +58,8 @@ export type CaptureInput = {
 export type CaptureResult = {
   id: string;
   flagged: boolean;
+  /** Name-only matches with different email/phone are `possible`, not identity duplicates. */
+  flagKind?: 'duplicate' | 'possible';
   consent: ConsentState;
   captureChannel: CaptureChannel;
 };

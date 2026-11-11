@@ -112,6 +112,16 @@ async function unverifiedMatches(t: SqlTx, email: string, phone: string, except?
   return ids;
 }
 
+function identityFlagKind(matches: { matchOn: string }[]): CaptureResult['flagKind'] {
+  if (!matches.length) return undefined;
+  if (matches.some((match) => match.matchOn === 'email' || match.matchOn === 'phone')) return 'duplicate';
+  return 'possible';
+}
+
+function identityFlagReason(kind: CaptureResult['flagKind']) {
+  return kind === 'possible' ? 'possible_name_match' : 'possible_duplicate';
+}
+
 async function flagDuplicate(t: SqlTx, left: string, right: string, matchOn: 'email' | 'phone' | 'name') {
   const [a, b] = orderedPair(left, right);
   await t`INSERT INTO candidate_duplicate_flags(left_candidate_id,right_candidate_id,match_on)
@@ -255,7 +265,7 @@ export async function previewOrImportCsv(
         if (all.length) {
           for (const match of all) await flagDuplicate(t, id, match.id, match.matchOn);
           flagged += 1;
-          lines.push({ line: row.line, status: 'flagged', candidateId: id, reason: 'possible_duplicate' });
+          lines.push({ line: row.line, status: 'flagged', candidateId: id, reason: identityFlagReason(identityFlagKind(all)) });
         } else {
           lines.push({ line: row.line, status: 'created', candidateId: id });
         }
@@ -346,7 +356,10 @@ async function simulate(t: SqlTx, prospects: ImportLine[]) {
     accepted += 1;
     if (matches.length || intra) {
       flagged += 1;
-      lines.push({ line: row.line, status: 'flagged', reason: 'possible_duplicate' });
+      const intraKind = (row.email && seenEmail.has(row.email)) || (row.phone && seenPhone.has(row.phone))
+        ? 'duplicate' as const
+        : (nameKey && seenName.has(nameKey) ? 'possible' as const : undefined);
+      lines.push({ line: row.line, status: 'flagged', reason: identityFlagReason(identityFlagKind(matches) || intraKind) });
     } else {
       lines.push({ line: row.line, status: 'created' });
     }
@@ -407,6 +420,7 @@ export async function captureProspect(sql: Sql, actor: StaffActor, input: Captur
     const id = await createCandidate(t, actor.email, 'manual', row, captureChannel);
     const matches = await unverifiedMatches(t, row.email || '', row.phone || '', id, row.name);
     for (const match of matches) await flagDuplicate(t, id, match.id, match.matchOn);
+    const flagKind = identityFlagKind(matches);
     const prefs = input.channelPrefs || {};
     for (const channel of COMM_CHANNELS) {
       await t`INSERT INTO candidate_channel_prefs(candidate_id,channel,allowed)
@@ -426,8 +440,8 @@ export async function captureProspect(sql: Sql, actor: StaffActor, input: Captur
       captureChannel,
       consent,
     });
-    await audit(t, EVENT_KINDS.manualIntake, actor.email, { candidateId: id, flagged: matches.length > 0, consent });
-    return { id, flagged: matches.length > 0, consent, captureChannel };
+    await audit(t, EVENT_KINDS.manualIntake, actor.email, { candidateId: id, flagged: matches.length > 0, flagKind: flagKind || null, consent });
+    return { id, flagged: matches.length > 0, flagKind, consent, captureChannel };
   });
 }
 
@@ -521,12 +535,16 @@ export async function listDuplicateFlags(sql: Sql, actor: StaffActor) {
     WHERE d.status='needs_review'
     ORDER BY d.created_at DESC
     LIMIT 50`;
-  return rows.map((row: Record<string, unknown>) => ({
-    id: String(row.id),
-    matchOn: String(row.match_on),
-    leftId: String(row.left_candidate_id),
-    rightId: String(row.right_candidate_id),
-    leftName: String(row.left_name),
-    rightName: String(row.right_name),
-  }));
+  return rows.map((row: Record<string, unknown>) => {
+    const matchOn = String(row.match_on);
+    return {
+      id: String(row.id),
+      matchOn,
+      possible: matchOn === 'name',
+      leftId: String(row.left_candidate_id),
+      rightId: String(row.right_candidate_id),
+      leftName: String(row.left_name),
+      rightName: String(row.right_name),
+    };
+  });
 }

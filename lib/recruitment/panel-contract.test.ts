@@ -21,7 +21,8 @@ describe('command panel contract', () => {
     expect(src).toMatch(/setMessage\('Follow-up saved'\)/);
   });
   it('documents that CSV consent is never inferred and snapshots are current', () => {
-    expect(src).toMatch(/Consent is never inferred/);
+    expect(src).toMatch(/Consent is never inferred and is not required to capture/);
+    expect(src).toMatch(/cannot be messaged/);
     expect(src).toMatch(/Unassigned \(current\)/);
     expect(src).toMatch(/ignore that window/);
     expect(src).toMatch(/Auto-merge only on a verified email\/mobile/);

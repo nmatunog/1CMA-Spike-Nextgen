@@ -38,7 +38,12 @@ export default function CaptureForm() {
         return;
       }
       (e.target as HTMLFormElement).reset();
-      setMessage(`Prospect captured · consent ${d.consent || 'unknown'}${d.flagged ? ' · duplicate flagged' : ''}`);
+      const consent = d.consent || 'unknown';
+      const messageable = consent === 'granted';
+      const flagNote = d.flagged
+        ? (d.flagKind === 'possible' ? ' · possible name match' : ' · duplicate flagged')
+        : '';
+      setMessage(`Prospect captured · consent ${consent}${messageable ? '' : ' · cannot be messaged until consent is granted'}${flagNote}`);
     } catch {
       setMessage('Service unavailable');
     } finally {
@@ -49,7 +54,7 @@ export default function CaptureForm() {
   return (
     <main className={styles.shell}>
       <h1>Capture prospect</h1>
-      <p className={styles.lede}>Mobile-first intake. Consent is never inferred. STOP identities are rejected.</p>
+      <p className={styles.lede}>Mobile-first intake. Consent is never inferred and is not required to capture. Consent unknown means this person cannot be messaged until explicit consent is recorded. STOP identities are rejected.</p>
       <p className={styles.status} role="status">{message}</p>
       <p className={styles.meta}><a href="/recruitment/command">Back to Command Center</a></p>
       <form className={styles.filters} onSubmit={submit}>

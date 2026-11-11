@@ -12,6 +12,7 @@ import { POST as IMPORT } from '@/app/api/recruitment/command/import/route';
 import { POST as EXPORT } from '@/app/api/recruitment/command/export/route';
 import { POST as INTAKE } from '@/app/api/recruitment/command/intake/route';
 import { POST as EVALUATE } from '@/app/api/recruitment/command/evaluate/route';
+import { POST as ENGAGE } from '@/app/api/recruitment/command/engagement/route';
 beforeEach(() => { ctx.actor=null;ctx.calls=0; });
 it('rejects anonymous reads before touching candidate data', async () => {
   expect((await GET(new Request('https://pilot.test/api/recruitment/command'))).status).toBe(401);
@@ -83,4 +84,11 @@ it('blocks unauthenticated and cross-origin evaluation before touching records',
   ctx.actor={email:'admin@example.test',role:'admin'};
   const req=new Request('https://pilot.test/api/recruitment/command/evaluate',{method:'POST',headers:{origin:'https://attacker.test'},body:'{}'});
   expect((await EVALUATE(req)).status).toBe(403);expect(ctx.calls).toBe(0);
+});
+it('blocks unauthenticated and cross-origin engagement before touching records', async () => {
+  expect((await ENGAGE(new Request('https://pilot.test/api/recruitment/command/engagement',{method:'POST',body:'{}'}))).status).toBe(401);
+  expect(ctx.calls).toBe(0);
+  ctx.actor={email:'leader@example.test',role:'leader'};
+  const req=new Request('https://pilot.test/api/recruitment/command/engagement',{method:'POST',headers:{origin:'https://attacker.test'},body:JSON.stringify({candidateId:'00000000-0000-4000-8000-000000000000',kind:'fep.attended'})});
+  expect((await ENGAGE(req)).status).toBe(403);expect(ctx.calls).toBe(0);
 });

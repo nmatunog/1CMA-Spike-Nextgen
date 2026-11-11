@@ -10,6 +10,7 @@ import {
   giaAssistedIntake,
   importVersaLead,
   ingestGiaEngagementEvent,
+  recordGiaVisitorEngagement,
   loadActiveEvaluationConfig,
   provisionUserAccount,
   submitEvaluation,
@@ -94,6 +95,7 @@ describe('MVP 01 capture register evaluate engage', () => {
     const first = await captureProspect(sql, admin, { name: 'Synthetic Twin', email: 'twin-a@example.test' });
     const second = await captureProspect(sql, admin, { name: 'Synthetic Twin', email: 'twin-b@example.test' });
     expect(second.flagged).toBe(true);
+    expect(second.flagKind).toBe('possible');
     expect(first.id).not.toBe(second.id);
     const flags = await q("SELECT match_on, status FROM candidate_duplicate_flags WHERE status='needs_review'");
     expect(flags.some((row) => row.match_on === 'name')).toBe(true);
@@ -189,17 +191,47 @@ describe('MVP 01 capture register evaluate engage', () => {
   it('ingests GIA engagement events and labels them unofficial', async () => {
     const sql = tag(state.db);
     const captured = await captureProspect(sql, admin, { name: 'Synthetic Engage Journey', email: 'engage-j@example.test' });
-    await ingestGiaEngagementEvent(sql, {
+    await ingestGiaEngagementEvent(sql, admin, {
       candidateId: captured.id,
       kind: 'gia.conversation',
-      actor: 'gia',
+      actor: admin.email,
       metadata: { intent: 'literacy', citation: 'KP-LIT-01' },
     });
     const events = await q("SELECT kind, metadata::text AS m FROM candidate_events WHERE candidate_id=$1 AND kind='gia.conversation'", [captured.id]);
     expect(events).toHaveLength(1);
     expect(String(events[0].m)).toMatch(/"officialDecision"\s*:\s*false/);
-    await ingestGiaEngagementEvent(sql, { candidateId: captured.id, kind: 'literacy.interest', actor: 'gia' });
+    await ingestGiaEngagementEvent(sql, admin, { candidateId: captured.id, kind: 'literacy.interest', actor: admin.email });
     expect((await q('SELECT last_engaged_at FROM candidates WHERE id=$1', [captured.id]))[0].last_engaged_at).toBeTruthy();
+    await expect(ingestGiaEngagementEvent(sql, admin, {
+      candidateId: captured.id, kind: 'gia.conversation', actor: admin.email,
+      metadata: { intent: 'a@b.com' },
+    })).rejects.toThrow(/invalid/);
+    await expect(ingestGiaEngagementEvent(sql, admin, {
+      candidateId: captured.id, kind: 'gia.conversation', actor: admin.email,
+      metadata: { intent: 'literacy', email: 'secret@example.test' },
+    })).rejects.toThrow(/invalid/);
+  });
+
+  it('refuses a leader recording engagement on an unassigned or other-leader candidate', async () => {
+    const sql = tag(state.db);
+    const unassigned = await captureProspect(sql, admin, { name: 'Synthetic Engage Scope A', email: 'eng-scope-a@example.test' });
+    const other = await captureProspect(sql, admin, { name: 'Synthetic Engage Scope B', email: 'eng-scope-b@example.test' });
+    await saveFollowUp(sql, admin, {
+      id: other.id, stage: 'new_lead', assignedLeader: admin.email, nextAction: 'Admin owns',
+      dueAtProvided: false, resolution: '', generalAnswer: '', giaCouldAnswer: false, resolve: false,
+    });
+    await expect(ingestGiaEngagementEvent(sql, leader, {
+      candidateId: unassigned.id, kind: 'fep.attended', actor: leader.email,
+    })).rejects.toThrow(/forbidden/);
+    await expect(ingestGiaEngagementEvent(sql, leader, {
+      candidateId: other.id, kind: 'gia.conversation', actor: leader.email, metadata: { intent: 'literacy' },
+    })).rejects.toThrow(/forbidden/);
+    expect(await q("SELECT 1 FROM candidate_events WHERE candidate_id=$1 AND kind IN ('fep.attended','gia.conversation')", [unassigned.id])).toHaveLength(0);
+    expect((await q('SELECT last_engaged_at FROM candidates WHERE id=$1', [unassigned.id]))[0].last_engaged_at).toBeNull();
+    await recordGiaVisitorEngagement(sql, {
+      candidateId: unassigned.id, kind: 'gia.conversation', actor: 'gia', metadata: { intent: 'literacy' },
+    });
+    expect(await q("SELECT 1 FROM candidate_events WHERE candidate_id=$1 AND kind='gia.conversation'", [unassigned.id])).toHaveLength(1);
   });
 
   it('STOP blocks messaging and evaluation follow-up creation', async () => {

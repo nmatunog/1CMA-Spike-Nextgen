@@ -25,8 +25,10 @@ A candidate may have **at most one** user account (`user_accounts.candidate_id` 
 - Staff-authenticated. Admin-only for MVP 01.
 - Fields: name, email/phone, source, campaign, explicit consent + notice version, per-channel prefs (`email` / `sms` / `voice` / `gia`).
 - Unchecked consent stores **consent unknown**. CSV import never writes a consent row and always reports `unknown`.
+- Capture does **not** require consent. Nilo has not made consent mandatory at capture. A candidate with consent `unknown` **cannot be messaged** (`canMessage` is false) until an explicit grant is recorded.
 - STOP identities are rejected (`suppressed`).
-- Duplicate phone/email/name is flagged; the new candidate is still created (no silent drop, no silent merge).
+- Duplicate **email or phone** is flagged as a duplicate; the new candidate is still created (no silent drop, no silent merge).
+- A **name** match when email or phone differs is flagged as **possible**, not as a duplicate identity.
 
 ### Stubs (throw `not_implemented`)
 
@@ -72,7 +74,21 @@ Config table: `evaluation_form_configs`. Active seed: `mvp01-recruitment` v1 (ba
 
 ## Engage
 
-`ingestGiaEngagementEvent(sql, input: GiaEngagementEventInput)`
+Two write paths. Do not collapse them.
+
+### Staff HTTP (scoped)
+
+`ingestGiaEngagementEvent(sql, staff, input: GiaEngagementEventInput)`
+
+`POST /api/recruitment/command/engagement` with `{ candidateId, kind, metadata }`.
+
+Same admin-or-assigned-leader rule as evaluate and follow-up. A leader who cannot GET the candidate gets **403**; no `candidate_events` row and no `last_engaged_at` change. Admins may write unassigned records. Leaders may not.
+
+### G1 visitor (server-side only)
+
+`recordGiaVisitorEngagement(sql, input: GiaEngagementEventInput)`
+
+G1 must call this from the GIA worker after a consented `/gia` session — **not** via the staff HTTP route. It may record events for unassigned visitors. No App Router handler in this branch reaches this function.
 
 Allowed `kind` values (append-only `candidate_events`):
 
@@ -82,13 +98,11 @@ Allowed `kind` values (append-only `candidate_events`):
 | `gia.handoff` | After `request_leader` / existing handoff insert |
 | `literacy.interest` | Visitor asks about free Financial Literacy and is not STOP'd |
 | `fep.booked` | After a successful `book_fep` (Command Center also emits this on stage change) |
-| `fep.attended` | Leader marks attendance |
+| `fep.attended` | Leader marks attendance (staff path) or G1 confirms attendance (visitor path) |
 
-Metadata must not include messages, emails, phones, or OTP codes. Duplicate tool events should be idempotent on G1's side; C1 inserts another row if called twice.
+Metadata is an **allowlist**: keys `intent` and `citation` only, string values ≤ 80 chars. Emails and phone-like values are rejected. Extra keys, numbers, objects, and messages are invalid. Duplicate tool events should be idempotent on G1's side; C1 inserts another row if called twice.
 
-HTTP (staff / synthetic): `POST /api/recruitment/command/engagement` with `{ candidateId, kind, metadata }`.
-
-STOP (`opt_out` / `gia_suppressions`) blocks follow-up PATCH, evaluation, duplicate merge, and any future outbound helper `canMessage(candidate, channel)`. Inbound GIA conversation events may still be recorded. There is **no** mail/SMS sender in this slice.
+STOP (`opt_out` / `gia_suppressions`) blocks follow-up PATCH, evaluation, duplicate merge, and any future outbound helper `canMessage(candidate, channel)`. Inbound GIA conversation events may still be recorded on the visitor path. There is **no** mail/SMS sender in this slice.
 
 ## Outbound helper
 
