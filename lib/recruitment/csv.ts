@@ -14,16 +14,20 @@ export function normalizeCsvText(text: string) {
   return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
+/** True when a cell could be interpreted as a spreadsheet formula, including leading whitespace. */
+export function looksLikeFormula(value: string) {
+  return /^\s*[=+\-@]/.test(value ?? '');
+}
+
 /** Prefix formula-like cells so spreadsheet apps treat them as text. */
 export function escapeSpreadsheetCell(value: string) {
   const text = value ?? '';
-  const unsafe = /^[=+\-@\t\r]/.test(text) || text.includes('\n') || text.startsWith('\t');
-  const escaped = text.replace(/"/g, '""');
-  if (unsafe || /[",\n]/.test(text) || /^[=+\-@]/.test(text)) {
-    const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  const formula = looksLikeFormula(text);
+  const guarded = formula ? `'${text}` : text;
+  if (formula || /[",\n\r]/.test(guarded)) {
     return `"${guarded.replace(/"/g, '""')}"`;
   }
-  return escaped === text ? text : `"${escaped}"`;
+  return guarded;
 }
 
 export function toCsv(headers: string[], rows: string[][]) {

@@ -2,9 +2,9 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
 import { applyAllMigrations } from './demo-seed.mjs';
-import { previewOrImportCsv, createManualLead, verifyContact, listDuplicateFlags } from './import';
+import { previewOrImportCsv, createManualLead, verifyContact, listDuplicateFlags, intakeErrorCode } from './import';
 import { exportCandidatesCsv } from './export';
-import { dashboardCounts } from './store';
+import { dashboardCounts, stopCandidate } from './store';
 import type { Sql } from './store';
 import type { StaffActor } from './types';
 
@@ -140,6 +140,30 @@ describe('CC-02b CSV intake and export', () => {
     expect(leaderExport.rows).toBe(0);
   });
 
+  it('dry-run rejects STOP identities the same way a live import does', async () => {
+    const sql = tag(state.db);
+    await createManualLead(sql, admin, {
+      name: 'Synthetic Stopped',
+      email: 'stopped@example.test',
+      phone: '+639170000077',
+      source: 'manual',
+    });
+    const [existing] = await q("SELECT id FROM candidates WHERE email_normalized='stopped@example.test'");
+    await verifyContact(sql, admin, String(existing.id), 'email');
+    await stopCandidate(sql, admin, String(existing.id));
+    const csv = 'name,email,source\nSynthetic Stopped Again,stopped@example.test,versa\n';
+    const dry = await previewOrImportCsv(sql, admin, { csv, filename: 'stopped.csv', dryRun: true });
+    expect(dry.rejected).toBe(1);
+    expect(dry.accepted).toBe(0);
+    expect(dry.merged).toBe(0);
+    expect(dry.lines[0].reason).toBe('suppressed');
+    expect(await q('SELECT id FROM candidates')).toHaveLength(1);
+    const live = await previewOrImportCsv(sql, admin, { csv, filename: 'stopped.csv', dryRun: false });
+    expect(live.rejected).toBe(1);
+    expect(live.lines[0].reason).toBe('suppressed');
+    expect(await q('SELECT id FROM candidates')).toHaveLength(1);
+  });
+
   it('dry-run does not write candidates', async () => {
     const csv = await readFile('tests/gia/fixtures/cc02b-10-prospects.csv', 'utf8');
     const report = await previewOrImportCsv(tag(state.db), admin, { csv, filename: 'cc02b-10-prospects.csv', dryRun: true });
@@ -157,5 +181,33 @@ describe('CC-02b CSV intake and export', () => {
     expect(dash.newLeads).toBe(10);
     expect(dash.coded).toBe(0);
     expect((await q("SELECT stage FROM candidates WHERE email_normalized='prospect01@example.test'"))[0].stage).toBe('new_lead');
+  });
+
+  it('reports truncation when export hits the row cap', async () => {
+    const sql = tag(state.db);
+    for (let i = 0; i < 3; i += 1) {
+      await createManualLead(sql, admin, {
+        name: `Synthetic Cap ${i}`,
+        email: `cap${i}@example.test`,
+        source: 'manual',
+      });
+    }
+    const exported = await exportCandidatesCsv(sql, admin, {}, { cap: 2 });
+    expect(exported.truncated).toBe(true);
+    expect(exported.rows).toBe(2);
+    expect(exported.cap).toBe(2);
+    expect(exported.csv.trim().split('\n')).toHaveLength(3);
+    const audit = await q("SELECT metadata::text AS m FROM command_audit_events WHERE kind='csv.exported'");
+    expect(String(audit[0].m)).toMatch(/truncated.: true/);
+    expect(String(audit[0].m)).toMatch(/rows.: 2/);
+  });
+
+  it('returns allowlisted intake error codes only', () => {
+    expect(intakeErrorCode(new Error('missing_name'))).toBe('missing_name');
+    expect(intakeErrorCode(new Error('duplicate_verified'))).toBe('duplicate_verified');
+    expect(intakeErrorCode(new Error('consent_notice_required'))).toBe('consent_notice_required');
+    expect(intakeErrorCode(new Error('password=supersecret'))).toBe('invalid');
+    expect(intakeErrorCode(new Error('database_must_not_be_reached'))).toBe('invalid');
+    expect(intakeErrorCode('not-an-error')).toBe('invalid');
   });
 });
