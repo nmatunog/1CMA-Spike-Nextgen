@@ -7,13 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "build:gia:offline": "node tests/gia/build-offline.mjs",
     "demo:gia": "node tests/gia/demo-server.mjs",
-    "test:gia:browser": "playwright test"
+    "test:gia:browser": "playwright test",
+    "test:gia:eval": "vitest run tests/gia/eval/harness.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.41.0",

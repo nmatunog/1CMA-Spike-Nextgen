@@ -2,9 +2,11 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { respond } from '@/lib/gia/engine.mjs';
-import { perform } from '@/lib/gia/workflow.mjs';
-import { repository, listSessions } from '@/lib/gia/repository';
+import { perform, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
+import { repository } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
+import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
+import { assertOtpDevNotProduction, hashClientKey } from '@/lib/gia/otp.mjs';
 export const runtime = 'nodejs';
 function secret() {
   const s = process.env.GIA_SESSION_SECRET;
@@ -21,41 +23,116 @@ async function identity() {
   jar.set('gia_session', `${next}.${sign(next)}`, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 60 * 60 * 24 * 30 });
   return next;
 }
+const ALLOWED_ERRORS = ['consent_required', 'invalid_contact', 'invalid_session', 'opted_out', 'session_full', 'session_unavailable', 'verification_required', 'invalid_message', 'unknown_action', 'otp_not_configured', 'otp_locked', 'otp_throttled', 'otp_dev_forbidden', 'malformed_request', 'request_too_large'];
+function fail(message: string) {
+  return NextResponse.json({ error: ALLOWED_ERRORS.includes(message) ? message : 'service_unavailable' }, { status: message === 'request_too_large' ? 413 : ALLOWED_ERRORS.includes(message) ? 400 : 503 });
+}
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+function publicResult(value: unknown): Record<string, unknown> {
+  const obj = asObject(value);
+  const challenge = obj.challenge;
+  if (challenge && typeof challenge === 'object') {
+    const ch = challenge as Record<string, unknown>;
+    return { ...obj, challenge: { id: ch.id, expiresAt: ch.expiresAt } };
+  }
+  return obj;
+}
+async function audit(id: string, metadata: { action: string; intent?: string | null; reason?: string | null; citation?: { id: string; version: string; source: string } | null; outcome: string }, messageText: string | null = null) {
+  await repository.run(id, tx => tx.recordTurn(metadata, messageText));
+}
+function clientHash(req: Request) {
+  return hashClientKey(req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '');
+}
 export async function POST(req: Request) {
   if (process.env.GIA_PILOT_ENABLED !== 'true') return NextResponse.json({ error: 'pilot_disabled' }, { status: 503 });
   if (!sameOrigin(req)) return NextResponse.json({ error: 'invalid_origin' }, { status: 403 });
   try {
+    assertOtpDevNotProduction();
+    if (looksLikeUploadPayload(null, req.headers.get('content-type') || '')) {
+      const id = await identity();
+      const discarded = discardedUploadResponse();
+      await audit(id, { action: 'upload', intent: 'request_leader', reason: 'documents', outcome: 'discarded' });
+      return NextResponse.json(discarded);
+    }
     const raw = await req.text();
-    if (raw.length > 4096) return NextResponse.json({ error: 'request_too_large' }, { status: 413 });
-    const body = JSON.parse(raw);
     const id = await identity();
+    if (raw.length > 4096) {
+      await recordRejected(repository, id, 'request_too_large');
+      return NextResponse.json({ error: 'request_too_large' }, { status: 413 });
+    }
+    let body: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('malformed_request');
+      body = parsed as Record<string, unknown>;
+    } catch {
+      await recordRejected(repository, id, 'malformed_request');
+      return NextResponse.json({ error: 'malformed_request' }, { status: 400 });
+    }
+    if (looksLikeUploadPayload(body, req.headers.get('content-type') || '')) {
+      const discarded = discardedUploadResponse();
+      await audit(id, { action: 'upload', intent: 'request_leader', reason: 'documents', outcome: 'discarded' });
+      return NextResponse.json(discarded);
+    }
     const jar = await cookies();
     const language = jar.get('gia_language')?.value;
+    const ipHash = clientHash(req);
     if (body.action === 'message') {
       if (typeof body.text !== 'string' || body.text.length > 1000) throw new Error('invalid_message');
       const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en');
+      const reason = 'reason' in response && typeof response.reason === 'string' ? response.reason : null;
+      const rawCitation = 'citation' in response ? response.citation : null;
+      const citation = rawCitation && typeof rawCitation === 'object' && 'id' in rawCitation && 'version' in rawCitation && 'source' in rawCitation
+        ? { id: String(rawCitation.id), version: String(rawCitation.version), source: String(rawCitation.source) }
+        : null;
       if (response.intent === 'opt_out') return NextResponse.json(await perform(repository, id, 'opt_out'));
       // Suppression is checked before responding or changing language.
       const suppressed = await repository.run(id, tx => tx.suppressed());
-      if (suppressed) return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
+      if (suppressed) {
+        await audit(id, { action: 'message', intent: response.intent, reason, outcome: 'opted_out' });
+        return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
+      }
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
-      // Only structured intent/citation metadata is retained, never raw chat or documents.
-      const handoff = await repository.run(id, async tx => {
+      const storeText = reason === 'documents' || response.intent === 'get_my_status' ? null : body.text;
+      // Only structured intent/citation metadata is retained for audit; document payloads are never saved.
+      const extra = await repository.run(id, async tx => {
         const c = await tx.findCandidate();
-        if (c?.consented) {
-          await tx.audit(c, { intent: response.intent, citation: response.citation || null });
-          if (response.intent === 'request_leader') return tx.handoff(c, response.reason || 'unapproved_or_unknown');
-        }
+        await tx.recordTurn({ action: 'message', intent: response.intent, reason, citation, outcome: 'ok' }, storeText);
+        if (c?.consented && response.intent === 'request_leader') return { handoff: await tx.handoff(c, reason || 'unapproved_or_unknown') };
         return null;
       });
-      return NextResponse.json({ ...response, handoff });
+      if (response.intent === 'get_my_status') {
+        try {
+          const status = await perform(repository, id, 'get_my_status', { ...body, clientHash: ipHash });
+          if (status && typeof status === 'object' && 'error' in status && (status.error === 'verification_required' || status.error === 'otp_locked')) {
+            return NextResponse.json({ ...response, ...publicResult(status) }, { status: 400 });
+          }
+          return NextResponse.json({ ...response, ...publicResult(status), ...asObject(extra) });
+        } catch (e) {
+          const message = e instanceof Error ? e.message : '';
+          if (message === 'consent_required') return NextResponse.json({ ...response, ...asObject(extra) });
+          throw e;
+        }
+      }
+      if (response.intent === 'list_fep_sessions' && /\b(show fep sessions|list fep sessions|list_fep_sessions|available fep|fep dates|fep seats)\b/i.test(String(body.text))) {
+        const listed = await perform(repository, id, 'list_fep_sessions');
+        return NextResponse.json({ ...response, ...asObject(listed), ...asObject(extra) });
+      }
+      return NextResponse.json({ ...response, ...asObject(extra) });
     }
-    if (body.action === 'list_fep_sessions') return NextResponse.json({ sessions: await listSessions() });
-    if (!['consent', 'book_fep', 'request_leader', 'get_my_status', 'opt_out'].includes(body.action)) throw new Error('unknown_action');
-    return NextResponse.json(await perform(repository, id, body.action, body));
+    if (typeof body.action !== 'string' || !(WORKFLOW_ACTIONS as readonly string[]).includes(body.action)) {
+      await recordRejected(repository, id, 'unknown_action', typeof body.action === 'string' ? body.action : 'rejected');
+      throw new Error('unknown_action');
+    }
+    const result = await perform(repository, id, body.action, { ...body, clientHash: ipHash });
+    if (result && typeof result === 'object' && 'error' in result && (result.error === 'verification_required' || result.error === 'otp_locked')) {
+      return NextResponse.json(publicResult(result), { status: 400 });
+    }
+    return NextResponse.json(publicResult(result));
   } catch (e) {
     const message = e instanceof Error ? e.message : '';
-    const allowed = ['consent_required', 'invalid_contact', 'invalid_session', 'opted_out', 'session_full', 'session_unavailable', 'verification_required', 'invalid_message', 'unknown_action'];
-    return NextResponse.json({ error: allowed.includes(message) ? message : 'service_unavailable' }, { status: allowed.includes(message) ? 400 : 503 });
+    return fail(message);
   }
 }

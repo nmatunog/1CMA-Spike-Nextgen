@@ -1,6 +1,15 @@
 import postgres from 'postgres';
+import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
+import {
+  generateOtpCode, hashClientKey, hashDestination, hashOtp, hashOtpThrottleKey, isOtpDev,
+  otpSecret, OTP_MAX_ATTEMPTS, OTP_TTL_MS, planOtpIssue, planOtpVerify, rememberDevOtp,
+  verifiedStillValid,
+} from './otp.mjs';
 let client: ReturnType<typeof postgres> | undefined;
-type Candidate = { id: string; stage: string; consented?: boolean };
+type Candidate = { id: string; stage: string; consented?: boolean; email?: string };
+type Citation = { id: string; version: string; source: string };
+type TurnMeta = { action: string; intent?: string | null; reason?: string | null; citation?: Citation | null; outcome: string };
+type OtpVerifyResult = { ok: boolean; locked: boolean };
 type Tx = {
   audit(c: Candidate, metadata: object): Promise<void>;
   suppressed(): Promise<boolean>;
@@ -11,11 +20,19 @@ type Tx = {
   optOut(c: Candidate): Promise<void>;
   handoff(c: Candidate, reason: string): Promise<postgres.Row>;
   book(c: Candidate, sessionId: string): Promise<postgres.Row>;
+  listSessions(): Promise<postgres.Row[]>;
+  findOpenBooking(c: Candidate): Promise<{ id: string; session_id: string } | undefined>;
+  recordTurn(metadata: TurnMeta, messageText?: string | null): Promise<void>;
+  issueOtp(clientHash?: string | null): Promise<{ challengeId: string; expiresAt: Date }>;
+  verifyOtp(code: string): Promise<OtpVerifyResult>;
+  otpVerified(): Promise<boolean>;
+  ownStatus(c: Candidate): Promise<{ stage: string; bookingId: string | null; sessionId: string | null; handoffId: string | null }>;
 };
 export function sql() {
   if (!process.env.DATABASE_URL) throw new Error('database_unavailable');
-  return client ||= postgres(process.env.DATABASE_URL, { max: 4, prepare: false });
+  return client ||= postgres(process.env.DATABASE_URL, { max: 1, prepare: false });
 }
+export { hashClientKey };
 export const repository = {
   async run(identity: string, fn: (tx: Tx) => Promise<unknown>) {
     return sql().begin<unknown>(async transaction => {
@@ -23,14 +40,28 @@ export const repository = {
       const t = transaction as typeof transaction & ((parts: TemplateStringsArray, ...values: unknown[]) => Promise<import("postgres").Row[]>);
       await t`SELECT pg_advisory_xact_lock(hashtextextended(${identity}, 0))`;
       const event = async (id: string, kind: string, metadata = {}) => { await t`INSERT INTO candidate_events(candidate_id,kind,actor,metadata) VALUES(${id},${kind},'gia',${t.json(metadata)})`; };
+      const bumpThrottle = async (keyHash: string) => {
+        const rows = await t`SELECT * FROM gia_otp_throttle WHERE key_hash=${keyHash} FOR UPDATE`;
+        const row = rows[0];
+        const planned = planOtpIssue({
+          lastIssuedAt: row?.last_issued_at as Date | undefined,
+          windowCount: row?.window_count as number | undefined,
+          windowStartedAt: row?.window_started_at as Date | undefined,
+        });
+        if (!planned.allowed) throw new Error('otp_throttled');
+        const started = planned.windowStartedAt || new Date();
+        if (row) await t`UPDATE gia_otp_throttle SET last_issued_at=now(), window_started_at=${started}, window_count=${planned.nextCount || 1} WHERE key_hash=${keyHash}`;
+        else await t`INSERT INTO gia_otp_throttle(key_hash,last_issued_at,window_started_at,window_count) VALUES(${keyHash},now(),${started},${planned.nextCount || 1})`;
+      };
+      const findCandidate = async () => {
+        const rows = await t`SELECT c.*, EXISTS(SELECT 1 FROM candidate_consents s WHERE s.candidate_id=c.id AND s.source='gia_web_session' AND s.purpose='recruitment' AND s.revoked_at IS NULL) AS consented FROM candidates c JOIN candidate_identities i ON i.candidate_id=c.id WHERE i.source='gia_web_session' AND i.external_id=${identity} FOR UPDATE OF c`;
+        return rows[0] as Candidate | undefined;
+      };
       return fn({
         async audit(c: Candidate, metadata: object) { await event(c.id, 'gia.turn', metadata); },
-        async suppressed() { return (await t`SELECT 1 FROM gia_suppressions WHERE identity=${identity} UNION ALL SELECT 1 FROM candidates c JOIN candidate_identities i ON i.candidate_id=c.id WHERE i.source='gia_web_session' AND i.external_id=${identity} AND c.stage='opt_out'`).length > 0; },
+        async suppressed() { return identityIsSuppressed(t, identity); },
         async suppressIdentity() { await t`INSERT INTO gia_suppressions(identity) VALUES(${identity}) ON CONFLICT DO NOTHING`; },
-        async findCandidate() {
-          const rows = await t`SELECT c.*, EXISTS(SELECT 1 FROM candidate_consents s WHERE s.candidate_id=c.id AND s.source='gia_web_session' AND s.purpose='recruitment' AND s.revoked_at IS NULL) AS consented FROM candidates c JOIN candidate_identities i ON i.candidate_id=c.id WHERE i.source='gia_web_session' AND i.external_id=${identity} FOR UPDATE OF c`;
-          return rows[0] as Candidate | undefined;
-        },
+        findCandidate,
         async createCandidate(input: { name: string; email: string }) {
           const [c] = await t`INSERT INTO candidates(name,email,phone,score) VALUES(${input.name},${input.email},'',0) RETURNING *`;
           await t`INSERT INTO candidate_identities(source,external_id,candidate_id) VALUES('gia_web_session',${identity},${c.id})`;
@@ -42,11 +73,7 @@ export const repository = {
           if (rows.length) await event(c.id, 'consent.granted', { notice });
         },
         async optOut(c: Candidate) {
-          await t`UPDATE candidates SET stage='opt_out',next_action=NULL,due_at=NULL WHERE id=${c.id}`;
-          await t`UPDATE candidate_consents SET revoked_at=now() WHERE candidate_id=${c.id} AND revoked_at IS NULL`;
-          await t`UPDATE candidate_handoffs SET state='cancelled' WHERE candidate_id=${c.id} AND state='open'`;
-          await t`INSERT INTO gia_suppressions(identity) VALUES(${identity}) ON CONFLICT DO NOTHING`;
-          if (c.stage !== 'opt_out') await event(c.id, 'opt_out');
+          await applyCandidateStop(t, { candidateId: c.id, actor: 'gia', currentStage: c.stage, extraIdentities: [identity] });
         },
         async handoff(c: Candidate, reason: string) {
           const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason) VALUES(${c.id},${reason}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at`;
@@ -65,6 +92,56 @@ export const repository = {
           await t`UPDATE candidates SET stage='fep_booked' WHERE id=${c.id} AND stage IN ('new_lead','contacted','not_now')`;
           await event(c.id, 'fep.booked', { sessionId });
           return b;
+        },
+        async listSessions() {
+          return t`SELECT s.id,s.starts_at,GREATEST(s.capacity-count(b.id)::int,0) AS seats_left FROM fep_sessions s LEFT JOIN fep_bookings b ON b.session_id=s.id WHERE NOT s.cancelled AND s.starts_at > now() GROUP BY s.id ORDER BY s.starts_at LIMIT 20`;
+        },
+        async findOpenBooking(c: Candidate) {
+          const rows = await t`SELECT b.id,b.session_id FROM fep_bookings b JOIN fep_sessions s ON s.id=b.session_id WHERE b.candidate_id=${c.id} AND NOT s.cancelled`;
+          return rows[0] as { id: string; session_id: string } | undefined;
+        },
+        async recordTurn(metadata: TurnMeta, messageText = null as string | null) {
+          const c = await findCandidate();
+          await t`INSERT INTO gia_turns(identity,candidate_id,action,intent,reason,citation,outcome,message_text) VALUES(${identity},${c?.id ?? null},${metadata.action},${metadata.intent || null},${metadata.reason || null},${metadata.citation ? t.json(metadata.citation) : null},${metadata.outcome},${messageText ?? null})`;
+          if (c?.consented) await event(c.id, 'gia.turn', { action: metadata.action, intent: metadata.intent, reason: metadata.reason, citation: metadata.citation, outcome: metadata.outcome });
+        },
+        async issueOtp(clientHash = null as string | null) {
+          const c = await findCandidate();
+          if (!c?.email) throw new Error('verification_required');
+          const open = await t`SELECT id,expires_at,attempts FROM gia_otp_challenges WHERE identity=${identity} AND verified_at IS NULL AND expires_at > now() AND attempts < ${OTP_MAX_ATTEMPTS} ORDER BY created_at DESC LIMIT 1`;
+          if (open[0]) return { challengeId: String(open[0].id), expiresAt: open[0].expires_at as Date };
+          const secret = otpSecret();
+          await bumpThrottle(hashOtpThrottleKey('identity', identity, secret));
+          if (clientHash) await bumpThrottle(hashOtpThrottleKey('client', clientHash, secret));
+          const code = generateOtpCode();
+          const [row] = await t`INSERT INTO gia_otp_challenges(identity,destination_hash,channel,code_hash,expires_at,client_hash) VALUES(${identity},${hashDestination(c.email, secret)},'email',${hashOtp(identity, code, secret)},${new Date(Date.now() + OTP_TTL_MS)},${clientHash}) RETURNING id,expires_at`;
+          if (isOtpDev()) rememberDevOtp(identity, code);
+          return { challengeId: row.id as string, expiresAt: row.expires_at as Date };
+        },
+        async verifyOtp(code: string) {
+          const rows = await t`SELECT * FROM gia_otp_challenges WHERE identity=${identity} AND verified_at IS NULL ORDER BY created_at DESC LIMIT 1 FOR UPDATE`;
+          const challenge = rows[0];
+          if (!challenge) return { ok: false, locked: false };
+          if (new Date(String(challenge.expires_at)).getTime() <= Date.now()) return { ok: false, locked: false };
+          const planned = planOtpVerify({ priorAttempts: challenge.attempts, codeHash: String(challenge.code_hash), identity, code });
+          await t`UPDATE gia_otp_challenges SET attempts=${planned.attempts} WHERE id=${challenge.id}`;
+          if (!planned.ok) return { ok: false, locked: planned.locked };
+          await t`UPDATE gia_otp_challenges SET verified_at=now() WHERE id=${challenge.id}`;
+          return { ok: true, locked: false };
+        },
+        async otpVerified() {
+          const rows = await t`SELECT verified_at FROM gia_otp_challenges WHERE identity=${identity} AND verified_at IS NOT NULL ORDER BY verified_at DESC LIMIT 1`;
+          return verifiedStillValid(rows[0]?.verified_at);
+        },
+        async ownStatus(c: Candidate) {
+          const booking = await t`SELECT b.id,b.session_id FROM fep_bookings b WHERE b.candidate_id=${c.id} ORDER BY b.created_at DESC LIMIT 1`;
+          const handoff = await t`SELECT id FROM candidate_handoffs WHERE candidate_id=${c.id} AND state IN ('open','acknowledged') ORDER BY created_at DESC LIMIT 1`;
+          return {
+            stage: c.stage,
+            bookingId: booking[0]?.id ? String(booking[0].id) : null,
+            sessionId: booking[0]?.session_id ? String(booking[0].session_id) : null,
+            handoffId: handoff[0]?.id ? String(handoff[0].id) : null,
+          };
         },
       });
     });

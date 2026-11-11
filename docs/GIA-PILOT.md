@@ -21,6 +21,7 @@ Tests now exercise the actual approved shipping pack, including the browser demo
 ```bash
 npm ci
 npm test
+npm run test:gia:eval
 npm run build:gia:offline
 npm run demo:gia
 ```
@@ -50,8 +51,13 @@ Configure `DATABASE_URL`, a real random `AUTH_SECRET`, a distinct random `GIA_SE
 - Transactional contact consent, FEP capacity checks, idempotent retry handling and successful-save references. Failure never becomes a confirmation. No email confirmation service is claimed.
 - One canonical candidate identity per web session. Unverified contacts never auto-merge. Verified cross-channel linking and possible-duplicate human resolution remain future work.
 - Incoming handoff queue, admin assignment, leader follow-up/stage updates, resolution and optional general answer. Stored 24-hour due/18-hour escalation timestamps are shown; no background escalation/reminder sender is installed.
-- STOP persists, revokes all purposes/sources attached to the canonical candidate, cancels open follow-up and blocks new actions for linked identities. Fresh-browser recovery and suppression across still-unlinked contact identities require verified contact handling before real use. No transcript storage; profile/deletion and indefinite contact suppression procedures still need privacy-owner acceptance.
-- `get_my_status` fails closed pending a verified OTP adapter. Never returns personal stage from a web cookie or demo login.
+- STOP persists, revokes all purposes/sources attached to the canonical candidate, cancels open follow-up and blocks new actions for linked identities. GIA `opt_out` still calls the existing repository path; a marked seam waits for C1 `lib/recruitment/suppression`. Fresh-browser recovery and suppression across still-unlinked contact identities require verified contact handling before real use.
+- Exactly five GIA tools: `list_fep_sessions`, `book_fep`, `request_leader`, `get_my_status` (OTP required), `opt_out`. FEP changes go through `request_leader` with reason `fep_change` (`cancel_fep` is P1, not implemented). Every tool and chat turn writes an append-only `gia_turns` row.
+- `get_my_status` uses a mock/dev OTP adapter only (no paid SMS/email). A web session or demo login is never verification. After a verified OTP it returns only that requester's own stage/booking/handoff references.
+- Knowledge Pack import is keyed by `(id, version)` with a 90-word answer limit and required approval fields. `staff_only` entries are never served. Only KP-LIT-* and KP-FEP-* may be approved; KP-DOCS-01..06 remain drafts and unserved.
+- Chat uploads are discarded. Documents go only to iRecruit or the person's leader.
+- Boundary: GIA never creates codes, never treats payment as verified, never changes entitlements. It may explain L1/L2 only from approved knowledge (none approved yet) and otherwise routes to a leader for RA-SPIKE or SPIKE for Interns.
+- Retention config (no destructive jobs): transcripts 24 months after last contact; audit for life of record; suppression indefinite. See [retention](gia/retention.md).
 
 ## Validation and limits
 
@@ -59,6 +65,12 @@ Validation on November 4, 2026: **109/109 Vitest tests passed** (five suites); l
 
 Automated suites cover the real owner-approved answers, draft/retired/restricted/expired/future/conflicting entries, 60+ distinct FAQ and adversarial cases, explicit language requests, documents, STOP during booking, consent, failed/full/duplicate bookings, repeated and resolved handoffs, immutable audit events, roles, anonymous API denial and forged legacy cookies.
 
-Production repository SQL is exercised against embedded PostgreSQL. Unit SQL tests skip the advisory-lock statement; the local wire-protocol browser demo uses the actual PostgreSQL driver and locking calls. Hosted PostgreSQL multi-connection contention, Supabase policy deployment, crash recovery, email delivery, OTP, real messaging, retention/deletion and the full Claude 78-case business acceptance evaluation are **not certified** by these tests.
+Production repository SQL is exercised against embedded PostgreSQL. Unit SQL tests skip the advisory-lock statement; the local wire-protocol browser demo uses the actual PostgreSQL driver and locking calls. Hosted PostgreSQL multi-connection contention, Supabase policy deployment, crash recovery, real messaging, paid OTP delivery, retention deletion jobs and the official NEXO 78-case list (when published) are **not certified** by these tests. A local placeholder eval harness (`npm run test:gia:eval`) covers EV-001..EV-078 pending the official case list.
 
 Chromium checks run at 390px and 1440px, check horizontal overflow, and exercise visitor consent → approved literacy answer and citation → Bisaya → approved FEP answer and citation → FEP saved → leader request → individual staff login → assignment/follow-up → leader-only access/update → STOP. Screenshots live in `docs/gia/screenshots/`. No hosted staging preview was provisioned. Independent QA by Claude and Nilo acceptance are required before merge/deployment.
+
+## G1 integration follow-on (this branch)
+
+Adds the remaining owner-approved GIA contract on top of PR #6 without replacing it: five tools, mock/dev OTP for `get_my_status`, Knowledge Pack import keyed by `(id, version)`, chat-upload discard, Nov 8 boundary refusals, placeholder EV-001..EV-078 eval harness, and retention config. Command Center paths under `app/recruitment/*` and `app/api/recruitment/*` are untouched. GIA `opt_out` still calls the existing repository STOP path; a marked seam waits for C1 `lib/recruitment/suppression`.
+
+The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required).
