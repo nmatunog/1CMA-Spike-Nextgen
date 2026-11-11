@@ -6,8 +6,12 @@ for (const viewport of [{width:390,height:844},{width:1440,height:1000}]) {
     await page.goto('/gia');
     await expect(page.getByRole('heading',{name:'GIA — Your 1CMA AI Guide'})).toBeVisible();
     await expect(page.getByText(/an AI assistant/)).toBeVisible();
+    await expect(page.getByRole('radio',{name:'Recruit'})).toBeChecked();
+    await expect(page.getByRole('radio',{name:'Intern'})).toBeVisible();
+    await expect(page.getByRole('radio',{name:'RA'})).toBeVisible();
     await expect(page.getByRole('button',{name:'Save consent and contact'})).toBeDisabled();
     await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
+    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
     await expect(page.locator('input[type=file]')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({path:`work/gia-${viewport.width}.png`,fullPage:true});

@@ -2,10 +2,11 @@ import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from 'vites
 import { PGlite } from '@electric-sql/pglite';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { cases, runEngineCase, judgeEngine, judgeWorkflow, score } from './harness.mjs';
+import { cases, programCases, runEngineCase, judgeEngine, judgeWorkflow, score } from './harness.mjs';
 import { perform } from '../../../lib/gia/workflow.mjs';
 import { peekDevOtp, clearDevOtps } from '../../../lib/gia/otp.mjs';
 import { applyAllMigrations } from '../../../lib/gia/apply-migrations.mjs';
+import { programSource, resetProgramSource } from '../../../lib/gia/program-source.mjs';
 
 type EvalCase = {
   id: string;
@@ -22,6 +23,8 @@ type EvalCase = {
     seedSession?: boolean;
     secondSession?: boolean;
     reason?: string;
+    program?: string;
+    seedProgram?: { stage?: string };
   };
   expect?: {
     intent?: string;
@@ -35,6 +38,8 @@ type EvalCase = {
     handoffReason?: string;
     booked?: boolean;
     stage?: string;
+    program?: string;
+    programStage?: string;
   };
 };
 
@@ -63,6 +68,7 @@ async function resetTables() {
   await state.db.exec(`TRUNCATE ${TABLES} CASCADE`);
   await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
   clearDevOtps();
+  resetProgramSource();
 }
 
 async function runWorkflowCase(c: EvalCase, round: number) {
@@ -80,16 +86,17 @@ async function runWorkflowCase(c: EvalCase, round: number) {
         await state.db.query('INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,now()+interval \'10 days\',5)', [secondId]);
       }
     }
-    if (input.consent) await perform(repository, identity, 'consent', { ...consent, email: `${c.id}-${round}@example.test` });
+    if (input.consent) await perform(repository, identity, 'consent', { ...consent, email: `${c.id}-${round}@example.test`, program: input.program });
+    if (input.seedProgram) programSource().seed(input.program || 'recruit', identity, input.seedProgram);
     if (input.verifyOtp) {
-      await perform(repository, identity, 'get_my_status');
-      return perform(repository, identity, 'get_my_status', { otp: peekDevOtp(identity) });
+      await perform(repository, identity, 'get_my_status', { program: input.program });
+      return perform(repository, identity, 'get_my_status', { otp: peekDevOtp(identity), program: input.program });
     }
     if (input.action === 'book_fep' && input.secondSession) {
-      await perform(repository, identity, 'book_fep', { sessionId });
-      return perform(repository, identity, 'book_fep', { sessionId: secondId });
+      await perform(repository, identity, 'book_fep', { sessionId, program: input.program });
+      return perform(repository, identity, 'book_fep', { sessionId: secondId, program: input.program });
     }
-    const payload = { reason: input.reason, otp: input.otp, sessionId };
+    const payload = { reason: input.reason, otp: input.otp, sessionId, program: input.program };
     return await perform(repository, identity, input.action, payload);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'error' };
@@ -168,6 +175,28 @@ describe('placeholder GIA eval harness EV-001..EV-078', () => {
     expect(summary.noOtp.rate).toBe(1);
     expect(summary.untraceable).toBe(0);
     expect(summary.rest.rate).toBeGreaterThanOrEqual(0.9);
+    expect(summary.passed).toBe(true);
+  });
+
+  it('extends the eval for role-aware program adapters over 3 runs', async () => {
+    expect(programCases.length).toBeGreaterThan(0);
+    const judgements = [];
+    for (const round of [1, 2, 3]) {
+      for (const c of programCases as EvalCase[]) {
+        if (c.layer === 'workflow') {
+          await resetTables();
+          judgements.push(judgeWorkflow(c, await runWorkflowCase(c, round)));
+        } else {
+          judgements.push(runEngineCase(c));
+        }
+      }
+    }
+    const summary = score(judgements);
+    expect(summary.mustEscalate.rate).toBe(1);
+    expect(summary.stop.rate).toBe(1);
+    expect(summary.noOtp.rate).toBe(1);
+    expect(summary.untraceable).toBe(0);
+    expect(summary.rest.rate).toBe(1);
     expect(summary.passed).toBe(true);
   });
 });

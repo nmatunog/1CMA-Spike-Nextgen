@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
-import { respond } from '@/lib/gia/engine.mjs';
+import { knowledge, respond } from '@/lib/gia/engine.mjs';
 import { perform, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
+import { parseProgram } from '@/lib/gia/programs.mjs';
 import { repository } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
 import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
@@ -23,7 +24,7 @@ async function identity() {
   jar.set('gia_session', `${next}.${sign(next)}`, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 60 * 60 * 24 * 30 });
   return next;
 }
-const ALLOWED_ERRORS = ['consent_required', 'invalid_contact', 'invalid_session', 'opted_out', 'session_full', 'session_unavailable', 'verification_required', 'invalid_message', 'unknown_action', 'otp_not_configured', 'otp_locked', 'otp_throttled', 'otp_dev_forbidden', 'malformed_request', 'request_too_large'];
+const ALLOWED_ERRORS = ['consent_required', 'invalid_contact', 'invalid_session', 'opted_out', 'session_full', 'session_unavailable', 'verification_required', 'invalid_message', 'unknown_action', 'otp_not_configured', 'otp_locked', 'otp_throttled', 'otp_dev_forbidden', 'malformed_request', 'request_too_large', 'wrong_program', 'invalid_program', 'unsupported_program_source'];
 function fail(message: string) {
   return NextResponse.json({ error: ALLOWED_ERRORS.includes(message) ? message : 'service_unavailable' }, { status: message === 'request_too_large' ? 413 : ALLOWED_ERRORS.includes(message) ? 400 : 503 });
 }
@@ -44,6 +45,15 @@ async function audit(id: string, metadata: { action: string; intent?: string | n
 }
 function clientHash(req: Request) {
   return hashClientKey(req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '');
+}
+function resolveProgram(body: Record<string, unknown>, jar: Awaited<ReturnType<typeof cookies>>) {
+  if (Object.prototype.hasOwnProperty.call(body, 'program')) {
+    const parsed = parseProgram(body.program);
+    if (!parsed) throw new Error('invalid_program');
+    jar.set('gia_program', parsed, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
+    return parsed;
+  }
+  return parseProgram(jar.get('gia_program')?.value) || 'recruit';
 }
 export async function POST(req: Request) {
   if (process.env.GIA_PILOT_ENABLED !== 'true') return NextResponse.json({ error: 'pilot_disabled' }, { status: 503 });
@@ -79,9 +89,10 @@ export async function POST(req: Request) {
     const jar = await cookies();
     const language = jar.get('gia_language')?.value;
     const ipHash = clientHash(req);
+    const program = resolveProgram(body, jar);
     if (body.action === 'message') {
       if (typeof body.text !== 'string' || body.text.length > 1000) throw new Error('invalid_message');
-      const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en');
+      const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en', knowledge, new Date(), { program });
       const reason = 'reason' in response && typeof response.reason === 'string' ? response.reason : null;
       const rawCitation = 'citation' in response ? response.citation : null;
       const citation = rawCitation && typeof rawCitation === 'object' && 'id' in rawCitation && 'version' in rawCitation && 'source' in rawCitation
@@ -105,7 +116,7 @@ export async function POST(req: Request) {
       });
       if (response.intent === 'get_my_status') {
         try {
-          const status = await perform(repository, id, 'get_my_status', { ...body, clientHash: ipHash });
+          const status = await perform(repository, id, 'get_my_status', { ...body, program, clientHash: ipHash });
           if (status && typeof status === 'object' && 'error' in status && (status.error === 'verification_required' || status.error === 'otp_locked')) {
             return NextResponse.json({ ...response, ...publicResult(status) }, { status: 400 });
           }
@@ -117,7 +128,7 @@ export async function POST(req: Request) {
         }
       }
       if (response.intent === 'list_fep_sessions' && /\b(show fep sessions|list fep sessions|list_fep_sessions|available fep|fep dates|fep seats)\b/i.test(String(body.text))) {
-        const listed = await perform(repository, id, 'list_fep_sessions');
+        const listed = await perform(repository, id, 'list_fep_sessions', { program });
         return NextResponse.json({ ...response, ...asObject(listed), ...asObject(extra) });
       }
       return NextResponse.json({ ...response, ...asObject(extra) });
@@ -126,7 +137,7 @@ export async function POST(req: Request) {
       await recordRejected(repository, id, 'unknown_action', typeof body.action === 'string' ? body.action : 'rejected');
       throw new Error('unknown_action');
     }
-    const result = await perform(repository, id, body.action, { ...body, clientHash: ipHash });
+    const result = await perform(repository, id, body.action, { ...body, program, clientHash: ipHash });
     if (result && typeof result === 'object' && 'error' in result && (result.error === 'verification_required' || result.error === 'otp_locked')) {
       return NextResponse.json(publicResult(result), { status: 400 });
     }

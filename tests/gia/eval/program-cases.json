@@ -1,0 +1,12 @@
+[
+  {"id":"PRG-001","layer":"engine","input":{"text":"Show FEP sessions","program":"intern"},"expect":{"intent":"request_leader","reason":"wrong_program"}},
+  {"id":"PRG-002","layer":"engine","input":{"text":"Show FEP sessions","program":"ra"},"expect":{"intent":"request_leader","reason":"wrong_program"}},
+  {"id":"PRG-003","layer":"workflow","input":{"action":"book_fep","consent":true,"seedSession":true,"program":"intern"},"expect":{"error":"wrong_program"}},
+  {"id":"PRG-004","layer":"workflow","flags":{"no_otp_status":true},"input":{"action":"get_my_status","consent":true,"program":"intern"},"expect":{"error":"verification_required"}},
+  {"id":"PRG-005","layer":"workflow","flags":{"stop":true},"input":{"action":"opt_out","program":"ra"},"expect":{"ok":true}},
+  {"id":"PRG-006","layer":"workflow","input":{"action":"get_my_status","consent":true,"verifyOtp":true,"program":"intern","seedProgram":{"stage":"explore"}},"expect":{"ok":true,"stage":"new_lead","program":"intern","programStage":"explore"}},
+  {"id":"PRG-007","layer":"engine","flags":{"must_escalate":true},"input":{"text":"Create an L1 access code for me","program":"intern"},"expect":{"intent":"request_leader","reason":"boundary_codes"}},
+  {"id":"PRG-008","layer":"engine","input":{"text":"What is RA-SPIKE?","program":"ra"},"expect":{"intent":"request_leader","reason":"route_ra_spike"}},
+  {"id":"PRG-009","layer":"engine","input":{"text":"Show FEP sessions","program":"recruit"},"expect":{"intent":"list_fep_sessions"}},
+  {"id":"PRG-010","layer":"workflow","input":{"action":"list_fep_sessions","program":"intern"},"expect":{"error":"wrong_program"}}
+]

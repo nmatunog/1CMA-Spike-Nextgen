@@ -69,8 +69,14 @@ Production repository SQL is exercised against embedded PostgreSQL. Unit SQL tes
 
 Chromium checks run at 390px and 1440px, check horizontal overflow, and exercise visitor consent → approved literacy answer and citation → Bisaya → approved FEP answer and citation → FEP saved → leader request → individual staff login → assignment/follow-up → leader-only access/update → STOP. Screenshots live in `docs/gia/screenshots/`. No hosted staging preview was provisioned. Independent QA by Claude and Nilo acceptance are required before merge/deployment.
 
-## G1 integration follow-on (this branch)
+## G1 next increment — role-aware program adapters (NEXO #32)
+
+GIA is the role-aware guide across **recruit**, **intern**, and **RA**. Each program is an adapter: recruit keeps the five FEP tools; intern/RA expose `get_my_status`, `request_leader`, and `opt_out` only. Program status is read from a swappable `ProgramSource` (`lib/gia/program-source.mjs`). This increment ships the **synthetic** source only. `GIA_PROGRAM_SOURCE` other than `synthetic` is refused. No portal hostname is stored or called. OTP, STOP, and escalation guarantees are unchanged.
+
+No schema migration. C1 is adding `0007` in parallel; this increment does not need `0008`. Program context is a request/cookie attribute, not an entitlement GIA writes.
+
+The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required). Program-adapter cases in `tests/gia/eval/program-cases.json` are extra runs on top of EV-001..EV-078.
+
+## G1 integration follow-on (frozen at c5b25ce / merged on integration/cc02a-gia)
 
 Adds the remaining owner-approved GIA contract on top of PR #6 without replacing it: five tools, mock/dev OTP for `get_my_status`, Knowledge Pack import keyed by `(id, version)`, chat-upload discard, Nov 8 boundary refusals, placeholder EV-001..EV-078 eval harness, and retention config. Command Center paths under `app/recruitment/*` and `app/api/recruitment/*` are untouched. GIA `opt_out` still calls the existing repository STOP path; a marked seam waits for C1 `lib/recruitment/suppression`.
-
-The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required).

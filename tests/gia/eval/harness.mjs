@@ -4,6 +4,7 @@ import { respond, knowledge } from '../../../lib/gia/engine.mjs';
 
 export const EVAL_NOW = new Date('2026-11-11T12:00:00Z');
 export const cases = JSON.parse(readFileSync(new URL('./cases.json', import.meta.url), 'utf8'));
+export const programCases = JSON.parse(readFileSync(new URL('./program-cases.json', import.meta.url), 'utf8'));
 
 export function packNamed(name) {
   if (!name || name === 'shipped') return knowledge;
@@ -67,11 +68,13 @@ export function judgeWorkflow(c, result) {
   const sessionsOk = c.expect?.hasSessions ? Array.isArray(result?.sessions) : true;
   const handoffOk = c.expect?.handoffReason ? result?.reason === c.expect.handoffReason && result?.handoff : true;
   const bookingOk = c.expect?.booked ? !!result?.booking?.id : true;
+  const programOk = !c.expect?.program || result?.status?.program === c.expect.program;
+  const programStageOk = !c.expect?.programStage || result?.status?.programStage === c.expect.programStage;
   return {
     id: c.id,
     flags: c.flags || {},
     intentOk,
-    correct: intentOk && statusOk && sessionsOk && handoffOk && bookingOk && (c.expect?.ok === undefined || result?.ok === c.expect.ok),
+    correct: intentOk && statusOk && sessionsOk && handoffOk && bookingOk && programOk && programStageOk && (c.expect?.ok === undefined || result?.ok === c.expect.ok),
     untraceable: !!result?.status && (result?.error === 'verification_required' || !result?.ok && result?.status),
     stopHonored,
     noOtpRefused: noOtpOk(c, result),
@@ -81,7 +84,7 @@ export function judgeWorkflow(c, result) {
 }
 
 export function runEngineCase(c) {
-  const result = respond(c.input.text, c.input.language || 'en', packNamed(c.input.pack), EVAL_NOW);
+  const result = respond(c.input.text, c.input.language || 'en', packNamed(c.input.pack), EVAL_NOW, { program: c.input.program });
   return judgeEngine(c, result);
 }
 
