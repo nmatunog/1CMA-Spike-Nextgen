@@ -33,6 +33,9 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await page.getByRole('checkbox').check();
   await page.getByRole('button',{name:'Save consent and contact'}).click();
   await expect(page.getByText('Your consent and contact have been saved for recruitment follow-up.')).toBeVisible();
+  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  await page.getByRole('button',{name:'Check my status'}).click();
+  await expect(page.getByText(/mock OTP adapter/i)).toBeVisible();
   await page.getByRole('button',{name:'Join Free Financial Literacy'}).click();
   await expect(page.getByText('Financial Literacy is free. You may start with learning or explore the free Financial Entrepreneurship Preview directly.')).toBeVisible();
   await expect(page.getByRole('link',{name:'KP-LIT-01 · v0.2'})).toBeVisible();
