@@ -48,6 +48,12 @@ export const EVENT_KINDS = {
   optOut: STOP_EVENT,
   consentGranted: 'consent.granted',
   handoffCreated: 'handoff.created',
+  codeStatus: 'code.status',
+  importMerged: 'import.merged',
+  csvImported: 'csv.imported',
+  csvExported: 'csv.exported',
+  identityVerified: 'identity.verified',
+  manualIntake: 'manual.intake',
 } as const;
 
 export const DASHBOARD_METRICS = [

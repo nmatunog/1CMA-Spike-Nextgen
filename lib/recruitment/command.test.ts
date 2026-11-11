@@ -6,6 +6,7 @@ import { applyAllMigrations, futureFepInsertSql, seedFutureFep } from './demo-se
 import { applyCandidateStop, assertWritable, isStopped, STOP_STAGE } from './suppression';
 import { WRITABLE_STAGES } from './stages';
 import { dashboardCounts, listCandidates, saveFollowUp, stopCandidate, parseFollowUpBody } from './store';
+import { manilaDaysAgo, manilaToday } from './time';
 import type { Sql } from './store';
 import type { StaffActor } from './types';
 
@@ -39,7 +40,7 @@ describe('CC-02a command center', () => {
     await applyAllMigrations((sql: string) => state.db.exec(sql));
   });
   beforeEach(async () => {
-    await state.db.exec('TRUNCATE candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results CASCADE');
+    await state.db.exec('TRUNCATE candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events CASCADE');
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -220,6 +221,15 @@ describe('CC-02a command center', () => {
     const sql = tag(state.db);
     expect((await listCandidates(sql, admin, { source: 'manual' })).map((r) => r.name)).toEqual(['B']);
     expect((await dashboardCounts(sql, admin, { leader: leader.email })).newLeads).toBe(1);
+  });
+
+  it('counts current unassigned and overdue outside the event date window', async () => {
+    const id = randomUUID();
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage,due_at,created_at) VALUES($1,'Old Unassigned','old@example.test','',0,'new_lead', now() - interval '1 day', now() - interval '60 days')`, [id]);
+    const dash = await dashboardCounts(tag(state.db), admin, { from: manilaDaysAgo(7), to: manilaToday() });
+    expect(dash.unassigned).toBe(1);
+    expect(dash.overdueFollowups).toBe(1);
+    expect(dash.newLeads).toBe(0);
   });
 
   it('does not mix isolated DNA-quiz rows into the command queue', async () => {

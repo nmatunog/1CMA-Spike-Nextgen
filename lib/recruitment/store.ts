@@ -179,8 +179,7 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
       AND (${leader} = '' OR c.assigned_leader = ${leader})
       AND (${source} = '' OR EXISTS (
         SELECT 1 FROM candidate_identities i WHERE i.candidate_id = c.id AND i.source = ${source}
-      ))
-      AND c.created_at >= ${from}::timestamptz AND c.created_at < ${toExclusive}::timestamptz`;
+      ))`;
 
   const f = funnel[0] || {};
   const s = snapshot[0] || {};
@@ -279,8 +278,21 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
   const rows = await sql`
     SELECT
       c.id, c.name, c.email, c.phone, c.stage, c.assigned_leader, c.next_action, c.due_at,
-      c.literacy_status, c.spike_paid, c.created_at,
+      c.literacy_status, c.spike_paid, c.created_at, c.program_interest, c.versa_lead_ref,
+      c.email_verified, c.phone_verified,
       (SELECT i.source FROM candidate_identities i WHERE i.candidate_id = c.id ORDER BY i.source LIMIT 1) AS source,
+      (SELECT m.spike_learner_ref FROM versa_lead_map m WHERE m.candidate_id = c.id ORDER BY m.created_at LIMIT 1) AS spike_learner_ref,
+      CASE
+        WHEN EXISTS (
+          SELECT 1 FROM candidate_consents s
+          WHERE s.candidate_id = c.id AND s.purpose='recruitment' AND s.revoked_at IS NULL
+        ) THEN 'granted'
+        WHEN EXISTS (
+          SELECT 1 FROM candidate_consents s
+          WHERE s.candidate_id = c.id AND s.purpose='recruitment'
+        ) THEN 'revoked'
+        ELSE 'none'
+      END AS consent_status,
       h.id AS handoff_id, h.reason, h.state AS handoff_state, h.due_at AS handoff_due,
       h.escalate_at, h.resolution, h.gia_could_answer, h.general_answer, h.created_at AS handoff_created
     FROM candidates c
@@ -304,6 +316,14 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
     ...base,
     email: String(row.email || ''),
     phone: String(row.phone || ''),
+    versa_lead_ref: (row.versa_lead_ref as string | null) || null,
+    spike_learner_ref: (row.spike_learner_ref as string | null) || null,
+    program_interest: (row.program_interest as string | null) || null,
+    email_verified: flag(row.email_verified),
+    phone_verified: flag(row.phone_verified),
+    consent_status: (['granted', 'revoked', 'none'].includes(String(row.consent_status))
+      ? String(row.consent_status)
+      : 'none') as CandidateDetail['consent_status'],
   };
   const events = (await sql`
     SELECT id, kind, actor, metadata, created_at
