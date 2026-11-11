@@ -79,6 +79,16 @@ No schema migration. C1 is adding `0007` in parallel; this increment does not ne
 
 The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required). Program-adapter cases in `tests/gia/eval/program-cases.json` are extra runs on top of EV-001..EV-078.
 
+## G1 MVP 01 — GIA engage (`g1/mvp01-gia-engage`)
+
+GIA is the official AI guide for GIYA Institute — The SPIKE Method, not a recruitment-only bot. MVP 01 (Nov 16–20) welcomes and orients, serves only the owner-approved Financial Literacy and FEP pack, recommends next steps, and hands off to the assigned leader.
+
+Knowledge is split into modular domains under `lib/gia/knowledge/domains/`. Active MVP 01 domains: `recruitment`, `financial-literacy`, `fep`. Stubbed: `interns`, `ra-spike`, `documents`. A role capability map (`lib/gia/capabilities.mjs`) covers prospect, candidate, intern, RA, leader, and admin. Leader/admin never gain Command Center powers in GIA chat.
+
+Engagement events (`gia.conversation_started`, `gia.fl_interest`, `gia.fep_guidance`, `gia.fep_booking`, `gia.handoff_requested`, `gia.stop`) go through `lib/gia/engagement.mjs`. C1 will publish `docs/mvp01/interfaces.md` with migration 0008; until then GIA records in memory and appends to existing `candidate_events` when a candidate exists. No G1 schema.
+
+English remains the default. Bisaya/Tagalog switch only on explicit request. Guardrails (each with eval cases): GIA never invents candidate status, never approves recruitment decisions, never issues or redeems paid codes, never bypasses intern/RA/staff permissions, and never gives regulated insurance advice. Extra eval: `tests/gia/eval/mvp01-cases.json`.
+
 ## G1 integration follow-on (frozen at c5b25ce / merged on integration/cc02a-gia)
 
 Adds the remaining owner-approved GIA contract on top of PR #6 without replacing it: five tools, mock/dev OTP for `get_my_status`, Knowledge Pack import keyed by `(id, version)`, chat-upload discard, Nov 8 boundary refusals, placeholder EV-001..EV-078 eval harness, and retention config. Command Center paths under `app/recruitment/*` and `app/api/recruitment/*` are untouched. GIA `opt_out` still calls the existing repository STOP path; a marked seam waits for C1 `lib/recruitment/suppression`.

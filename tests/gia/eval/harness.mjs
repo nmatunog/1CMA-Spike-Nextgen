@@ -5,6 +5,7 @@ import { respond, knowledge } from '../../../lib/gia/engine.mjs';
 export const EVAL_NOW = new Date('2026-11-11T12:00:00Z');
 export const cases = JSON.parse(readFileSync(new URL('./cases.json', import.meta.url), 'utf8'));
 export const programCases = JSON.parse(readFileSync(new URL('./program-cases.json', import.meta.url), 'utf8'));
+export const mvp01Cases = JSON.parse(readFileSync(new URL('./mvp01-cases.json', import.meta.url), 'utf8'));
 
 export function packNamed(name) {
   if (!name || name === 'shipped') return knowledge;

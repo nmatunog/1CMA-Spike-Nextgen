@@ -43,7 +43,7 @@ export default function Gia() {
     finally { setBusy(false); }
   }
   return <main className={styles.pilot} style={{ maxWidth: 760, margin: 'auto', padding: '24px 16px', display: 'grid', gap: 20 }}>
-    <header><p>1CMA · Controlled synthetic-data pilot</p><h1>GIA — Your 1CMA AI Guide</h1><p>Learning does not authorize you to sell insurance or give insurance advice.</p><a href='/gia/privacy'>Privacy notice</a></header>
+    <header><p>1CMA · Controlled synthetic-data pilot</p><h1>GIA — Your 1CMA AI Guide</h1><p>GIYA Institute — The SPIKE Method. Official AI guide across the SPIKE ecosystem.</p><p>Learning does not authorize you to sell insurance or give insurance advice.</p><a href='/gia/privacy'>Privacy notice</a></header>
     <fieldset style={{ border: '1px solid #64748b', borderRadius: 12, padding: 16 }}>
       <legend>Which 1CMA program should GIA guide?</legend>
       <p>GIA is a role-aware guide. Program status comes from a local adapter you can swap later. It does not open a learning portal or change entitlements.</p>
@@ -55,7 +55,7 @@ export default function Gia() {
       ))}
     </fieldset>
     <section aria-label='Conversation' aria-live='polite' style={{ display: 'grid', gap: 12 }}>{turns.map((t, i) => <article key={i} style={{ padding: 16, border: '1px solid #64748b', borderRadius: 12, overflowWrap: 'anywhere' }}><p>{t.text}</p>{t.citation && <a href={t.citation.source}>{t.citation.id} · v{t.citation.version}</a>}</article>)}</section>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{(program === 'recruit' ? ['Join Free Financial Literacy', 'Explore Free Financial Entrepreneurship Preview', 'Talk to a 1CMA Leader'] : ['Talk to a 1CMA Leader']).map(label => <button disabled={busy || stopped} key={label} onClick={() => call('message', { text: label })}>{label}</button>)}</div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{(program === 'recruit' ? ['Join Free Financial Literacy', 'Explore Free Financial Entrepreneurship Preview', 'What should I do next?', 'Talk to a 1CMA Leader'] : ['Talk to a 1CMA Leader']).map(label => <button disabled={busy || stopped} key={label} onClick={() => call('message', { text: label })}>{label}</button>)}</div>
     {!saved && !stopped && <form onSubmit={e => { e.preventDefault(); if (consent) call('consent', { ...contact, agree: true, notice: NOTICE }); }} style={{ display: 'grid', gap: 12 }}>
       <h2>Save a contact for booking or leader follow-up</h2><p>Use synthetic details only. Your name and email will be shared with authorized 1CMA staff for recruitment, booking and follow-up. STOP stops future contact. Do not send IDs or documents. Chat uploads are discarded.</p>
       <label>Name <input required maxLength={100} value={contact.name} onChange={e => setContact({ ...contact, name: e.target.value })}/></label>

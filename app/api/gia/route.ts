@@ -4,6 +4,7 @@ import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { knowledge, respond } from '@/lib/gia/engine.mjs';
 import { perform, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
 import { LEAST_PRIVILEGED_PROGRAM, resolveStoredProgram } from '@/lib/gia/programs.mjs';
+import { emitGiaEngagement } from '@/lib/gia/engagement.mjs';
 import { repository } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
 import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
@@ -125,6 +126,13 @@ export async function POST(req: Request) {
       const extra = await repository.run(id, async tx => {
         const c = await tx.findCandidate();
         await tx.recordTurn({ action: 'message', intent: response.intent, reason, citation, outcome: 'ok' }, storeText);
+        const listing = response.intent === 'list_fep_sessions' && /\b(show fep sessions|list fep sessions|list_fep_sessions|available fep|fep dates|fep seats)\b/i.test(String(body.text));
+        await emitGiaEngagement(tx, id, {
+          action: 'message',
+          intent: listing ? null : response.intent,
+          citation,
+          conversation: true,
+        });
         if (c?.consented && response.intent === 'request_leader') return { handoff: await tx.handoff(c, reason || 'unapproved_or_unknown') };
         return null;
       });

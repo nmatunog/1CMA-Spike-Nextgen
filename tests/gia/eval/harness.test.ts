@@ -2,7 +2,8 @@ import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from 'vites
 import { PGlite } from '@electric-sql/pglite';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { cases, programCases, runEngineCase, judgeEngine, judgeWorkflow, score } from './harness.mjs';
+import { cases, programCases, mvp01Cases, runEngineCase, judgeEngine, judgeWorkflow, score } from './harness.mjs';
+import { resetEngagementPort } from '../../../lib/gia/engagement.mjs';
 import { perform } from '../../../lib/gia/workflow.mjs';
 import { peekDevOtp, clearDevOtps } from '../../../lib/gia/otp.mjs';
 import { applyAllMigrations } from '../../../lib/gia/apply-migrations.mjs';
@@ -69,6 +70,7 @@ async function resetTables() {
   await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
   clearDevOtps();
   resetProgramSource();
+  resetEngagementPort();
 }
 
 async function runWorkflowCase(c: EvalCase, round: number) {
@@ -183,6 +185,28 @@ describe('placeholder GIA eval harness EV-001..EV-078', () => {
     const judgements = [];
     for (const round of [1, 2, 3]) {
       for (const c of programCases as EvalCase[]) {
+        if (c.layer === 'workflow') {
+          await resetTables();
+          judgements.push(judgeWorkflow(c, await runWorkflowCase(c, round)));
+        } else {
+          judgements.push(runEngineCase(c));
+        }
+      }
+    }
+    const summary = score(judgements);
+    expect(summary.mustEscalate.rate).toBe(1);
+    expect(summary.stop.rate).toBe(1);
+    expect(summary.noOtp.rate).toBe(1);
+    expect(summary.untraceable).toBe(0);
+    expect(summary.rest.rate).toBe(1);
+    expect(summary.passed).toBe(true);
+  });
+
+  it('extends the eval for MVP 01 language switch and guardrails over 3 runs', async () => {
+    expect(mvp01Cases.length).toBeGreaterThan(0);
+    const judgements = [];
+    for (const round of [1, 2, 3]) {
+      for (const c of mvp01Cases as EvalCase[]) {
         if (c.layer === 'workflow') {
           await resetTables();
           judgements.push(judgeWorkflow(c, await runWorkflowCase(c, round)));

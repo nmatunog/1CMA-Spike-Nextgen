@@ -45,6 +45,7 @@ vi.stubEnv('NODE_ENV', 'test');
 
 const { POST } = await import('@/app/api/gia/route');
 const { clearDevOtps } = await import('./otp.mjs');
+const { resetEngagementPort } = await import('./engagement.mjs');
 
 const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns';
 
@@ -59,6 +60,7 @@ describe('GIA API reject audit', () => {
     await state.db.exec(`TRUNCATE ${TABLES} CASCADE`);
     await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
     clearDevOtps();
+    resetEngagementPort();
     state.cookies = { gia_session: `${sessionId}.${mac}` };
     state.setCalls = [];
   });
