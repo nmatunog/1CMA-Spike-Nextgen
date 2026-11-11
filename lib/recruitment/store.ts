@@ -1,6 +1,6 @@
 import { canAccess } from '@/lib/gia/access.mjs';
 import { applyCandidateStop, assertWritable, identityIsSuppressed, isStopped } from './suppression';
-import { EVENT_KINDS, isLiteracyStatus, isWritableStage, STOP_STAGE } from './stages';
+import { EVENT_KINDS, isEngagementOutcome, isEvaluationNextStep, isLiteracyStatus, isWritableStage, STOP_STAGE } from './stages';
 import { manilaDayBounds, parseManilaDateTimeLocal } from './time';
 import type {
   AuditEvent,
@@ -93,6 +93,11 @@ function mapQueueRow(row: Record<string, unknown>): QueueCandidate {
     aging_hours: created ? (now - new Date(created).getTime()) / 36e5 : null,
     escalated,
     overdue,
+    evaluation_next_step: (row.evaluation_next_step as string | null) || null,
+    evaluated_at: iso(row.evaluated_at),
+    evaluated_by: (row.evaluated_by as string | null) || null,
+    last_engaged_at: iso(row.last_engaged_at),
+    last_engagement_outcome: (row.last_engagement_outcome as string | null) || null,
   };
 }
 
@@ -155,7 +160,13 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
       ) AS coded,
       COUNT(DISTINCT e.candidate_id) FILTER (
         WHERE e.kind = 'stage.changed' AND e.metadata->>'to' = 'activated'
-      ) AS activated
+      ) AS activated,
+      COUNT(DISTINCT e.candidate_id) FILTER (
+        WHERE e.kind = 'evaluation.recorded'
+      ) AS evaluated,
+      COUNT(DISTINCT e.candidate_id) FILTER (
+        WHERE e.kind = 'followup.updated' AND e.metadata->>'outcome' IS NOT NULL AND e.metadata->>'outcome' <> ''
+      ) AS engaged
     FROM candidate_events e
     JOIN candidates c ON c.id = e.candidate_id
     WHERE e.created_at >= ${from}::timestamptz AND e.created_at < ${toExclusive}::timestamptz
@@ -173,7 +184,10 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
       COUNT(*) FILTER (
         WHERE c.due_at IS NOT NULL AND c.due_at < now()
           AND c.stage NOT IN ('opt_out','disqualified','activated')
-      ) AS overdue
+      ) AS overdue,
+      COUNT(*) FILTER (
+        WHERE c.evaluated_at IS NULL AND c.stage NOT IN ('opt_out','disqualified','activated')
+      ) AS awaiting_evaluation
     FROM candidates c
     WHERE (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
       AND (${leader} = '' OR c.assigned_leader = ${leader})
@@ -191,8 +205,11 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
     applications: num(f.applications),
     coded: num(f.coded),
     activated: num(f.activated),
+    evaluated: num(f.evaluated),
+    engaged: num(f.engaged),
     unassigned: num(s.unassigned),
     overdueFollowups: num(s.overdue),
+    awaitingEvaluation: num(s.awaiting_evaluation),
   };
 }
 
@@ -205,6 +222,7 @@ export async function listCandidates(sql: Sql, actor: StaffActor, filters: Comma
     SELECT
       c.id, c.name, c.stage, c.assigned_leader, c.next_action, c.due_at,
       c.literacy_status, c.spike_paid, c.created_at,
+      c.evaluation_next_step, c.evaluated_at, c.evaluated_by, c.last_engaged_at, c.last_engagement_outcome,
       (SELECT i.source FROM candidate_identities i WHERE i.candidate_id = c.id ORDER BY i.source LIMIT 1) AS source,
       h.id AS handoff_id, h.reason, h.state AS handoff_state, h.due_at AS handoff_due,
       h.escalate_at, h.resolution, h.gia_could_answer, h.general_answer, h.created_at AS handoff_created
@@ -280,6 +298,7 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
       c.id, c.name, c.email, c.phone, c.stage, c.assigned_leader, c.next_action, c.due_at,
       c.literacy_status, c.spike_paid, c.created_at, c.program_interest, c.versa_lead_ref,
       c.email_verified, c.phone_verified,
+      c.evaluation_next_step, c.evaluated_at, c.evaluated_by, c.last_engaged_at, c.last_engagement_outcome,
       (SELECT i.source FROM candidate_identities i WHERE i.candidate_id = c.id ORDER BY i.source LIMIT 1) AS source,
       (SELECT m.spike_learner_ref FROM versa_lead_map m WHERE m.candidate_id = c.id ORDER BY m.created_at LIMIT 1) AS spike_learner_ref,
       CASE
@@ -381,6 +400,12 @@ export async function saveFollowUp(sql: Sql, actor: StaffActor, input: FollowUpI
     const nextLiteracy = input.literacyStatus || c.literacy_status || 'not_started';
     const nextPaid = input.spikePaidProvided ? !!input.spikePaid : flag(c.spike_paid);
     const nextDue = input.dueAtProvided ? dueAt : iso(c.due_at);
+    const outcome = input.engagementOutcome && isEngagementOutcome(input.engagementOutcome)
+      ? input.engagementOutcome
+      : null;
+    if (input.engagementOutcome && !outcome) throw new Error('invalid');
+    const engagedAt = outcome ? new Date().toISOString() : iso(c.last_engaged_at);
+    const nextOutcome = outcome || (c.last_engagement_outcome as string | null) || null;
 
     await t`UPDATE candidates SET
       stage=${input.stage},
@@ -388,7 +413,9 @@ export async function saveFollowUp(sql: Sql, actor: StaffActor, input: FollowUpI
       next_action=${input.nextAction},
       due_at=${nextDue || null},
       literacy_status=${nextLiteracy},
-      spike_paid=${nextPaid}
+      spike_paid=${nextPaid},
+      last_engaged_at=${engagedAt || null},
+      last_engagement_outcome=${nextOutcome}
       WHERE id=${input.id}`;
 
     if (input.handoffId) {
@@ -413,7 +440,38 @@ export async function saveFollowUp(sql: Sql, actor: StaffActor, input: FollowUpI
       handoffId: input.handoffId || null,
       resolved: !!input.resolve,
       duePreserved: !input.dueAtProvided,
+      outcome,
     });
+  });
+}
+
+export async function recordEvaluation(
+  sql: Sql,
+  actor: StaffActor,
+  input: { id: string; suggestedNextStep: string; note?: string },
+) {
+  if (!isUuid(input.id)) throw new Error('invalid');
+  if (!isEvaluationNextStep(input.suggestedNextStep)) throw new Error('invalid');
+  const note = (input.note || '').trim().slice(0, 200);
+  await sql.begin(async (transaction: SqlTx) => {
+    const t = transaction;
+    const [c] = await t`SELECT * FROM candidates WHERE id=${input.id} AND (${actor.role}='admin' OR assigned_leader=${actor.email}) FOR UPDATE`;
+    if (!c) throw new Error('forbidden');
+    assertWritable(c as { stage: string });
+    if (await identityIsSuppressed(t, `candidate:${input.id}`)) throw new Error('suppressed');
+    const at = new Date().toISOString();
+    await t`UPDATE candidates SET
+      evaluation_next_step=${input.suggestedNextStep},
+      evaluated_at=${at},
+      evaluated_by=${actor.email}
+      WHERE id=${input.id}`;
+    await emit(t, input.id, EVENT_KINDS.evaluationRecorded, actor.email, {
+      suggestedNextStep: input.suggestedNextStep,
+      note,
+      stageUnchanged: String(c.stage),
+    });
+    await t`INSERT INTO command_audit_events(kind,actor,metadata)
+      VALUES(${EVENT_KINDS.evaluationRecorded},${actor.email},${t.json({ candidateId: input.id, suggestedNextStep: input.suggestedNextStep, role: actor.role })})`;
   });
 }
 
@@ -458,6 +516,17 @@ export function parseFollowUpBody(body: Record<string, unknown>): FollowUpInput 
     literacyStatus: body.literacyStatus == null ? undefined : String(body.literacyStatus),
     spikePaid: body.spikePaid === true,
     spikePaidProvided,
+    engagementOutcome: typeof body.engagementOutcome === 'string' && body.engagementOutcome
+      ? body.engagementOutcome
+      : null,
+  };
+}
+
+export function parseEvaluationBody(body: Record<string, unknown>) {
+  return {
+    id: String(body.id || ''),
+    suggestedNextStep: String(body.suggestedNextStep || ''),
+    note: typeof body.note === 'string' ? body.note : '',
   };
 }
 

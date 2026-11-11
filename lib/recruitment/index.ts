@@ -8,7 +8,7 @@ export {
   applyCandidateStop,
 } from './suppression';
 export type { TxSql, ApplyStopParams } from './suppression';
-export { WRITABLE_STAGES, ALL_STAGES, LITERACY_STATUSES, EVENT_KINDS } from './stages';
+export { WRITABLE_STAGES, ALL_STAGES, LITERACY_STATUSES, EVALUATION_NEXT_STEPS, ENGAGEMENT_OUTCOMES, EVENT_KINDS } from './stages';
 export { previewOrImportCsv, createManualLead, verifyContact, intakeErrorCode, INTAKE_ERROR_CODES } from './import';
 export { exportCandidatesCsv, EXPORT_COLUMNS, EXPORT_ROW_CAP } from './export';
 export { escapeSpreadsheetCell, looksLikeFormula, parseCsv } from './csv';

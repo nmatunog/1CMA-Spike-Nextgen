@@ -11,6 +11,7 @@ import { POST as quizPOST } from '@/app/api/candidates/route';
 import { POST as IMPORT } from '@/app/api/recruitment/command/import/route';
 import { POST as EXPORT } from '@/app/api/recruitment/command/export/route';
 import { POST as INTAKE } from '@/app/api/recruitment/command/intake/route';
+import { POST as EVALUATE } from '@/app/api/recruitment/command/evaluate/route';
 beforeEach(() => { ctx.actor=null;ctx.calls=0; });
 it('rejects anonymous reads before touching candidate data', async () => {
   expect((await GET(new Request('https://pilot.test/api/recruitment/command'))).status).toBe(401);
@@ -75,4 +76,11 @@ it('returns allowlisted intake errors instead of raw Error.message', async () =>
   const dbRes=await INTAKE(dbFail);
   expect(dbRes.status).toBe(400);
   expect(await dbRes.json()).toEqual({error:'invalid'});
+});
+it('blocks unauthenticated and cross-origin evaluation before touching records', async () => {
+  expect((await EVALUATE(new Request('https://pilot.test/api/recruitment/command/evaluate',{method:'POST',body:'{}'}))).status).toBe(401);
+  expect(ctx.calls).toBe(0);
+  ctx.actor={email:'admin@example.test',role:'admin'};
+  const req=new Request('https://pilot.test/api/recruitment/command/evaluate',{method:'POST',headers:{origin:'https://attacker.test'},body:'{}'});
+  expect((await EVALUATE(req)).status).toBe(403);expect(ctx.calls).toBe(0);
 });

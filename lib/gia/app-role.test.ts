@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { perform } from './workflow.mjs';
 import { peekDevOtp, clearDevOtps } from './otp.mjs';
-import { applyAllMigrations as giaApply } from './apply-migrations.mjs';
+import { applyAllMigrations as giaApply, resetWorkflowTables } from './apply-migrations.mjs';
 import { applyAllMigrations as seedApply, listMigrationFiles } from '../recruitment/demo-seed.mjs';
 import { saveFollowUp, type Sql } from '../recruitment/store';
 import { previewOrImportCsv } from '../recruitment/import';
@@ -97,9 +97,10 @@ async function asRole<T>(role: string, fn: () => Promise<T>): Promise<T> {
 async function resetTables() {
   try { await state.db.exec('RESET ROLE'); } catch { /* already owner */ }
   try { await state.db.exec('RESET SESSION AUTHORIZATION'); } catch { /* ignore */ }
-  await state.db.exec('ALTER TABLE gia_turns DISABLE TRIGGER USER');
-  await state.db.exec(`TRUNCATE ${TABLES.filter((t) => t !== 'gia_retention_config').join(',')} CASCADE`);
-  await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
+  await resetWorkflowTables(
+    (sql: string) => state.db.exec(sql),
+    TABLES.filter((t) => t !== 'gia_retention_config').join(','),
+  );
   clearDevOtps();
 }
 
@@ -121,7 +122,8 @@ describe('gia_app least-privilege access', () => {
     expect(giaApply).toBe(seedApply);
     const files = await listMigrationFiles();
     expect(files).toContain('0006_app_role_full_access.sql');
-    expect(files[files.length - 1]).toBe('0006_app_role_full_access.sql');
+    expect(files).toContain('0007_cc03_evaluate_engage.sql');
+    expect(files[files.length - 1]).toBe('0007_cc03_evaluate_engage.sql');
   });
 
   it('FORCE RLS and a gia_app ALLOW policy on every workflow table', async () => {
@@ -245,5 +247,27 @@ describe('gia_app least-privilege access', () => {
       await expect(state.db.exec('DELETE FROM command_audit_events')).rejects.toThrow(/permission denied/);
       await expect(state.db.exec('DELETE FROM candidates')).rejects.toThrow(/permission denied/);
     });
+  });
+
+  it('scopes satellite owner_all policies away from PUBLIC and grants future sequences to gia_app', async () => {
+    const policies = await query(
+      `SELECT tablename, policyname, roles FROM pg_policies WHERE policyname LIKE '%_owner_all' AND tablename = ANY($1::text[])`,
+      [['candidate_events', 'candidate_handoffs', 'gia_suppressions', 'command_audit_events']],
+    );
+    expect(policies.length).toBeGreaterThan(0);
+    for (const row of policies) {
+      expect(String(row.roles)).not.toMatch(/public/i);
+    }
+    await state.db.exec('CREATE SEQUENCE cc03_future_seq');
+    try {
+      const [priv] = await query(
+        `SELECT has_sequence_privilege('gia_app', 'cc03_future_seq', 'USAGE') AS usage,
+                has_sequence_privilege('gia_app', 'cc03_future_seq', 'SELECT') AS sel`,
+      );
+      expect(priv.usage).toBe(true);
+      expect(priv.sel).toBe(true);
+    } finally {
+      await state.db.exec('DROP SEQUENCE cc03_future_seq');
+    }
   });
 });

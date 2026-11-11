@@ -17,8 +17,11 @@ export type DashboardCounts = {
   applications: number;
   coded: number;
   activated: number;
+  evaluated: number;
+  engaged: number;
   unassigned: number;
   overdueFollowups: number;
+  awaitingEvaluation: number;
 };
 
 export type QueueCandidate = {
@@ -43,6 +46,11 @@ export type QueueCandidate = {
   aging_hours: number | null;
   escalated: boolean;
   overdue: boolean;
+  evaluation_next_step: string | null;
+  evaluated_at: string | null;
+  evaluated_by: string | null;
+  last_engaged_at: string | null;
+  last_engagement_outcome: string | null;
 };
 
 export type HandoffQueueItem = {
@@ -131,4 +139,5 @@ export type FollowUpInput = {
   literacyStatus?: string;
   spikePaid?: boolean;
   spikePaidProvided?: boolean;
+  engagementOutcome?: string | null;
 };

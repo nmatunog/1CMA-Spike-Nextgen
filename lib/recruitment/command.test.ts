@@ -2,10 +2,10 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { applyAllMigrations, futureFepInsertSql, seedFutureFep } from './demo-seed.mjs';
+import { applyAllMigrations, futureFepInsertSql, seedFutureFep, resetWorkflowTables } from './demo-seed.mjs';
 import { applyCandidateStop, assertWritable, isStopped, STOP_STAGE } from './suppression';
 import { WRITABLE_STAGES } from './stages';
-import { dashboardCounts, listCandidates, saveFollowUp, stopCandidate, parseFollowUpBody } from './store';
+import { dashboardCounts, listCandidates, saveFollowUp, stopCandidate, parseFollowUpBody, recordEvaluation } from './store';
 import { manilaDaysAgo, manilaToday } from './time';
 import type { Sql } from './store';
 import type { StaffActor } from './types';
@@ -40,9 +40,7 @@ describe('CC-02a command center', () => {
     await applyAllMigrations((sql: string) => state.db.exec(sql));
   });
   beforeEach(async () => {
-    await state.db.exec('ALTER TABLE gia_turns DISABLE TRIGGER USER');
-    await state.db.exec('TRUNCATE candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns CASCADE');
-    await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
+    await resetWorkflowTables((sql: string) => state.db.exec(sql), 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns');
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -255,5 +253,73 @@ describe('CC-02a command center', () => {
       await applyCandidateStop(tx, { candidateId: id, actor: 'gia', currentStage: 'opt_out' });
     });
     expect(await q("SELECT * FROM candidate_events WHERE kind='opt_out' AND candidate_id=$1", [id])).toHaveLength(1);
+  });
+
+  it('records a preliminary evaluation without changing stage or granting access', async () => {
+    const id = randomUUID();
+    const sql = tag(state.db);
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage,assigned_leader) VALUES($1,'Synthetic Eval','eval@example.test','',0,'new_lead',$2)`, [id, leader.email]);
+    await recordEvaluation(sql, leader, { id, suggestedNextStep: 'fep', note: 'Suggest FEP after intro' });
+    const [row] = await q('SELECT stage,evaluation_next_step,evaluated_by,literacy_status FROM candidates WHERE id=$1', [id]);
+    expect(row.stage).toBe('new_lead');
+    expect(row.evaluation_next_step).toBe('fep');
+    expect(row.evaluated_by).toBe(leader.email);
+    expect(row.literacy_status).toBe('not_started');
+    const events = await q("SELECT kind, metadata::text AS m FROM candidate_events WHERE candidate_id=$1 AND kind='evaluation.recorded'", [id]);
+    expect(events).toHaveLength(1);
+    expect(String(events[0].m)).toMatch(/fep/);
+    expect(String(events[0].m)).toMatch(/stageUnchanged/);
+    const dash = await dashboardCounts(sql, admin, {});
+    expect(dash.evaluated).toBe(1);
+    expect(dash.engaged).toBe(0);
+    expect(dash.awaitingEvaluation).toBe(0);
+  });
+
+  it('counts distinct engaged people from follow-up outcomes and ignores saves without an outcome', async () => {
+    const id = randomUUID();
+    const sql = tag(state.db);
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage,assigned_leader) VALUES($1,'Synthetic Engage','eng@example.test','',0,'contacted',$2)`, [id, leader.email]);
+    await saveFollowUp(sql, leader, {
+      id,
+      stage: 'contacted',
+      assignedLeader: leader.email,
+      nextAction: 'Call again',
+      dueAtProvided: false,
+      resolution: '',
+      generalAnswer: '',
+      giaCouldAnswer: false,
+      resolve: false,
+    });
+    expect((await dashboardCounts(sql, admin, {})).engaged).toBe(0);
+    await saveFollowUp(sql, leader, {
+      id,
+      stage: 'contacted',
+      assignedLeader: leader.email,
+      nextAction: 'Call again',
+      dueAtProvided: false,
+      resolution: '',
+      generalAnswer: '',
+      giaCouldAnswer: false,
+      resolve: false,
+      engagementOutcome: 'reached',
+    });
+    const [row] = await q('SELECT last_engagement_outcome, last_engaged_at FROM candidates WHERE id=$1', [id]);
+    expect(row.last_engagement_outcome).toBe('reached');
+    expect(row.last_engaged_at).toBeTruthy();
+    expect((await dashboardCounts(sql, admin, {})).engaged).toBe(1);
+  });
+
+  it('STOP blocks evaluation the same way it blocks follow-up', async () => {
+    const id = randomUUID();
+    const sql = tag(state.db);
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage,assigned_leader) VALUES($1,'Synthetic Stop Eval','se@example.test','',0,'contacted',$2)`, [id, leader.email]);
+    await stopCandidate(sql, admin, id);
+    await expect(recordEvaluation(sql, admin, { id, suggestedNextStep: 'literacy' })).rejects.toThrow(/suppressed/);
+    expect((await q('SELECT evaluation_next_step FROM candidates WHERE id=$1', [id]))[0].evaluation_next_step).toBeNull();
+  });
+
+  it('blocks TRUNCATE on append-only event tables', async () => {
+    await expect(state.db.exec('TRUNCATE candidate_events')).rejects.toThrow(/append-only/);
+    await expect(state.db.exec('TRUNCATE command_audit_events')).rejects.toThrow(/append-only/);
   });
 });

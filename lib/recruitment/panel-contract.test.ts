@@ -26,4 +26,10 @@ describe('command panel contract', () => {
     expect(src).toMatch(/ignore that window/);
     expect(src).toMatch(/Auto-merge only on a verified email\/mobile/);
   });
+  it('records evaluation as a suggestion that does not change stage or grant L1/L2', () => {
+    expect(src).toMatch(/Does not change stage or grant L1\/L2 access/);
+    expect(src).toMatch(/Record evaluation/);
+    expect(src).toMatch(/Follow-up outcome/);
+    expect(src).toMatch(/Awaiting evaluation \(current\)/);
+  });
 });

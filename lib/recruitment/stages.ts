@@ -22,9 +22,16 @@ export const TERMINAL_STAGES = ['opt_out', 'disqualified', 'activated'] as const
 
 export const LITERACY_STATUSES = ['not_started', 'enrolled', 'engaged', 'completed'] as const;
 
+/** Human evaluation suggests a next step; it never auto-advances stage or grants L1/L2. */
+export const EVALUATION_NEXT_STEPS = ['fep', 'literacy', 'leader_conversation', 'follow_up'] as const;
+
+export const ENGAGEMENT_OUTCOMES = ['reached', 'no_answer', 'rescheduled', 'declined', 'completed'] as const;
+
 export type WritableStage = (typeof WRITABLE_STAGES)[number];
 export type Stage = (typeof ALL_STAGES)[number];
 export type LiteracyStatus = (typeof LITERACY_STATUSES)[number];
+export type EvaluationNextStep = (typeof EVALUATION_NEXT_STEPS)[number];
+export type EngagementOutcome = (typeof ENGAGEMENT_OUTCOMES)[number];
 
 export function isWritableStage(value: unknown): value is WritableStage {
   return typeof value === 'string' && (WRITABLE_STAGES as readonly string[]).includes(value);
@@ -32,6 +39,14 @@ export function isWritableStage(value: unknown): value is WritableStage {
 
 export function isLiteracyStatus(value: unknown): value is LiteracyStatus {
   return typeof value === 'string' && (LITERACY_STATUSES as readonly string[]).includes(value);
+}
+
+export function isEvaluationNextStep(value: unknown): value is EvaluationNextStep {
+  return typeof value === 'string' && (EVALUATION_NEXT_STEPS as readonly string[]).includes(value);
+}
+
+export function isEngagementOutcome(value: unknown): value is EngagementOutcome {
+  return typeof value === 'string' && (ENGAGEMENT_OUTCOMES as readonly string[]).includes(value);
 }
 
 export function isTerminalStage(stage: string) {
@@ -43,6 +58,7 @@ export const EVENT_KINDS = {
   stageChanged: 'stage.changed',
   assignmentChanged: 'assignment.changed',
   followupUpdated: 'followup.updated',
+  evaluationRecorded: 'evaluation.recorded',
   fepBooked: 'fep.booked',
   fepAttended: 'fep.attended',
   optOut: STOP_EVENT,

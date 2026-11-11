@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { WRITABLE_STAGES, LITERACY_STATUSES, STOP_STAGE } from '@/lib/recruitment/stages';
+import { WRITABLE_STAGES, LITERACY_STATUSES, STOP_STAGE, EVALUATION_NEXT_STEPS, ENGAGEMENT_OUTCOMES } from '@/lib/recruitment/stages';
 import { formatManilaStamp, manilaDaysAgo, manilaToday, toManilaDateTimeLocal } from '@/lib/recruitment/time';
 import type { AuditEvent, CandidateDetail, DashboardCounts, DuplicateFlag, HandoffQueueItem, ImportReport, QueueCandidate } from '@/lib/recruitment/types';
 import styles from './command.module.css';
@@ -24,8 +24,11 @@ const METRICS: { key: keyof DashboardCounts; label: string }[] = [
   { key: 'applications', label: 'Applications' },
   { key: 'coded', label: 'Coded' },
   { key: 'activated', label: 'Activated' },
+  { key: 'evaluated', label: 'Evaluated' },
+  { key: 'engaged', label: 'Engaged' },
   { key: 'unassigned', label: 'Unassigned (current)' },
   { key: 'overdueFollowups', label: 'Overdue follow-ups (current)' },
+  { key: 'awaitingEvaluation', label: 'Awaiting evaluation (current)' },
 ];
 
 export default function Command() {
@@ -96,6 +99,7 @@ export default function Command() {
           stage: f.get('stage'),
           assignedLeader: f.get('leader'),
           nextAction: f.get('next'),
+          engagementOutcome: f.get('outcome') || '',
           dueAt: f.get('due') || null,
           resolution: f.get('resolution') || '',
           giaCouldAnswer: f.get('learn') === 'on',
@@ -135,6 +139,30 @@ export default function Command() {
         await load({ keepMessage: true });
         await loadDetail(id);
         setMessage('Global STOP applied on all channels');
+      }
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function evaluate(e: React.FormEvent<HTMLFormElement>, row: CandidateDetail) {
+    e.preventDefault();
+    setBusy(true);
+    const f = new FormData(e.currentTarget);
+    try {
+      const { ok, d } = await postJson('/api/recruitment/command/evaluate', {
+        id: row.id,
+        suggestedNextStep: f.get('nextStep'),
+        note: f.get('evalNote') || '',
+      });
+      if (!ok) {
+        setMessage(d.error === 'suppressed' ? 'STOP is in effect; evaluation cannot continue outreach' : 'Evaluation failed');
+      } else {
+        await load({ keepMessage: true });
+        await loadDetail(row.id);
+        setMessage('Evaluation saved');
       }
     } catch {
       setMessage('Service unavailable');
@@ -410,9 +438,15 @@ export default function Command() {
                 </h2>
                 <p className={styles.meta}>{c.stage} · {c.assigned_leader || 'Unassigned'} · {c.source || 'no source'}</p>
                 <p className={styles.meta}>{c.next_action || 'No next action'}{c.due_at ? ` · due ${formatManilaStamp(c.due_at)}` : ''}</p>
+                <p className={styles.meta}>
+                  {c.evaluation_next_step ? `Suggested ${c.evaluation_next_step}` : 'Not evaluated'}
+                  {c.last_engaged_at ? ` · last engaged ${formatManilaStamp(c.last_engaged_at)}` : ''}
+                  {c.last_engagement_outcome ? ` · ${c.last_engagement_outcome}` : ''}
+                </p>
                 <div className={styles.row}>
                   {c.literacy_status !== 'not_started' && <span className={styles.badge}>Literacy {c.literacy_status}</span>}
                   {c.spike_paid && <span className={styles.badge}>SPIKE paid</span>}
+                  {c.evaluation_next_step && <span className={styles.badge}>Eval {c.evaluation_next_step}</span>}
                   {c.escalated && <span className={`${styles.badge} ${styles.alert}`}>Escalate 18h</span>}
                   {c.overdue && <span className={`${styles.badge} ${styles.warn}`}>Overdue follow-up</span>}
                   {c.stage === STOP_STAGE && <span className={`${styles.badge} ${styles.alert}`}>STOP</span>}
@@ -425,11 +459,32 @@ export default function Command() {
         <section className={styles.detail}>
           {!row && <p className={styles.meta}>Select a candidate to see history and follow-up.</p>}
           {row && (
-            <form key={row.id + row.stage + (row.due_at || '')} onSubmit={(e) => update(e, row)}>
+            <div>
               <h2>{row.name}</h2>
               <p className={styles.meta}>Stage {row.stage} · Literacy {row.literacy_status} · SPIKE paid {row.spike_paid ? 'yes' : 'no'}</p>
               <p className={styles.meta}>Contact (authorized record) · {row.email || 'no email'} · {row.phone || 'no phone'} · consent {row.consent_status || 'none'}</p>
               <p className={styles.meta}>Versa lead {row.versa_lead_ref || 'none'} · SPIKE learner {row.spike_learner_ref || 'none'} · interest {row.program_interest || 'none'}</p>
+              <p className={styles.meta}>
+                Last engaged {row.last_engaged_at ? formatManilaStamp(row.last_engaged_at) : 'never'}
+                {row.last_engagement_outcome ? ` · ${row.last_engagement_outcome}` : ''}
+                {row.evaluated_at ? ` · evaluated ${formatManilaStamp(row.evaluated_at)} by ${row.evaluated_by || 'staff'}` : ' · not evaluated'}
+              </p>
+              <form onSubmit={(e) => evaluate(e, row)}>
+                <h2>Preliminary evaluation</h2>
+                <p className={styles.meta}>Suggests a next engagement step. Does not change stage or grant L1/L2 access.</p>
+                <label className={styles.field}>Suggested next step
+                  <select name="nextStep" defaultValue={row.evaluation_next_step || 'follow_up'} disabled={stopped}>
+                    {EVALUATION_NEXT_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </label>
+                <label className={styles.field}>Note — no personal details
+                  <input name="evalNote" maxLength={200} disabled={stopped} />
+                </label>
+                <div className={styles.actions}>
+                  <button type="submit" disabled={busy || stopped}>Record evaluation</button>
+                </div>
+              </form>
+            <form key={row.id + row.stage + (row.due_at || '')} onSubmit={(e) => update(e, row)}>
               {data?.role === 'admin' && !stopped && (
                 <div className={styles.actions}>
                   {!row.email_verified && row.email && (
@@ -480,6 +535,12 @@ export default function Command() {
               <label className={styles.field}>Next action
                 <input name="next" maxLength={500} defaultValue={row.next_action || ''} disabled={stopped} />
               </label>
+              <label className={styles.field}>Follow-up outcome
+                <select name="outcome" defaultValue={row.last_engagement_outcome || ''} disabled={stopped}>
+                  <option value="">Not logged</option>
+                  {ENGAGEMENT_OUTCOMES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
               <label className={styles.field}>Follow-up due (Asia/Manila)
                 <input type="datetime-local" name="due" defaultValue={toManilaDateTimeLocal(row.due_at)} disabled={stopped} />
               </label>
@@ -521,6 +582,7 @@ export default function Command() {
                 </p>
               )}
               {stopped && <p className={styles.alert}>Global STOP is in effect. Ordinary stage updates are blocked.</p>}
+            </form>
 
               <h2>History</h2>
               <ol className={styles.history}>
@@ -528,10 +590,12 @@ export default function Command() {
                   <li key={event.id}>
                     {formatManilaStamp(event.created_at)} · {event.kind} · {event.actor}
                     {event.metadata?.to ? ` → ${String(event.metadata.to)}` : ''}
+                    {event.metadata?.suggestedNextStep ? ` · suggest ${String(event.metadata.suggestedNextStep)}` : ''}
+                    {event.metadata?.outcome ? ` · ${String(event.metadata.outcome)}` : ''}
                   </li>
                 ))}
               </ol>
-            </form>
+            </div>
           )}
         </section>
       </div>

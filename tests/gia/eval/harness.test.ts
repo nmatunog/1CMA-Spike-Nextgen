@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { cases, runEngineCase, judgeEngine, judgeWorkflow, score } from './harness.mjs';
 import { perform } from '../../../lib/gia/workflow.mjs';
 import { peekDevOtp, clearDevOtps } from '../../../lib/gia/otp.mjs';
-import { applyAllMigrations } from '../../../lib/gia/apply-migrations.mjs';
+import { applyAllMigrations, resetWorkflowTables } from '../../../lib/gia/apply-migrations.mjs';
 
 type EvalCase = {
   id: string;
@@ -59,9 +59,8 @@ const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_eve
 
 async function resetTables() {
   if (!state.db) throw new Error('eval db missing');
-  await state.db.exec('ALTER TABLE gia_turns DISABLE TRIGGER USER');
-  await state.db.exec(`TRUNCATE ${TABLES} CASCADE`);
-  await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
+  const db = state.db;
+  await resetWorkflowTables((sql: string) => db.exec(sql), TABLES);
   clearDevOtps();
 }
 

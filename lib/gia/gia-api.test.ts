@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { createHmac, randomBytes } from 'node:crypto';
-import { applyAllMigrations } from './apply-migrations.mjs';
+import { applyAllMigrations, resetWorkflowTables } from './apply-migrations.mjs';
 
 const SECRET = 'g'.repeat(32);
 const sessionId = randomBytes(32).toString('hex');
@@ -48,9 +48,7 @@ describe('GIA API reject audit', () => {
     await applyAllMigrations((sql: string) => state.db.exec(sql));
   });
   beforeEach(async () => {
-    await state.db.exec('ALTER TABLE gia_turns DISABLE TRIGGER USER');
-    await state.db.exec(`TRUNCATE ${TABLES} CASCADE`);
-    await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
+    await resetWorkflowTables((sql: string) => state.db.exec(sql), TABLES);
     clearDevOtps();
   });
   afterAll(async () => { await state.db.close(); });
