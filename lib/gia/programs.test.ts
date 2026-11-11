@@ -25,9 +25,18 @@ describe('program adapters', () => {
     expect(parseProgram('')).toBeNull();
     expect(parseProgram('   ')).toBeNull();
     expect(parseProgram('intern')).toBe('intern');
-    expect(parseProgram('RA-SPIKE')).toBe('ra');
+    expect(parseProgram(' intern ')).toBe('intern');
+    expect(parseProgram('ra-spike')).toBe('ra');
+    expect(parseProgram('RA-SPIKE')).toBeNull();
+    expect(parseProgram('Recruit')).toBeNull();
     expect(parseProgram('portal')).toBeNull();
     expect(parseProgram('admin')).toBeNull();
+    expect(parseProgram(['recruit'])).toBeNull();
+    expect(parseProgram([['recruit']])).toBeNull();
+    expect(parseProgram({})).toBeNull();
+    expect(parseProgram(0)).toBeNull();
+    expect(parseProgram(true)).toBeNull();
+    expect(parseProgram({ toString() { return 'recruit'; } })).toBeNull();
     expect(PROGRAMS).toEqual(['recruit', 'intern', 'ra']);
     expect(DEFAULT_VISITOR_PROGRAM).toBe('recruit');
     expect(LEAST_PRIVILEGED_PROGRAM).toBe('intern');
@@ -55,6 +64,12 @@ describe('program adapters', () => {
     expect(programFromContext({ program: null })).toBe('intern');
     expect(programFromContext({ program: '' })).toBe('intern');
     expect(programFromContext({ program: 'admin' })).toBe('intern');
+    for (const program of [['recruit'], [['recruit']], {}, 0, true]) {
+      expect(parseProgram(program)).toBeNull();
+      expect(resolveStoredProgram({ hasBodyProgram: true, bodyProgram: program, cookieProgram: 'intern' })).toEqual({ error: 'invalid_program' });
+      expect(programFromContext({ program })).toBe('intern');
+      expect(() => requireProgram({ program })).toThrow('invalid_program');
+    }
   });
 
   it('keeps all five GIA tools on recruit and withholds FEP tools from intern/RA', () => {
@@ -135,5 +150,15 @@ describe('program adapters', () => {
     expect(tampered.reason).toBe('wrong_program');
     const empty = respond('Show FEP sessions', 'en', undefined, undefined, { program: '' });
     expect(empty.reason).toBe('wrong_program');
+    for (const program of [['recruit'], [['recruit']], {}, 0, true]) {
+      const listed = respond('Show FEP sessions', 'en', undefined, undefined, { program });
+      expect(listed.intent).toBe('request_leader');
+      expect(listed.reason).toBe('wrong_program');
+      expect(listed).not.toHaveProperty('citation');
+      const faq = respond('what is FEP', 'en', undefined, undefined, { program });
+      expect(faq.intent).toBe('request_leader');
+      expect(faq).not.toHaveProperty('citation');
+      expect(String(faq.text || '')).not.toMatch(/KP-FEP-01/);
+    }
   });
 });

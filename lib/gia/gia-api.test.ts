@@ -9,12 +9,16 @@ const mac = createHmac('sha256', SECRET).update(sessionId).digest('hex');
 const state = vi.hoisted(() => ({
   db: null as unknown as PGlite,
   cookies: {} as Record<string, string>,
+  setCalls: [] as Array<{ name: string; value: string }>,
 }));
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) => Object.prototype.hasOwnProperty.call(state.cookies, name) ? { value: state.cookies[name] } : undefined,
-    set: (name: string, value: string) => { state.cookies[name] = value; },
+    set: (name: string, value: string) => {
+      state.cookies[name] = value;
+      state.setCalls.push({ name, value });
+    },
   }),
 }));
 vi.mock('@/lib/gia/origin', () => ({ sameOrigin: () => true }));
@@ -56,6 +60,7 @@ describe('GIA API reject audit', () => {
     await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
     clearDevOtps();
     state.cookies = { gia_session: `${sessionId}.${mac}` };
+    state.setCalls = [];
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -144,5 +149,57 @@ describe('GIA API reject audit', () => {
     expect(body.reason).toBe('route_spike_interns');
     expect(body.citation).toBeUndefined();
     expect(body.sessions).toBeUndefined();
+  });
+
+  it('rejects non-string program values instead of coercing them to recruit', async () => {
+    const sessionIdFep = '22222222-2222-4222-8222-222222222222';
+    await state.db.query("INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,now()+interval '3 days',5)", [sessionIdFep]);
+    const tampered = [['recruit'], [['recruit']], {}, 0, true];
+    const cookies = ['intern', 'ra', 'admin'];
+    for (const cookie of cookies) {
+      for (const program of tampered) {
+        state.cookies.gia_program = cookie;
+        state.setCalls = [];
+        for (const extra of [
+          { action: 'list_fep_sessions' },
+          { action: 'book_fep', sessionId: sessionIdFep },
+          { action: 'message', text: 'what is FEP' },
+        ]) {
+          const res = await POST(new Request('http://127.0.0.1/api/gia', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ ...extra, program }),
+          }));
+          const body = await res.json();
+          expect(res.status).toBe(400);
+          expect(body.error).toBe('invalid_program');
+          expect(body.error).not.toBe('consent_required');
+          expect(body.sessions).toBeUndefined();
+          expect(body.citation).toBeUndefined();
+          expect(JSON.stringify(body)).not.toMatch(/KP-FEP-01/);
+          expect(state.cookies.gia_program).toBe(cookie);
+          expect(state.setCalls.filter(call => call.name === 'gia_program')).toEqual([]);
+        }
+      }
+    }
+  });
+
+  it('honors STOP before a non-string program value', async () => {
+    state.cookies.gia_program = 'intern';
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'opt_out', program: ['recruit'] }),
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, message: expect.stringMatching(/opted out/i) });
+    expect(state.cookies.gia_program).toBe('intern');
+    const stopped = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'STOP', program: [['recruit']] }),
+    }));
+    expect(stopped.status).toBe(200);
+    expect(await stopped.json()).toMatchObject({ ok: true });
   });
 });
