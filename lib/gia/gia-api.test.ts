@@ -39,7 +39,7 @@ vi.stubEnv('NODE_ENV', 'test');
 const { POST } = await import('@/app/api/gia/route');
 const { clearDevOtps } = await import('./otp.mjs');
 
-const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,gia_otp_challenges,gia_otp_throttle,gia_turns';
+const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns';
 
 describe('GIA API reject audit', () => {
   beforeAll(async () => {

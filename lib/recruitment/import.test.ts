@@ -38,7 +38,9 @@ describe('CC-02b CSV intake and export', () => {
     await applyAllMigrations((sql: string) => state.db.exec(sql));
   });
   beforeEach(async () => {
-    await state.db.exec('TRUNCATE candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events CASCADE');
+    await state.db.exec('ALTER TABLE gia_turns DISABLE TRIGGER USER');
+    await state.db.exec('TRUNCATE candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns CASCADE');
+    await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
   });
   afterAll(async () => { await state.db.close(); });
 

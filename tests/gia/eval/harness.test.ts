@@ -55,7 +55,7 @@ vi.mock('postgres', () => ({ default: () => {
 import { repository } from '../../../lib/gia/repository';
 
 const consent = { agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Eval', email: 'eval@example.test' };
-const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,gia_otp_challenges,gia_otp_throttle,gia_turns';
+const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns';
 
 async function resetTables() {
   if (!state.db) throw new Error('eval db missing');
