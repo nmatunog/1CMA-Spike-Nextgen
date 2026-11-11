@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, afterAll, describe, it, expect } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { applyAllMigrations, futureFepInsertSql, seedFutureFep, resetWorkflowTables } from './demo-seed.mjs';
+import { applyAllMigrations, futureFepInsertSql, seedFutureFep, resetWorkflowTables, WORKFLOW_RESET_TABLES } from './demo-seed.mjs';
 import { applyCandidateStop, assertWritable, isStopped, STOP_STAGE } from './suppression';
 import { WRITABLE_STAGES } from './stages';
 import { dashboardCounts, listCandidates, saveFollowUp, stopCandidate, parseFollowUpBody, recordEvaluation } from './store';
@@ -40,7 +40,7 @@ describe('CC-02a command center', () => {
     await applyAllMigrations((sql: string) => state.db.exec(sql));
   });
   beforeEach(async () => {
-    await resetWorkflowTables((sql: string) => state.db.exec(sql), 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns');
+    await resetWorkflowTables((sql: string) => state.db.exec(sql), WORKFLOW_RESET_TABLES);
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -321,5 +321,36 @@ describe('CC-02a command center', () => {
   it('blocks TRUNCATE on append-only event tables', async () => {
     await expect(state.db.exec('TRUNCATE candidate_events')).rejects.toThrow(/append-only/);
     await expect(state.db.exec('TRUNCATE command_audit_events')).rejects.toThrow(/append-only/);
+    await expect(state.db.exec('TRUNCATE candidate_evaluations')).rejects.toThrow(/append-only/);
+  });
+
+  it('refuses a leader evaluating or following up an unassigned or other-leader candidate', async () => {
+    const unassigned = randomUUID();
+    const other = randomUUID();
+    const mine = randomUUID();
+    const sql = tag(state.db);
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage) VALUES($1,'Synthetic Unowned','unowned@example.test','',0,'new_lead')`, [unassigned]);
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage,assigned_leader) VALUES($1,'Synthetic Other','other@example.test','',0,'new_lead',$2)`, [other, admin.email]);
+    await q(`INSERT INTO candidates(id,name,email,phone,score,stage,assigned_leader) VALUES($1,'Synthetic Mine','mine@example.test','',0,'new_lead',$2)`, [mine, leader.email]);
+    const follow = (id: string) => ({
+      id,
+      stage: 'contacted' as const,
+      assignedLeader: leader.email,
+      nextAction: 'Call',
+      dueAtProvided: false,
+      resolution: '',
+      generalAnswer: '',
+      giaCouldAnswer: false,
+      resolve: false,
+    });
+    await expect(saveFollowUp(sql, leader, follow(unassigned))).rejects.toThrow(/forbidden/);
+    await expect(saveFollowUp(sql, leader, follow(other))).rejects.toThrow(/forbidden/);
+    await expect(recordEvaluation(sql, leader, { id: unassigned, suggestedNextStep: 'fep' })).rejects.toThrow(/forbidden/);
+    await expect(recordEvaluation(sql, leader, { id: other, suggestedNextStep: 'fep' })).rejects.toThrow(/forbidden/);
+    expect((await q('SELECT evaluated_at FROM candidates WHERE id=$1', [unassigned]))[0].evaluated_at).toBeNull();
+    expect((await q('SELECT evaluated_at FROM candidates WHERE id=$1', [other]))[0].evaluated_at).toBeNull();
+    await saveFollowUp(sql, leader, follow(mine));
+    await recordEvaluation(sql, leader, { id: mine, suggestedNextStep: 'follow_up' });
+    expect((await q('SELECT evaluation_next_step, next_action FROM candidates WHERE id=$1', [mine]))[0].evaluation_next_step).toBe('follow_up');
   });
 });

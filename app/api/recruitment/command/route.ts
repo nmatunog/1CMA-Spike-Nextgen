@@ -12,6 +12,7 @@ import {
   staffDirectory,
 } from '@/lib/recruitment/store';
 import { listDuplicateFlags } from '@/lib/recruitment/import';
+import { loadActiveEvaluationConfig } from '@/lib/mvp01/evaluate';
 import { manilaDaysAgo, manilaToday, MANILA_TIME_ZONE } from '@/lib/recruitment/time';
 
 export const runtime = 'nodejs';
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
     const handoffs = await listHandoffs(db, actor, filters);
     const sources = await listSources(db);
     const duplicates = actor.role === 'admin' ? await listDuplicateFlags(db, actor) : [];
+    const evaluationConfig = await loadActiveEvaluationConfig(db);
     return NextResponse.json({
       role: actor.role,
       timezone: MANILA_TIME_ZONE,
@@ -52,6 +54,7 @@ export async function GET(req: Request) {
       handoffs,
       sources,
       duplicates,
+      evaluationConfig,
       leaders: actor.role === 'admin' ? staffDirectory() : [],
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {

@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { cases, runEngineCase, judgeEngine, judgeWorkflow, score } from './harness.mjs';
 import { perform } from '../../../lib/gia/workflow.mjs';
 import { peekDevOtp, clearDevOtps } from '../../../lib/gia/otp.mjs';
-import { applyAllMigrations, resetWorkflowTables } from '../../../lib/gia/apply-migrations.mjs';
+import { applyAllMigrations, resetWorkflowTables, WORKFLOW_RESET_TABLES } from '../../../lib/gia/apply-migrations.mjs';
 
 type EvalCase = {
   id: string;
@@ -55,7 +55,7 @@ vi.mock('postgres', () => ({ default: () => {
 import { repository } from '../../../lib/gia/repository';
 
 const consent = { agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Eval', email: 'eval@example.test' };
-const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns';
+const TABLES = WORKFLOW_RESET_TABLES;
 
 async function resetTables() {
   if (!state.db) throw new Error('eval db missing');

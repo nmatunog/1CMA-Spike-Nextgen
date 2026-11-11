@@ -55,9 +55,10 @@ export function manilaToday() {
 }
 
 export function manilaDaysAgo(days: number) {
-  const now = new Date();
-  const shifted = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  const p = manilaParts(shifted);
+  const today = manilaToday();
+  const start = new Date(`${today}T00:00:00${MANILA_OFFSET}`);
+  start.setUTCDate(start.getUTCDate() - days);
+  const p = manilaParts(start);
   return `${p.year}-${p.month}-${p.day}`;
 }
 

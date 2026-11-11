@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { perform } from './workflow.mjs';
 import { peekDevOtp, clearDevOtps } from './otp.mjs';
-import { applyAllMigrations as giaApply, resetWorkflowTables } from './apply-migrations.mjs';
+import { applyAllMigrations as giaApply, resetWorkflowTables, WORKFLOW_RESET_TABLES } from './apply-migrations.mjs';
 import { applyAllMigrations as seedApply, listMigrationFiles } from '../recruitment/demo-seed.mjs';
 import { saveFollowUp, type Sql } from '../recruitment/store';
 import { previewOrImportCsv } from '../recruitment/import';
@@ -49,6 +49,12 @@ const TABLES = [
   'gia_otp_throttle',
   'gia_turns',
   'gia_retention_config',
+  'candidate_channel_prefs',
+  'user_accounts',
+  'program_enrollments',
+  'program_roles',
+  'evaluation_form_configs',
+  'candidate_evaluations',
 ] as const;
 
 const PRIVILEGES = {
@@ -69,6 +75,12 @@ const PRIVILEGES = {
   gia_otp_throttle: { select: true, insert: true, update: true, delete: false },
   gia_turns: { select: true, insert: true, update: false, delete: false },
   gia_retention_config: { select: true, insert: false, update: false, delete: false },
+  candidate_channel_prefs: { select: true, insert: true, update: true, delete: false },
+  user_accounts: { select: true, insert: true, update: true, delete: false },
+  program_enrollments: { select: true, insert: true, update: true, delete: false },
+  program_roles: { select: true, insert: true, update: true, delete: false },
+  evaluation_form_configs: { select: true, insert: false, update: false, delete: false },
+  candidate_evaluations: { select: true, insert: true, update: false, delete: false },
 } as const;
 
 function tag(db: PGlite): Sql {
@@ -99,7 +111,7 @@ async function resetTables() {
   try { await state.db.exec('RESET SESSION AUTHORIZATION'); } catch { /* ignore */ }
   await resetWorkflowTables(
     (sql: string) => state.db.exec(sql),
-    TABLES.filter((t) => t !== 'gia_retention_config').join(','),
+    WORKFLOW_RESET_TABLES,
   );
   clearDevOtps();
 }
@@ -123,7 +135,8 @@ describe('gia_app least-privilege access', () => {
     const files = await listMigrationFiles();
     expect(files).toContain('0006_app_role_full_access.sql');
     expect(files).toContain('0007_cc03_evaluate_engage.sql');
-    expect(files[files.length - 1]).toBe('0007_cc03_evaluate_engage.sql');
+    expect(files).toContain('0008_mvp01_journey.sql');
+    expect(files[files.length - 1]).toBe('0008_mvp01_journey.sql');
   });
 
   it('FORCE RLS and a gia_app ALLOW policy on every workflow table', async () => {
@@ -241,6 +254,7 @@ describe('gia_app least-privilege access', () => {
   it('refuses gia_app TRUNCATE and append-only mutations', async () => {
     await asRole('gia_app', async () => {
       await expect(state.db.exec('TRUNCATE gia_turns')).rejects.toThrow(/permission denied/);
+      await expect(state.db.exec('TRUNCATE candidate_evaluations')).rejects.toThrow(/permission denied/);
       await expect(state.db.exec("UPDATE gia_turns SET outcome='changed'")).rejects.toThrow(/permission denied/);
       await expect(state.db.exec('DELETE FROM gia_turns')).rejects.toThrow(/permission denied/);
       await expect(state.db.exec("UPDATE candidate_events SET kind='changed'")).rejects.toThrow(/permission denied/);

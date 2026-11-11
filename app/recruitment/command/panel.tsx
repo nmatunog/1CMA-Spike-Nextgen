@@ -1,8 +1,10 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { WRITABLE_STAGES, LITERACY_STATUSES, STOP_STAGE, EVALUATION_NEXT_STEPS, ENGAGEMENT_OUTCOMES } from '@/lib/recruitment/stages';
+import { WRITABLE_STAGES, LITERACY_STATUSES, STOP_STAGE, ENGAGEMENT_OUTCOMES } from '@/lib/recruitment/stages';
 import { formatManilaStamp, manilaDaysAgo, manilaToday, toManilaDateTimeLocal } from '@/lib/recruitment/time';
 import type { AuditEvent, CandidateDetail, DashboardCounts, DuplicateFlag, HandoffQueueItem, ImportReport, QueueCandidate } from '@/lib/recruitment/types';
+import { COMM_CHANNELS, GIA_ENGAGEMENT_KINDS } from '@/lib/mvp01/interfaces';
+import type { EvaluationFormConfig } from '@/lib/mvp01/evaluation-config';
 import styles from './command.module.css';
 
 type Payload = {
@@ -13,6 +15,7 @@ type Payload = {
   handoffs: HandoffQueueItem[];
   sources: string[];
   duplicates?: DuplicateFlag[];
+  evaluationConfig?: EvaluationFormConfig;
   leaders: { email: string; role: string }[];
 };
 
@@ -26,6 +29,9 @@ const METRICS: { key: keyof DashboardCounts; label: string }[] = [
   { key: 'activated', label: 'Activated' },
   { key: 'evaluated', label: 'Evaluated' },
   { key: 'engaged', label: 'Engaged' },
+  { key: 'captured', label: 'Captured' },
+  { key: 'registered', label: 'Registered (current window)' },
+  { key: 'duplicatePairs', label: 'Duplicate pairs (current)' },
   { key: 'unassigned', label: 'Unassigned (current)' },
   { key: 'overdueFollowups', label: 'Overdue follow-ups (current)' },
   { key: 'awaitingEvaluation', label: 'Awaiting evaluation (current)' },
@@ -151,18 +157,48 @@ export default function Command() {
     e.preventDefault();
     setBusy(true);
     const f = new FormData(e.currentTarget);
+    const answers: Record<string, string> = {};
+    for (const [key, value] of f.entries()) {
+      if (key === 'configId' || key === 'configVersion') continue;
+      answers[key] = String(value);
+    }
     try {
       const { ok, d } = await postJson('/api/recruitment/command/evaluate', {
         id: row.id,
-        suggestedNextStep: f.get('nextStep'),
-        note: f.get('evalNote') || '',
+        configId: f.get('configId'),
+        configVersion: Number(f.get('configVersion')),
+        answers,
       });
       if (!ok) {
-        setMessage(d.error === 'suppressed' ? 'STOP is in effect; evaluation cannot continue outreach' : 'Evaluation failed');
+        setMessage(d.error === 'suppressed' ? 'STOP is in effect; evaluation cannot continue outreach' : d.error === 'forbidden' ? 'Not assigned to you' : 'Evaluation failed');
       } else {
         await load({ keepMessage: true });
         await loadDetail(row.id);
         setMessage('Evaluation saved');
+      }
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordGiaEvent(e: React.FormEvent<HTMLFormElement>, row: CandidateDetail) {
+    e.preventDefault();
+    setBusy(true);
+    const f = new FormData(e.currentTarget);
+    try {
+      const { ok, d } = await postJson('/api/recruitment/command/engagement', {
+        candidateId: row.id,
+        kind: f.get('giaKind'),
+        metadata: { intent: String(f.get('giaIntent') || 'synthetic'), citation: String(f.get('giaCitation') || '') },
+      });
+      if (!ok) {
+        setMessage(d.error === 'suppressed' ? 'STOP is in effect' : 'GIA event failed');
+      } else {
+        await load({ keepMessage: true });
+        await loadDetail(row.id);
+        setMessage('GIA engagement event recorded');
       }
     } catch {
       setMessage('Service unavailable');
@@ -205,15 +241,21 @@ export default function Command() {
     setBusy(true);
     const f = new FormData(e.currentTarget);
     try {
+      const channelPrefs: Record<string, boolean> = {};
+      for (const channel of COMM_CHANNELS) {
+        channelPrefs[channel] = f.get(`ipref_${channel}`) === 'on';
+      }
       const { ok, d } = await postJson('/api/recruitment/command/intake', {
         name: f.get('iname'),
         email: f.get('iemail'),
         phone: f.get('iphone'),
         source: f.get('isource') || 'manual',
+        campaign: f.get('icampaign') || '',
         versaLeadRef: f.get('ivlr'),
         programInterest: f.get('iinterest'),
         consentGranted: f.get('iconsent') === 'on',
         noticeVersion: f.get('inotice') || '',
+        channelPrefs,
       });
       setMessage(ok ? 'Manual lead saved' : d.error === 'duplicate_verified' ? 'Verified identity already exists' : 'Intake failed');
       if (ok) {
@@ -264,6 +306,7 @@ export default function Command() {
       <p className={styles.status} role="status">{message}</p>
       <div className={styles.toolbar}>
         <button type="button" onClick={() => load()}>Refresh</button>
+        {data?.role === 'admin' && <a href="/recruitment/capture">Capture prospect</a>}
         {data && <span className={styles.meta}>Signed in as {data.role} · {data.timezone}</span>}
       </div>
 
@@ -330,6 +373,9 @@ export default function Command() {
             <label className={styles.field}>Phone
               <input name="iphone" maxLength={20} />
             </label>
+            <label className={styles.field}>Campaign
+              <input name="icampaign" maxLength={80} />
+            </label>
             <label className={styles.field}>Source
               <select name="isource" defaultValue="manual">
                 <option value="manual">manual</option>
@@ -346,6 +392,12 @@ export default function Command() {
             <label className={styles.field}>Consent notice version
               <input name="inotice" maxLength={80} placeholder="only if consent is given" />
             </label>
+            {COMM_CHANNELS.map((channel) => (
+              <label className={styles.check} key={channel}>
+                <input type="checkbox" name={`ipref_${channel}`} />
+                Allow {channel}
+              </label>
+            ))}
             <label className={styles.check}>
               <input type="checkbox" name="iconsent" />
               Explicit consent given (do not tick from a CSV)
@@ -397,13 +449,33 @@ export default function Command() {
                 <button type="button" disabled={busy} onClick={async () => {
                   setBusy(true);
                   try {
-                    const { ok } = await postJson('/api/recruitment/command/duplicates', { id: dup.id });
+                    const { ok } = await postJson('/api/recruitment/command/duplicates', { id: dup.id, action: 'keep' });
                     setMessage(ok ? 'Duplicate dismissed' : 'Update failed');
                     if (ok) await load({ keepMessage: true });
                   } finally {
                     setBusy(false);
                   }
                 }}>Keep both</button>
+                <button type="button" disabled={busy} onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const { ok } = await postJson('/api/recruitment/command/duplicates', { id: dup.id, action: 'link' });
+                    setMessage(ok ? 'Records linked' : 'Update failed');
+                    if (ok) await load({ keepMessage: true });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>Link records</button>
+                <button type="button" disabled={busy} onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const { ok, d } = await postJson('/api/recruitment/command/duplicates', { id: dup.id, action: 'merge', keeperId: dup.leftId });
+                    setMessage(ok ? 'Records merged' : d.error === 'unverified' ? 'Merge blocked until a contact is verified' : 'Update failed');
+                    if (ok) await load({ keepMessage: true });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>Merge into first</button>
               </div>
             </div>
           ))}
@@ -463,6 +535,7 @@ export default function Command() {
               <h2>{row.name}</h2>
               <p className={styles.meta}>Stage {row.stage} · Literacy {row.literacy_status} · SPIKE paid {row.spike_paid ? 'yes' : 'no'}</p>
               <p className={styles.meta}>Contact (authorized record) · {row.email || 'no email'} · {row.phone || 'no phone'} · consent {row.consent_status || 'none'}</p>
+              <p className={styles.meta}>Campaign {row.campaign || 'none'} · channel {row.capture_channel || 'none'} · registered {row.registered_at ? formatManilaStamp(row.registered_at) : 'n/a'}</p>
               <p className={styles.meta}>Versa lead {row.versa_lead_ref || 'none'} · SPIKE learner {row.spike_learner_ref || 'none'} · interest {row.program_interest || 'none'}</p>
               <p className={styles.meta}>
                 Last engaged {row.last_engaged_at ? formatManilaStamp(row.last_engaged_at) : 'never'}
@@ -471,17 +544,48 @@ export default function Command() {
               </p>
               <form onSubmit={(e) => evaluate(e, row)}>
                 <h2>Preliminary evaluation</h2>
-                <p className={styles.meta}>Suggests a next engagement step. Does not change stage or grant L1/L2 access.</p>
-                <label className={styles.field}>Suggested next step
-                  <select name="nextStep" defaultValue={row.evaluation_next_step || 'follow_up'} disabled={stopped}>
-                    {EVALUATION_NEXT_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </label>
-                <label className={styles.field}>Note — no personal details
-                  <input name="evalNote" maxLength={200} disabled={stopped} />
-                </label>
+                <p className={styles.meta}>{data?.evaluationConfig?.title || 'Evaluation'}. Does not change stage or grant L1/L2 access. No scoring.</p>
+                <input type="hidden" name="configId" value={data?.evaluationConfig?.id || ''} />
+                <input type="hidden" name="configVersion" value={data?.evaluationConfig?.version || ''} />
+                {(data?.evaluationConfig?.sections || []).map((section) => (
+                  <fieldset key={section.id} className={styles.filters} disabled={stopped}>
+                    <legend>{section.title}</legend>
+                    {section.fields.map((field) => (
+                      <label className={styles.field} key={field.id}>{field.label}
+                        {field.type === 'select' ? (
+                          <select name={field.id} required={field.required} defaultValue={field.id === 'recommended_next_action' ? (row.evaluation_next_step || '') : ''}>
+                            <option value="">{field.required ? 'Select' : 'Optional'}</option>
+                            {(field.options || []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select>
+                        ) : field.type === 'textarea' ? (
+                          <textarea name={field.id} required={field.required} maxLength={field.maxLength || 1000} />
+                        ) : (
+                          <input name={field.id} required={field.required} maxLength={field.maxLength || 200} />
+                        )}
+                      </label>
+                    ))}
+                  </fieldset>
+                ))}
                 <div className={styles.actions}>
                   <button type="submit" disabled={busy || stopped}>Record evaluation</button>
+                </div>
+              </form>
+              <form onSubmit={(e) => recordGiaEvent(e, row)}>
+                <h2>GIA engagement event</h2>
+                <p className={styles.meta}>Append-only timeline. GIA text is not a decision.</p>
+                <label className={styles.field}>Kind
+                  <select name="giaKind" defaultValue="gia.conversation" disabled={stopped}>
+                    {GIA_ENGAGEMENT_KINDS.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+                  </select>
+                </label>
+                <label className={styles.field}>Intent — no personal details
+                  <input name="giaIntent" maxLength={80} defaultValue="synthetic" disabled={stopped} />
+                </label>
+                <label className={styles.field}>Citation
+                  <input name="giaCitation" maxLength={80} disabled={stopped} />
+                </label>
+                <div className={styles.actions}>
+                  <button type="submit" disabled={busy || stopped}>Record GIA event</button>
                 </div>
               </form>
             <form key={row.id + row.stage + (row.due_at || '')} onSubmit={(e) => update(e, row)}>
@@ -592,6 +696,8 @@ export default function Command() {
                     {event.metadata?.to ? ` → ${String(event.metadata.to)}` : ''}
                     {event.metadata?.suggestedNextStep ? ` · suggest ${String(event.metadata.suggestedNextStep)}` : ''}
                     {event.metadata?.outcome ? ` · ${String(event.metadata.outcome)}` : ''}
+                    {event.metadata?.officialDecision === false ? ' · not a decision' : ''}
+                    {event.metadata?.officialDecision === true ? ' · official decision' : ''}
                   </li>
                 ))}
               </ol>

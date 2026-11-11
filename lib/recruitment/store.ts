@@ -166,10 +166,14 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
       ) AS evaluated,
       COUNT(DISTINCT e.candidate_id) FILTER (
         WHERE e.kind = 'followup.updated' AND e.metadata->>'outcome' IS NOT NULL AND e.metadata->>'outcome' <> ''
-      ) AS engaged
+      ) AS engaged,
+      COUNT(DISTINCT e.candidate_id) FILTER (
+        WHERE e.kind IN ('candidate.created','capture.recorded')
+      ) AS captured
     FROM candidate_events e
     JOIN candidates c ON c.id = e.candidate_id
-    WHERE e.created_at >= ${from}::timestamptz AND e.created_at < ${toExclusive}::timestamptz
+    WHERE c.merged_into IS NULL
+      AND e.created_at >= ${from}::timestamptz AND e.created_at < ${toExclusive}::timestamptz
       AND (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
       AND (${leader} = '' OR c.assigned_leader = ${leader})
       AND (${source} = '' OR EXISTS (
@@ -187,9 +191,23 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
       ) AS overdue,
       COUNT(*) FILTER (
         WHERE c.evaluated_at IS NULL AND c.stage NOT IN ('opt_out','disqualified','activated')
-      ) AS awaiting_evaluation
+      ) AS awaiting_evaluation,
+      COUNT(*) FILTER (
+        WHERE c.registered_at >= ${from}::timestamptz AND c.registered_at < ${toExclusive}::timestamptz
+      ) AS registered,
+      (
+        SELECT COUNT(*) FROM (
+          SELECT DISTINCT LEAST(d.left_candidate_id, d.right_candidate_id), GREATEST(d.left_candidate_id, d.right_candidate_id)
+          FROM candidate_duplicate_flags d
+          JOIN candidates a ON a.id = d.left_candidate_id
+          JOIN candidates b ON b.id = d.right_candidate_id
+          WHERE d.status = 'needs_review'
+            AND (${actor.role} = 'admin')
+        ) pairs
+      ) AS duplicate_pairs
     FROM candidates c
-    WHERE (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
+    WHERE c.merged_into IS NULL
+      AND (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
       AND (${leader} = '' OR c.assigned_leader = ${leader})
       AND (${source} = '' OR EXISTS (
         SELECT 1 FROM candidate_identities i WHERE i.candidate_id = c.id AND i.source = ${source}
@@ -207,6 +225,9 @@ export async function dashboardCounts(sql: Sql, actor: StaffActor, filters: Comm
     activated: num(f.activated),
     evaluated: num(f.evaluated),
     engaged: num(f.engaged),
+    captured: num(f.captured),
+    registered: num(s.registered),
+    duplicatePairs: num(s.duplicate_pairs),
     unassigned: num(s.unassigned),
     overdueFollowups: num(s.overdue),
     awaitingEvaluation: num(s.awaiting_evaluation),
@@ -233,7 +254,8 @@ export async function listCandidates(sql: Sql, actor: StaffActor, filters: Comma
       ORDER BY CASE WHEN hh.state IN ('open','acknowledged') THEN 0 ELSE 1 END, hh.created_at DESC
       LIMIT 1
     )
-    WHERE (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
+    WHERE c.merged_into IS NULL
+      AND (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
       AND (${q} = '' OR c.name ILIKE ${like(q)})
       AND (${stage} = '' OR c.stage = ${stage})
       AND (${leader} = '' OR c.assigned_leader = ${leader})
@@ -265,6 +287,7 @@ export async function listHandoffs(sql: Sql, actor: StaffActor, filters: Command
     FROM candidate_handoffs h
     JOIN candidates c ON c.id = h.candidate_id
     WHERE h.state IN ('open','acknowledged')
+      AND c.merged_into IS NULL
       AND (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
       AND (${leader} = '' OR c.assigned_leader = ${leader})
       AND (${source} = '' OR EXISTS (
@@ -299,6 +322,7 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
       c.literacy_status, c.spike_paid, c.created_at, c.program_interest, c.versa_lead_ref,
       c.email_verified, c.phone_verified,
       c.evaluation_next_step, c.evaluated_at, c.evaluated_by, c.last_engaged_at, c.last_engagement_outcome,
+      c.campaign, c.capture_channel, c.registered_at,
       (SELECT i.source FROM candidate_identities i WHERE i.candidate_id = c.id ORDER BY i.source LIMIT 1) AS source,
       (SELECT m.spike_learner_ref FROM versa_lead_map m WHERE m.candidate_id = c.id ORDER BY m.created_at LIMIT 1) AS spike_learner_ref,
       CASE
@@ -310,7 +334,7 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
           SELECT 1 FROM candidate_consents s
           WHERE s.candidate_id = c.id AND s.purpose='recruitment'
         ) THEN 'revoked'
-        ELSE 'none'
+        ELSE 'unknown'
       END AS consent_status,
       h.id AS handoff_id, h.reason, h.state AS handoff_state, h.due_at AS handoff_due,
       h.escalate_at, h.resolution, h.gia_could_answer, h.general_answer, h.created_at AS handoff_created
@@ -340,9 +364,12 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
     program_interest: (row.program_interest as string | null) || null,
     email_verified: flag(row.email_verified),
     phone_verified: flag(row.phone_verified),
-    consent_status: (['granted', 'revoked', 'none'].includes(String(row.consent_status))
+    consent_status: (['granted', 'revoked', 'unknown'].includes(String(row.consent_status))
       ? String(row.consent_status)
-      : 'none') as CandidateDetail['consent_status'],
+      : 'unknown') as CandidateDetail['consent_status'],
+    campaign: (row.campaign as string | null) || null,
+    capture_channel: (row.capture_channel as string | null) || null,
+    registered_at: iso(row.registered_at),
   };
   const events = (await sql`
     SELECT id, kind, actor, metadata, created_at
@@ -360,6 +387,12 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
   const identities = (await sql`SELECT source, external_id FROM candidate_identities WHERE candidate_id = ${id}`).map((identity: Record<string, unknown>) => ({
     source: String(identity.source),
   }));
+  const prefsRows = await sql`SELECT channel, allowed FROM candidate_channel_prefs WHERE candidate_id = ${id}`;
+  const channel_prefs: Record<string, boolean> = { email: false, sms: false, voice: false, gia: false };
+  for (const pref of prefsRows as Record<string, unknown>[]) {
+    channel_prefs[String(pref.channel)] = pref.allowed === true || pref.allowed === 't' || pref.allowed === 'true';
+  }
+  detail.channel_prefs = channel_prefs;
   return { candidate: detail, events, identities };
 }
 
@@ -386,7 +419,7 @@ export async function saveFollowUp(sql: Sql, actor: StaffActor, input: FollowUpI
 
   await sql.begin(async (transaction: SqlTx) => {
     const t = transaction;
-    const [c] = await t`SELECT * FROM candidates WHERE id=${input.id} AND (${actor.role}='admin' OR assigned_leader=${actor.email}) FOR UPDATE`;
+    const [c] = await t`SELECT * FROM candidates WHERE id=${input.id} AND (${actor.role}='admin' OR assigned_leader=${actor.email}) AND merged_into IS NULL FOR UPDATE`;
     if (!c) throw new Error('forbidden');
     assertWritable(c as { stage: string });
     if (await identityIsSuppressed(t, `candidate:${input.id}`)) throw new Error('suppressed');
@@ -455,7 +488,7 @@ export async function recordEvaluation(
   const note = (input.note || '').trim().slice(0, 200);
   await sql.begin(async (transaction: SqlTx) => {
     const t = transaction;
-    const [c] = await t`SELECT * FROM candidates WHERE id=${input.id} AND (${actor.role}='admin' OR assigned_leader=${actor.email}) FOR UPDATE`;
+    const [c] = await t`SELECT * FROM candidates WHERE id=${input.id} AND (${actor.role}='admin' OR assigned_leader=${actor.email}) AND merged_into IS NULL FOR UPDATE`;
     if (!c) throw new Error('forbidden');
     assertWritable(c as { stage: string });
     if (await identityIsSuppressed(t, `candidate:${input.id}`)) throw new Error('suppressed');

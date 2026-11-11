@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, afterAll, describe, it, expect } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFile } from 'node:fs/promises';
-import { applyAllMigrations, resetWorkflowTables } from './demo-seed.mjs';
+import { applyAllMigrations, resetWorkflowTables, WORKFLOW_RESET_TABLES } from './demo-seed.mjs';
 import { previewOrImportCsv, createManualLead, verifyContact, listDuplicateFlags, intakeErrorCode } from './import';
 import { exportCandidatesCsv } from './export';
 import { dashboardCounts, stopCandidate } from './store';
@@ -38,7 +38,7 @@ describe('CC-02b CSV intake and export', () => {
     await applyAllMigrations((sql: string) => state.db.exec(sql));
   });
   beforeEach(async () => {
-    await resetWorkflowTables((sql: string) => state.db.exec(sql), 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns');
+    await resetWorkflowTables((sql: string) => state.db.exec(sql), WORKFLOW_RESET_TABLES);
   });
   afterAll(async () => { await state.db.close(); });
 

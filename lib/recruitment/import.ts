@@ -10,8 +10,11 @@ import {
   isValidEmail,
   isValidPhone,
   normalizeEmail,
+  normalizeName,
   normalizePhone,
 } from './contacts';
+import type { CaptureInput, CaptureResult, CommChannel, DuplicateAction } from '@/lib/mvp01/interfaces';
+import { COMM_CHANNELS } from '@/lib/mvp01/interfaces';
 import { parseCsv, rowObject } from './csv';
 import { EVENT_KINDS } from './stages';
 import type { Sql, SqlTx } from './store';
@@ -41,6 +44,7 @@ export function parseProspectRow(raw: Record<string, string>, line: number): Imp
   const versaLeadRef = (raw.versa_lead_ref || '').trim();
   const spikeLearnerRef = (raw.spike_learner_ref || '').trim();
   const programInterest = (raw.program_interest || '').trim().slice(0, 80);
+  const campaign = (raw.campaign || '').trim().slice(0, 80);
   const offering = (raw.offering || '').trim().slice(0, 20);
   const codeStatus = (raw.code_status || '').trim().toLowerCase();
   if (!name) return { line, status: 'rejected', reason: 'missing_name' };
@@ -63,6 +67,7 @@ export function parseProspectRow(raw: Record<string, string>, line: number): Imp
     versaLeadRef: versaLeadRef || '',
     spikeLearnerRef: spikeLearnerRef || '',
     programInterest,
+    campaign,
     offering,
     codeStatus,
     consentClaimed: !!(raw.consent || raw.consent_status),
@@ -89,20 +94,25 @@ async function findVerified(t: SqlTx, email: string, phone: string) {
   return null;
 }
 
-async function unverifiedMatches(t: SqlTx, email: string, phone: string, except?: string) {
-  const ids: { id: string; matchOn: 'email' | 'phone' }[] = [];
+async function unverifiedMatches(t: SqlTx, email: string, phone: string, except?: string, name?: string) {
+  const ids: { id: string; matchOn: 'email' | 'phone' | 'name' }[] = [];
   if (email) {
-    const rows = await t`SELECT id FROM candidates WHERE email_normalized=${email} AND (${except || ''} = '' OR id::text <> ${except || ''})`;
+    const rows = await t`SELECT id FROM candidates WHERE email_normalized=${email} AND merged_into IS NULL AND (${except || ''} = '' OR id::text <> ${except || ''})`;
     for (const row of rows) ids.push({ id: String(row.id), matchOn: 'email' });
   }
   if (phone) {
-    const rows = await t`SELECT id FROM candidates WHERE phone_normalized=${phone} AND (${except || ''} = '' OR id::text <> ${except || ''})`;
+    const rows = await t`SELECT id FROM candidates WHERE phone_normalized=${phone} AND merged_into IS NULL AND (${except || ''} = '' OR id::text <> ${except || ''})`;
     for (const row of rows) ids.push({ id: String(row.id), matchOn: 'phone' });
+  }
+  const normalizedName = normalizeName(name);
+  if (normalizedName) {
+    const rows = await t`SELECT id FROM candidates WHERE name_normalized=${normalizedName} AND merged_into IS NULL AND (${except || ''} = '' OR id::text <> ${except || ''})`;
+    for (const row of rows) ids.push({ id: String(row.id), matchOn: 'name' });
   }
   return ids;
 }
 
-async function flagDuplicate(t: SqlTx, left: string, right: string, matchOn: 'email' | 'phone') {
+async function flagDuplicate(t: SqlTx, left: string, right: string, matchOn: 'email' | 'phone' | 'name') {
   const [a, b] = orderedPair(left, right);
   await t`INSERT INTO candidate_duplicate_flags(left_candidate_id,right_candidate_id,match_on)
     VALUES(${a},${b},${matchOn}) ON CONFLICT DO NOTHING`;
@@ -136,10 +146,10 @@ async function recordCodeStatus(
   });
 }
 
-async function createCandidate(t: SqlTx, actor: string, batchId: string, row: ImportLine) {
+async function createCandidate(t: SqlTx, actor: string, batchId: string, row: ImportLine, captureChannel = 'csv') {
   const id = randomUUID();
-  await t`INSERT INTO candidates(id,name,email,phone,score,stage,email_normalized,phone_normalized,program_interest,versa_lead_ref)
-    VALUES(${id},${row.name},${row.email || ''},${row.phone || ''},0,'new_lead',${row.email || null},${row.phone || null},${row.programInterest || null},${row.versaLeadRef || null})`;
+  await t`INSERT INTO candidates(id,name,email,phone,score,stage,email_normalized,phone_normalized,program_interest,versa_lead_ref,campaign,capture_channel,registered_at)
+    VALUES(${id},${row.name},${row.email || ''},${row.phone || ''},0,'new_lead',${row.email || null},${row.phone || null},${row.programInterest || null},${row.versaLeadRef || null},${row.campaign || null},${captureChannel},now())`;
   const externalId = row.versaLeadRef || randomUUID();
   const source = row.versaLeadRef ? 'versa' : row.source;
   await t`INSERT INTO candidate_identities(source,external_id,candidate_id) VALUES(${source},${externalId},${id}) ON CONFLICT DO NOTHING`;
@@ -204,6 +214,7 @@ export async function previewOrImportCsv(
     let merged = 0;
     const createdByEmail = new Map<string, string>();
     const createdByPhone = new Map<string, string>();
+    const createdByName = new Map<string, string>();
 
     for (const row of prospects) {
       if (row.status === 'rejected') {
@@ -226,15 +237,19 @@ export async function previewOrImportCsv(
           lines.push({ line: row.line, status: 'merged', candidateId: verifiedId, reason: versaId ? 'versa_lead_ref' : 'verified_contact' });
           continue;
         }
-        const id = await createCandidate(t, actor.email, batchId, row);
+        const id = await createCandidate(t, actor.email, batchId, row, 'csv');
         accepted += 1;
-        const matches = await unverifiedMatches(t, row.email || '', row.phone || '', id);
-        const intra: { id: string; matchOn: 'email' | 'phone' }[] = [];
+        const matches = await unverifiedMatches(t, row.email || '', row.phone || '', id, row.name);
+        const intra: { id: string; matchOn: 'email' | 'phone' | 'name' }[] = [];
         if (row.email && createdByEmail.has(row.email) && createdByEmail.get(row.email) !== id) {
           intra.push({ id: createdByEmail.get(row.email) as string, matchOn: 'email' });
         }
         if (row.phone && createdByPhone.has(row.phone) && createdByPhone.get(row.phone) !== id) {
           intra.push({ id: createdByPhone.get(row.phone) as string, matchOn: 'phone' });
+        }
+        const nameKey = normalizeName(row.name);
+        if (nameKey && createdByName.has(nameKey) && createdByName.get(nameKey) !== id) {
+          intra.push({ id: createdByName.get(nameKey) as string, matchOn: 'name' });
         }
         const all = [...matches, ...intra];
         if (all.length) {
@@ -246,6 +261,7 @@ export async function previewOrImportCsv(
         }
         if (row.email) createdByEmail.set(row.email, id);
         if (row.phone) createdByPhone.set(row.phone, id);
+        if (nameKey) createdByName.set(nameKey, id);
       } catch (error) {
         const reason = error instanceof Error && error.message === 'suppressed' ? 'suppressed' : 'import_failed';
         rejected += 1;
@@ -304,6 +320,7 @@ async function simulate(t: SqlTx, prospects: ImportLine[]) {
   const lines: ImportLine[] = [];
   const seenEmail = new Map<string, number>();
   const seenPhone = new Map<string, number>();
+  const seenName = new Map<string, number>();
   for (const row of prospects) {
     if (row.status === 'rejected') {
       rejected += 1;
@@ -323,8 +340,9 @@ async function simulate(t: SqlTx, prospects: ImportLine[]) {
       lines.push({ line: row.line, status: 'merged', reason: versaId ? 'versa_lead_ref' : 'verified_contact' });
       continue;
     }
-    const matches = await unverifiedMatches(t, row.email || '', row.phone || '');
-    const intra = (row.email && seenEmail.has(row.email)) || (row.phone && seenPhone.has(row.phone));
+    const matches = await unverifiedMatches(t, row.email || '', row.phone || '', undefined, row.name);
+    const nameKey = normalizeName(row.name);
+    const intra = (row.email && seenEmail.has(row.email)) || (row.phone && seenPhone.has(row.phone)) || (nameKey && seenName.has(nameKey));
     accepted += 1;
     if (matches.length || intra) {
       flagged += 1;
@@ -334,6 +352,7 @@ async function simulate(t: SqlTx, prospects: ImportLine[]) {
     }
     if (row.email) seenEmail.set(row.email, row.line);
     if (row.phone) seenPhone.set(row.phone, row.line);
+    if (nameKey) seenName.set(nameKey, row.line);
   }
   return { accepted, rejected, flagged, merged, lines };
 }
@@ -352,6 +371,8 @@ export const INTAKE_ERROR_CODES = [
   'duplicate_verified',
   'versa_lead_ref_conflict',
   'suppressed',
+  'not_implemented',
+  'unverified',
 ] as const;
 
 export type IntakeErrorCode = (typeof INTAKE_ERROR_CODES)[number];
@@ -361,6 +382,53 @@ export function intakeErrorCode(error: unknown): IntakeErrorCode {
   return (INTAKE_ERROR_CODES as readonly string[]).includes(message)
     ? (message as IntakeErrorCode)
     : 'invalid';
+}
+
+export async function captureProspect(sql: Sql, actor: StaffActor, input: CaptureInput): Promise<CaptureResult> {
+  if (actor.role !== 'admin') throw new Error('forbidden');
+  const captureChannel = input.captureChannel || 'manual';
+  const row = parseProspectRow({
+    name: input.name,
+    email: input.email || '',
+    phone: input.phone || '',
+    source: input.source || 'manual',
+    versa_lead_ref: input.versaLeadRef || '',
+    program_interest: input.programInterest || '',
+    campaign: input.campaign || '',
+  }, 1);
+  if (row.status === 'rejected') throw new Error(row.reason || 'invalid');
+  if (input.consentGranted && !(input.noticeVersion || '').trim()) throw new Error('consent_notice_required');
+  return sql.begin(async (t: SqlTx) => {
+    if (row.email && await identityIsSuppressed(t, row.email)) throw new Error('suppressed');
+    if (row.phone && await identityIsSuppressed(t, `tel:${row.phone}`)) throw new Error('suppressed');
+    const versaId = await findByVersa(t, row.versaLeadRef || '');
+    const verifiedId = versaId || await findVerified(t, row.email || '', row.phone || '');
+    if (verifiedId) throw new Error('duplicate_verified');
+    const id = await createCandidate(t, actor.email, 'manual', row, captureChannel);
+    const matches = await unverifiedMatches(t, row.email || '', row.phone || '', id, row.name);
+    for (const match of matches) await flagDuplicate(t, id, match.id, match.matchOn);
+    const prefs = input.channelPrefs || {};
+    for (const channel of COMM_CHANNELS) {
+      await t`INSERT INTO candidate_channel_prefs(candidate_id,channel,allowed)
+        VALUES(${id},${channel},${prefs[channel] === true})
+        ON CONFLICT (candidate_id, channel) DO UPDATE SET allowed=EXCLUDED.allowed, updated_at=now()`;
+    }
+    let consent: CaptureResult['consent'] = 'unknown';
+    if (input.consentGranted && input.noticeVersion) {
+      await t`INSERT INTO candidate_consents(candidate_id,source,purpose,notice_version)
+        VALUES(${id},'manual','recruitment',${input.noticeVersion.trim().slice(0, 80)}) ON CONFLICT DO NOTHING`;
+      await emit(t, id, EVENT_KINDS.consentGranted, actor.email, { notice: input.noticeVersion.trim().slice(0, 80), via: 'manual' });
+      consent = 'granted';
+    }
+    await emit(t, id, EVENT_KINDS.captureRecorded, actor.email, {
+      source: row.source,
+      campaign: row.campaign || null,
+      captureChannel,
+      consent,
+    });
+    await audit(t, EVENT_KINDS.manualIntake, actor.email, { candidateId: id, flagged: matches.length > 0, consent });
+    return { id, flagged: matches.length > 0, consent, captureChannel };
+  });
 }
 
 export async function createManualLead(
@@ -375,34 +443,11 @@ export async function createManualLead(
     programInterest?: string;
     consentGranted?: boolean;
     noticeVersion?: string;
+    campaign?: string;
+    channelPrefs?: Partial<Record<CommChannel, boolean>>;
   },
 ) {
-  if (actor.role !== 'admin') throw new Error('forbidden');
-  const row = parseProspectRow({
-    name: input.name,
-    email: input.email || '',
-    phone: input.phone || '',
-    source: input.source || 'manual',
-    versa_lead_ref: input.versaLeadRef || '',
-    program_interest: input.programInterest || '',
-  }, 1);
-  if (row.status === 'rejected') throw new Error(row.reason || 'invalid');
-  if (input.consentGranted && !(input.noticeVersion || '').trim()) throw new Error('consent_notice_required');
-  return sql.begin(async (t: SqlTx) => {
-    const versaId = await findByVersa(t, row.versaLeadRef || '');
-    const verifiedId = versaId || await findVerified(t, row.email || '', row.phone || '');
-    if (verifiedId) throw new Error('duplicate_verified');
-    const id = await createCandidate(t, actor.email, 'manual', row);
-    const matches = await unverifiedMatches(t, row.email || '', row.phone || '', id);
-    for (const match of matches) await flagDuplicate(t, id, match.id, match.matchOn);
-    if (input.consentGranted && input.noticeVersion) {
-      await t`INSERT INTO candidate_consents(candidate_id,source,purpose,notice_version)
-        VALUES(${id},'manual','recruitment',${input.noticeVersion.trim().slice(0, 80)}) ON CONFLICT DO NOTHING`;
-      await emit(t, id, EVENT_KINDS.consentGranted, actor.email, { notice: input.noticeVersion.trim().slice(0, 80), via: 'manual' });
-    }
-    await audit(t, EVENT_KINDS.manualIntake, actor.email, { candidateId: id, flagged: matches.length > 0 });
-    return { id, flagged: matches.length > 0 };
-  });
+  return captureProspect(sql, actor, input);
 }
 
 export async function verifyContact(sql: Sql, actor: StaffActor, id: string, channel: 'email' | 'phone') {
@@ -422,9 +467,47 @@ export async function verifyContact(sql: Sql, actor: StaffActor, id: string, cha
 }
 
 export async function dismissDuplicate(sql: Sql, actor: StaffActor, id: string) {
+  return resolveDuplicate(sql, actor, { flagId: id, action: 'keep' });
+}
+
+export async function resolveDuplicate(
+  sql: Sql,
+  actor: StaffActor,
+  input: { flagId: string; action: DuplicateAction; keeperId?: string },
+) {
   if (actor.role !== 'admin') throw new Error('forbidden');
-  const rows = await sql`UPDATE candidate_duplicate_flags SET status='dismissed' WHERE id=${id} AND status='needs_review' RETURNING id`;
-  if (!rows.length) throw new Error('not_found');
+  const action = input.action;
+  if (action !== 'keep' && action !== 'link' && action !== 'merge') throw new Error('invalid');
+  return sql.begin(async (t: SqlTx) => {
+    const [flag] = await t`SELECT * FROM candidate_duplicate_flags WHERE id=${input.flagId} AND status='needs_review' FOR UPDATE`;
+    if (!flag) throw new Error('not_found');
+    const left = String(flag.left_candidate_id);
+    const right = String(flag.right_candidate_id);
+    if (action === 'keep') {
+      await t`UPDATE candidate_duplicate_flags SET status='dismissed' WHERE id=${input.flagId}`;
+      return { status: 'dismissed' as const };
+    }
+    if (action === 'link') {
+      await t`UPDATE candidate_duplicate_flags SET status='linked' WHERE id=${input.flagId}`;
+      await emit(t, left, EVENT_KINDS.identityLinked, actor.email, { otherId: right, matchOn: flag.match_on });
+      await emit(t, right, EVENT_KINDS.identityLinked, actor.email, { otherId: left, matchOn: flag.match_on });
+      return { status: 'linked' as const };
+    }
+    const keeper = input.keeperId && [left, right].includes(input.keeperId) ? input.keeperId : left;
+    const loser = keeper === left ? right : left;
+    const [keeperRow] = await t`SELECT id, stage, email_verified, phone_verified FROM candidates WHERE id=${keeper} FOR UPDATE`;
+    const [loserRow] = await t`SELECT id, stage, email_verified, phone_verified FROM candidates WHERE id=${loser} FOR UPDATE`;
+    if (!keeperRow || !loserRow) throw new Error('not_found');
+    if (isStopped(keeperRow) || isStopped(loserRow)) throw new Error('suppressed');
+    const matchOn = String(flag.match_on);
+    const verified = (matchOn === 'email' && (keeperRow.email_verified || loserRow.email_verified))
+      || (matchOn === 'phone' && (keeperRow.phone_verified || loserRow.phone_verified));
+    if (!verified) throw new Error('unverified');
+    await t`UPDATE candidates SET merged_into=${keeper} WHERE id=${loser}`;
+    await t`UPDATE candidate_duplicate_flags SET status='merged' WHERE id=${input.flagId}`;
+    await emit(t, keeper, EVENT_KINDS.identityMerged, actor.email, { from: loser, matchOn });
+    return { status: 'merged' as const, keeperId: keeper };
+  });
 }
 
 export async function listDuplicateFlags(sql: Sql, actor: StaffActor) {

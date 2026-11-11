@@ -1,5 +1,9 @@
 const EMAIL = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
 
+export function normalizeName(value: string | null | undefined) {
+  return (value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 export function normalizeEmail(value: string | null | undefined) {
   const trimmed = (value || '').trim().toLowerCase();
   return trimmed || '';
@@ -44,6 +48,7 @@ export const ALLOWED_IMPORT_HEADERS = [
   'code_status',
   'consent',
   'consent_status',
+  'campaign',
 ] as const;
 
 export const ALLOWED_SOURCES = ['versa', 'messenger', 'manual', 'csv', 'gia_web_session'] as const;

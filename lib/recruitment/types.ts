@@ -19,6 +19,9 @@ export type DashboardCounts = {
   activated: number;
   evaluated: number;
   engaged: number;
+  captured: number;
+  registered: number;
+  duplicatePairs: number;
   unassigned: number;
   overdueFollowups: number;
   awaitingEvaluation: number;
@@ -74,7 +77,11 @@ export type CandidateDetail = QueueCandidate & {
   program_interest?: string | null;
   email_verified?: boolean;
   phone_verified?: boolean;
-  consent_status?: 'granted' | 'revoked' | 'none';
+  consent_status?: 'granted' | 'revoked' | 'unknown';
+  campaign?: string | null;
+  capture_channel?: string | null;
+  registered_at?: string | null;
+  channel_prefs?: Record<string, boolean>;
 };
 
 export type DuplicateFlag = {
@@ -98,6 +105,7 @@ export type ImportLine = {
   versaLeadRef?: string;
   spikeLearnerRef?: string;
   programInterest?: string;
+  campaign?: string;
   offering?: string;
   codeStatus?: string;
   consentClaimed?: boolean;
