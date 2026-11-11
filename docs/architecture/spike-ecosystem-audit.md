@@ -6,17 +6,15 @@
 **Author:** SPIKEDEV / A1 (architecture audit and reuse)  
 **Status:** Proposal for Nilo review. **Architecture is not locked.**  
 **Mandate:** SPIKE #7 owner architecture direction (`6787711991`) and parent directive (`6787838720` / NEXO #32); owner clarifications of 2026-11-11 (evaluate A and B on equal footing; reconcile NEXO #26 D1–D8; RA-SPIKE database placement reopened; document brand routing and daily intern codes with options; keep working tests and modules).  
-**Parallelism:** Does not delay MVP 01 (Command Center + GIA). No hosted DB queries, no migrations, no pushes to SPIKE `main` / `ra-spike`, no production edits.
+**Parallelism:** Does not delay MVP 01 (Command Center + GIA). No hosted DB queries, no migrations, no pushes to SPIKE `main` / `ra-spike`, no production edits. Docs-only branch `a1/ecosystem-audit` stays unmerged.
 
-**NEXO #26 source (correction pass):** GitHub Issues API still returns 403/404 for [#26](https://github.com/nmatunog/NEXO/issues/26), [#27](https://github.com/nmatunog/NEXO/issues/27), [#32](https://github.com/nmatunog/NEXO/issues/32). NEXO **Contents and PRs** are readable; registry `nexo_app/data/registry_2026-11-11.json` maps **#26 → spike-ecosystem**. Owner attached `uploads/nexo-26-issue.json` and `uploads/nexo-26-comments.json`; those files were **not present** in this agent workspace (workspace, Drive, Gmail, OneDrive, Cursor stores, this run’s transcript). §0.1 is therefore **still a topic map**, not a verbatim extract. Do not treat D1–D8 labels as exact NEXO wording until the JSON is ingested.
-
+**NEXO #26 source:** Issue body and all 10 comments ingested from attached JSON (`uploads/nexo-26-issue.json`, `uploads/nexo-26-comments.json`) as data. Canonical issue: [nmatunog/NEXO#26](https://github.com/nmatunog/NEXO/issues/26). D1–D8 below are the **accepted** rows from [comment 6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846), quoted verbatim. A prior A1 pass reconstructed unrelated labels (distinct programs / brand routing / intern daily codes / Command Center / GIA / canonical person / code-gate ownership) as D1–D8; **those labels were wrong.**
 
 ### Contents
 
-1. This file — one-page exec summary and D1–D8 reconciliation (U1–U7 only as open questions).
+1. This file — one-page exec summary and verbatim D1–D8 / 3-gate reconciliation.
 2. [Inventory, reuse map, and problems](./spike-ecosystem-audit-inventory.md) — §§1–3, including live brand routing and daily intern codes with options (no changes).
 3. [Options A/B, recommendation, MVP 01/V1 lock-in, migration](./spike-ecosystem-audit-options.md) — §§4–7. Recommendation is **not** a lock.
-
 
 ---
 
@@ -24,49 +22,74 @@
 
 Architecture is **not** a decision yet. Both options in §§4–5 are viable. §6 is a **recommendation**, not a lock.
 
+NEXO #26 D1–D8 are the **Versa × SPIKE 3-gate pathway** decisions (accepted 2026-11-02, “for now”; owner may revisit before launch). They are not intern/RA portal topology.
+
 ### Unresolved (only these need a Nilo call)
 
 | # | Question | Previous decision (source) | What changed | Recommended revision |
 |---|---|---|---|---|
-| **U1** | Target topology for GIYA Institute / SPIKE Method | Not locked. SPIKE #7 (Nov 11, `6787711991`) authorized an ecosystem-first reevaluation and **forbade rewrite until this audit is reviewed**. Exact NEXO #26 topology wording was not ingested this pass (JSON not mounted). | Today’s master directive: township of modules; shared identity / enrollment / records / program management / content / analytics / GIA; distinct curricula. C1 `c1/mvp01-journey` started Candidate → UserAccount → ProgramEnrollment → ProgramRole **tables** on the Nextgen recruit DB only (migration 0008; enroll/role not wired). Architecture still not locked. | **Recommend Option B (unified modular platform) as the destination, with Option A as the coexistence path until identity + entitlements exist.** Do not pre-commit. First slice is identical under both options. |
-| **U2 = D2 reopened** | RA-SPIKE database placement | **Separate Supabase projects** — internship `lzbfjbtjropoaynbcxew`, RA-SPIKE `yruwfdjqigxxwbqsqhho`. Enforced in `functions/_shared/supabaseAdmin.js`, `supabase/ra-spike/README.md`, commit `fd82561` (2026-07-11). This is the NEXO #26 decision that owner has now **reopened**. | Township + canonical identity (Candidate → User Account → Program Enrollment → Program Role) make two Auth planes a tax. Live data still lives in both projects. No merge is authorized. | **Keep both projects as program data planes. Do not merge, migrate, or dual-write.** Introduce a *logical* identity plane (link table: account ↔ enrollment) that can sit in Nextgen or a small third store. Revisit physical merge only after enrollments exist and a rollback plan is signed. |
-| **U3 = D3 options** | Brand domain routing (no change now) | Interns at `https://portal.1cma.online`; RA-SPIKE at `https://portal.1cma.online/ra-spike/` via Worker `portal-ra-spike` → `https://ra-spike.pages.dev`. Command Center preferred host `command.1cma.online` (Nextgen #4, **DNS does not resolve**). Brand site `joingiya.com` is a separate Pages project (`keyman-insurance`). | GIYA Institute / SPIKE Method is now the education brand. Versa is the integration partner. Co-branded Versa landing remains an **open external dependency**. | **Keep current routing. No DNS or Worker changes.** Option set in §1.8. Later: either keep `portal.1cma.online` as the learning origin, or put a GIYA catalog gateway in front of the same two apps. |
-| **U4 = D4 options** | Daily intern activation codes (no change now) | Shared **classroom** code per Manila day; plaintext `activation_codes`; required on intern signup; staff can regenerate. Distinct from Versa L1/L2 codes. | SPIKE #7 / NEXO #32: Versa CSV + verified identity is the L1/L2 gate; do not retrofit intern `activation_codes` by default. V1 is portable and **not** wired to intern signup (`609c006`). | **Keep daily codes for in-flight intern cohorts.** Do not replace them with Versa codes. Options in §1.9. F1 (anon SELECT of plaintext codes) is a **separate SEC-1** hosted-SQL question, not a product-policy change. |
-| **U5** | Where free L1 (Financial Literacy) lands | Not decided as a product. V1 defaults `program_route` to `spike-interns` (L1) and `ra-spike` (L2) in code constants only. | SPIKE #7: do not assume interns are advisor recruits. Catalog stubs already include `agency-training` and `leader-academy`. | **Treat L1 as its own offering**, not as Internship enrollment. Map destination after U1. Until then V1 grants a portable entitlement only — no `profiles.role = INTERN`. |
-| **U6** | F1 hosted SQL | Repo-only fix on `sec1/f1-activation-codes` (`138be88`, `67f257c`). **Not applied.** | Independent of Versa and of U1. | Authorize or defer applying staff-only RLS on hosted internship (and RA copy) DBs. Rollback SQL exists on that branch. |
-| **U7** | Live RA-SPIKE source of truth | Git branch `ra-spike` was the RA line. | Production Pages `ra-spike` last deploy SHA `5efff0c` is **on `main`** (2026-08-08), not git `ra-spike` tip `394342d` (2026-07-11). Git `ra-spike` is 35 ahead / 85 behind `main`. | Freeze RA deploys to the main-line SHA that Pages actually runs. Treat git `ra-spike` as historical. Do not merge it. |
+| **U1** | Target topology for GIYA Institute / SPIKE Method | Not locked. SPIKE #7 (Nov 11, `6787711991`) authorized an ecosystem-first reevaluation and **forbade rewrite until this audit is reviewed**. NEXO #26 did **not** decide unified platform vs coordinated apps. | Master directive: township of modules; shared identity / enrollment / records / program management / content / analytics / GIA; distinct curricula. C1 `c1/mvp01-journey` (`f8d6e5fe`) added Candidate → UserAccount → ProgramEnrollment → ProgramRole **tables** on the Nextgen recruit DB only (migration 0008; enroll/role not wired). | **Recommend Option B (unified modular platform) as the destination, with Option A as the coexistence path until identity + entitlements exist.** Do not pre-commit. First slice is identical under both options. |
+| **U2 = D1 reopened** | Which SPIKE database hosts the Versa/SPIKE 3-gate pathway | **Accepted D1 (verbatim):** “The pathway lives in the **RA-SPIKE Supabase project**, under a new `LEARNER` role. An RLS audit is a precondition.” — [NEXO #26 comment 6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846). Recommended default in [Part 3 §14](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572337174): RA-SPIKE so “the ₱1,000 step is grant entitlement + enroll in an RA-SPIKE cohort in the same database.” | Owner has **reopened RA-SPIKE database placement**. Township wants Candidate → User Account → Program Enrollment → Program Role, not a `LEARNER` role inside RA-SPIKE Auth. SPIKE #7: do not assume intern cohorts are advisor recruits; V1 must not grant `profiles.role = INTERN`. Live intern and RA data still sit in two projects (`lzbfjbtjropoaynbcxew`, `yruwfdjqigxxwbqsqhho`). No merge is authorized. | **Keep both projects as program data planes. Do not merge, migrate, dual-write, or add `LEARNER` to RA-SPIKE until D1 is re-locked.** Put Gate 1–3 entitlements on a *logical* identity/entitlement plane (Nextgen or a small third store). Revisit physical placement only after enrollments exist and a rollback plan is signed. |
+| **U3** | D7 refund policy (open item inside accepted D7) | **Accepted D7 (verbatim):** “**7-day grace** period after a lapse. The refund policy must be set by the owner **before launch** (open item).” — [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846). [Blocker update](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572531702): refund policy blocks Phase 2 payments, not Phase 1. | Still unset. No paid Gate 3 in production. | **7-day grace stands.** Write the refund policy before any paid launch. Do not invent terms. |
+| **U4** | F1 hosted SQL (`activation_codes` anon SELECT) | NEXO #26 remaining blocker (not a D): “Fix F1 as a separate issue: remove the `anon` read access on `activation_codes`.” — [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846). Repo-only fix on `sec1/f1-activation-codes` (`138be88`, `67f257c`). **Not applied.** | Independent of Versa vouchers and of U1. Classroom daily codes stay as product (see Stands). | Authorize or defer applying staff-only RLS on hosted internship (and RA copy) DBs. Rollback SQL exists on that branch. |
+| **U5** | Live RA-SPIKE source of truth | Git branch `ra-spike` was the RA line. | Production Pages `ra-spike` last deploy SHA `5efff0c` is **on `main`** (2026-08-08), not git `ra-spike` tip `394342d` (2026-07-11). Git `ra-spike` is 35 ahead / 85 behind `main`. | Freeze RA deploys to the main-line SHA that Pages actually runs. Treat git `ra-spike` as historical. Do not merge it. |
+
+Removed from the open list (were never NEXO #26 D-items, or are already decided): brand domain routing (keep live Worker; options only in §1.8; no DNS change); daily intern classroom codes (keep; distinct from Versa vouchers); free L1 landing (folded into U2 / D1); reconstructed “D5–D8” Command Center / GIA / canonical person / Versa-generates-codes.
 
 ### Stands (do not re-ask)
 
-See §0.1. These still hold and are **not** listed as questions.
+Quoted from [NEXO #26 comment 6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) unless noted. D1 is **not** in this list (reopened → U2). D7 grace stands; refund policy is U3.
+
+- **D2:** “Open signup always works; a code adds attribution only. (Settled by the CSV-first decision.)”
+- **D3:** “The Preview (Gate 2) is granted together with Literacy (Gate 1). Completing literacy topics is a nudge, not a lock.”
+- **D4:** “The learner must **attend the Preview before paying ₱1,000**.”
+- **D5:** “₱1,000 buys **enrollment plus the first 30 days**. After that, ₱500 per 30 days.”
+- **D6:** “**Manual monthly payment** from a reminder link. No auto-recurring billing at launch.”
+- **D8:** “Versa sees **milestones only**, through the weekly report CSV, and only for learners who consented.”
+- **CSV-first:** “Integration with Versa runs on **CSV exchange only**. The server-to-server partner API and outbound webhooks … are **deferred**.” — [6572427291](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572427291)
+- **Classroom intern codes ≠ Versa vouchers:** “Do not model Versa codes on this table [`activation_codes`].” — [Part 1 F1](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572336516). Keep daily intern codes for in-flight intern cohorts. No production code-policy change.
+- **Brand routing:** keep `portal.1cma.online` + Worker `/ra-spike*` as live behavior. No DNS/Worker change. Options only in inventory §1.8.
+- **Flexible free entry (amendment):** “Financial Literacy (free) and Financial Entrepreneurship Preview (free) must permit flexible entry. … do not require literacy topic completion for FEP unless explicitly decided by owner.” — [6608430845](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6608430845) (aligns with D3).
 
 ### What engineering does until Nilo answers
 
 - **C1 / G1 (MVP 01):** continue on Nextgen **`c1/mvp01-journey`** (`f8d6e5fe`) — C1’s in-progress Capture→Register→Evaluate→Engage branch. It sits on `c1/cc-03-evaluate-engage` (`d77c3f2`) and publishes G1 interfaces (`docs/mvp01/interfaces.md`). G1 adapters: `g1/gia-next-program-adapters` (`cb37ab59`). Do not hard-wire to intern APIs. **Do not tell anyone to avoid `c1/mvp01-journey`.**
-- **V1:** keep `functions/_shared/versaCode/` portable; flag off; no intern-signup hook (`609c006`).
-- **SPIKE portals:** freeze irreversible architecture. No rewrite of working modules or tests. No production DB/DNS/code-policy changes.
+- **V1:** keep `functions/_shared/versaCode/` portable; flag off; no intern-signup hook (`609c006`). Matches D2 (code is attribution, open signup works) and CSV-first.
+- **SPIKE portals:** freeze irreversible architecture. No rewrite of working modules or tests. No production DB/DNS/code-policy changes. No `LEARNER` role in RA-SPIKE until U2 is re-locked.
 
 ---
 
-### 0.1 NEXO #26 D1–D8 — topic map (not verbatim)
+### 0.1 NEXO #26 D1–D8 — accepted text (verbatim)
 
-**Not a verbatim extract.** Owner asked for accepted D1–D8 plus any 3-gate funnel decisions with comment links from the attached JSON. That JSON was not on disk here, and the Issues API cannot read #26. Rows below stay a reconstruction from implemented SPIKE constraints, NEXO #27 excerpts on Nextgen #4/#5, and SPIKE #7 / Nextgen owner comments. **Stands** = still valid as live or later-confirmed policy; only U1–U7 are questions.
+**Accepted 2026-11-02** as “locked for now”; “The owner may revisit any of them before launch.” Source: [comment 6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846). Recommended defaults that were accepted: [Part 3 §14](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572337174).
 
-| ID | Topic | Previous decision | Source of previous | Later instruction | Status |
-|---|---|---|---|---|---|
-| **D1** | Distinct programs | Interns and RA-SPIKE keep distinct routes, roles, records, and curricula. Future programs are additional catalog entries, not forks of intern. | Implemented `PROGRAM_REGISTRY` + `paths.js`; [SPIKE #7](https://github.com/nmatunog/SPIKE/issues/7) item 7 | Township: same, plus Advisor Launch, Practice Builder, Mentor Certification, Leadership Accelerator, Enterprise Builder, partners | **Stands** |
-| **D2** | RA-SPIKE database placement | Dedicated Supabase project; intern APIs must refuse the RA URL and vice versa | `fd82561`, `supabaseAdmin.js`, `supabase/ra-spike/README.md` | Owner: **reopened**. Township wants one identity plane | **Reopened → U2** |
-| **D3** | Brand domain routing | `portal.1cma.online` = intern; `/ra-spike*` proxied to RA Pages; keep intern `/` isolated | Worker `portal-ra-spike`; `paths.js` “proxy isolation”; README | GIYA Institute brand; Versa co-brand on recruitment landing only; no DNS change without approval | **Stands as live behavior.** Future origin is **U3 (options only)** |
-| **D4** | Daily intern activation codes | One shared code per Asia/Manila day; intern signup requires it; staff regenerate | `activation_codes.sql`, `intern-signup.js`, `activationCode.js` | Versa L1/L2 is a different gate; do not retrofit this table | **Stands as live behavior.** Future policy is **U4 (options only)** |
-| **D5** | Command Center home | Build in `1CMA-Spike-Nextgen` at `/recruitment/command`; not NEXO, not Versa, not the SPIKE learner portal | [Nextgen #4](https://github.com/nmatunog/1CMA-Spike-Nextgen/issues/4) “DECISION: Where this resides”; NEXO #27 alignment comment | NEXO #32: recruit Capture→Register→Evaluate→Engage is a **separate** priority and must not wait for a learning rebuild | **Stands** |
-| **D6** | GIA charter | AI disclosure, consent/STOP, English-first; five recruit tools; no payments, codes, or entitlements | NEXO #27 §3.1–3.2 as posted on [Nextgen #5](https://github.com/nmatunog/1CMA-Spike-Nextgen/issues/5) | NEXO #32 / SPIKE #7 parent: GIA is the **official role-aware guide across all SPIKE programs**, still cannot authorize paid entry or change outcomes. G1 added intern/RA adapters with **synthetic** status only | **Stands, extended** (more domains, same prohibition) |
-| **D7** | Canonical person | One candidate per person; one identity row per source; auto-merge only on verified email or mobile; consent per source and purpose; STOP is global | NEXO #27 §4 as posted on Nextgen #4 ([comment](https://github.com/nmatunog/1CMA-Spike-Nextgen/issues/4#issuecomment-6621091763)); migration `0001_gia_recruitment.sql` | Township: **Candidate → User Account → Program Enrollment → Program Role**. C1 `c1/mvp01-journey` `f8d6e5fe` added Nextgen tables `user_accounts`, `program_enrollments`, `program_roles` (0008). Capture/register create Candidate; `provisionUserAccount` / `enrollAccount` / `assignProgramRole` are **not** called in this slice. Not a SPIKE Auth merge. | **Stands** for recruit. Learning-plane schema started on Nextgen recruit DB only; wiring is U1 |
-| **D8** | Code gate ownership | NEXO #26 originally scoped Versa→SPIKE codes. SPIKE #7 (Nov 8) **superseded generator ownership**: Versa generates; SPIKE registers, matches code **and** handed-off identity, redeems once, grants the existing L1/L2 offering. Command Center / GIA never redeem | SPIKE #7 body + owner correction [`6723607138`](https://github.com/nmatunog/SPIKE/issues/7#issuecomment-6723607138); Nextgen #7 | NEXO #32: keep CSV/identity verification as an **independent portable service**; portal integration after target structure is chosen | **Stands as revised** (Versa generates, SPIKE verifies, V1 portable) |
+| ID | Decision (locked for now) — verbatim | Comment | Status |
+|---|---|---|---|
+| **D1** | The pathway lives in the **RA-SPIKE Supabase project**, under a new `LEARNER` role. An RLS audit is a precondition. | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Reopened → U2** |
+| **D2** | Open signup always works; a code adds attribution only. (Settled by the CSV-first decision.) | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) · CSV-first [6572427291](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572427291) | **Stands** |
+| **D3** | The Preview (Gate 2) is granted together with Literacy (Gate 1). Completing literacy topics is a nudge, not a lock. | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Stands** |
+| **D4** | The learner must **attend the Preview before paying ₱1,000**. | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Stands** |
+| **D5** | ₱1,000 buys **enrollment plus the first 30 days**. After that, ₱500 per 30 days. | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Stands** |
+| **D6** | **Manual monthly payment** from a reminder link. No auto-recurring billing at launch. | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Stands** |
+| **D7** | **7-day grace** period after a lapse. The refund policy must be set by the owner **before launch** (open item). | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Stands** (grace). Refund policy → **U3** |
+| **D8** | Versa sees **milestones only**, through the weekly report CSV, and only for learners who consented. | [6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846) | **Stands** |
 
-NEXO #27 §8 operational facts (FEP Saturday 9:30 AM, 24 h handoff / 18 h escalate, named leaders, retention) **stand for MVP 01** and are not architecture locks.
+**Integration mode (also accepted):** “CSV-first. The partner API is deferred.” Same comment, linking [6572427291](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572427291).
 
-### 0.2 3-gate funnel
+### 0.2 3-gate funnel (verbatim)
 
-No verbatim NEXO #26 3-gate decision was ingested this pass (JSON not mounted; Issues API 403). **Do not invent a 3-gate lock.** Related live work, not claimed as #26 wording: MVP 01 is **four** stages Capture → Register → Evaluate → Engage on `c1/mvp01-journey` (`f8d6e5fe`, [interfaces](https://github.com/nmatunog/1CMA-Spike-Nextgen/blob/c1/mvp01-journey/docs/mvp01/interfaces.md)). That is C1’s journey. Continue there.
+From the issue body ([NEXO #26](https://github.com/nmatunog/NEXO/issues/26)), **Confirmed progression and pricing:**
+
+- **Gate 1: Financial Literacy enrollment — FREE**, with financial topics as engagement hooks.
+- **Gate 2: Financial Entrepreneurship Preview — FREE**, designed to inform and qualify candidates.
+- **Gate 3: Paid enrollment / initial subscription — ₱1,000**.
+- **Continuing access:** **₱500/month, or higher for particular courses/fees** (exact offer, renewal terms and entitlement rules to be confirmed; never silently charge).
+- The integrated **SPIKE / RA-SPIKE program** is the pathway into financial entrepreneurship; being a learner does NOT authorize regulated insurance advisory work.
+
+Owner-accepted gate logic that implements this (D3–D6) is in [Part 3 §11](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572337174) and the D-table above.
+
+**Amendment (not a replacement of D3):** flexible entry — a career-intent lead may book FEP immediately; a literacy-intent visitor may engage topics first; both keep the same free entitlements. [6608430845](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6608430845).
+
+MVP 01 on `c1/mvp01-journey` (`f8d6e5fe`) is a **recruit** journey (Capture → Register → Evaluate → Engage), not this 3-gate learning funnel. Continue there; do not treat it as a NEXO #26 lock and do not avoid that branch.
 
 ---
