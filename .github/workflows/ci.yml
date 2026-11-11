@@ -1,20 +1,50 @@
-name: CI
+# Pull-request checks only. Synthetic/PGlite local tests.
+# No deploy, no secrets, no hosted DB, no real migrations, no auto-merge.
+name: PR checks
+
 on:
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build:gia:offline
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests (PGlite / in-process)
+        run: npm test
+
+      - name: GIA eval harness
+        run: npm run test:gia:eval
+
+      - name: Offline Next.js build
+        run: npm run build:gia:offline
+
+      # Playwright stays local: it needs the demo server, generated
+      # work/demo-access.json, and GIA_PILOT_ENABLED=true. Do not add
+      # deploy, secrets, DATABASE_URL, or hosted Postgres here.
