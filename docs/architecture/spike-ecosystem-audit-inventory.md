@@ -1,6 +1,6 @@
 # Current-state inventory, reuse, and problems
 
-Companion to [`spike-ecosystem-audit.md`](./spike-ecosystem-audit.md). Same A1 audit, 2026-11-11. No hosted DB queries. NEXO #26 issue body not ingested this pass (Issues API 403; attached JSON not on disk). `c1/mvp01-journey` is C1’s in-progress MVP 01 branch (`f8d6e5fe`).
+Companion to [`spike-ecosystem-audit.md`](./spike-ecosystem-audit.md). Same A1 audit, 2026-11-11. No hosted DB queries. NEXO #26 D1–D8 ingested verbatim from attached JSON (accepted [comment 6572487846](https://github.com/nmatunog/NEXO/issues/26#issuecomment-6572487846)). `c1/mvp01-journey` is C1’s in-progress MVP 01 branch (`f8d6e5fe`).
 
 ## 1. Current-state inventory
 
@@ -148,16 +148,16 @@ Worker path map (`workers/portal-ra-spike/src/index.js`): strips `/ra-spike` for
 
 `src/routes/paths.js` comments require staff RA hubs to stay under `/ra-spike/*` **for this proxy isolation**. That is a deployment constraint, not a product law.
 
-**Options (do not implement until U3):**
+**Options (A1 labels, not NEXO D3 — NEXO D3 is Gate 2-with-Gate 1). Do not implement a routing change now:**
 
 | Option | Meaning | Cost | Risk |
 |---|---|---|---|
-| **D3-keep** | Leave Worker + two Pages projects | Zero | Continues split UX and staff-toggle tax |
-| **D3-gateway** | Keep both apps; put a GIYA catalog/login host in front (new or `portal.1cma.online`) that routes `/intern` and `/ra-spike` | Worker already proves the pattern | DNS/auth change — needs Nilo + rollback |
-| **D3-giya-origin** | New GIYA Institute host; `portal.1cma.online` remains intern until cutover | Brand-clean | Do not move DNS in this phase |
-| **D3-flatten** | Serve RA from intern Pages (one project) | Deletes the isolation D3 was built for | High; contradicts current proxy comments |
+| **RT-keep** | Leave Worker + two Pages projects | Zero | Continues split UX and staff-toggle tax |
+| **RT-gateway** | Keep both apps; put a GIYA catalog/login host in front (new or `portal.1cma.online`) that routes `/intern` and `/ra-spike` | Worker already proves the pattern | DNS/auth change — needs Nilo + rollback |
+| **RT-giya-origin** | New GIYA Institute host; `portal.1cma.online` remains intern until cutover | Brand-clean | Do not move DNS in this phase |
+| **RT-flatten** | Serve RA from intern Pages (one project) | Deletes the isolation the Worker was built for | High; contradicts current proxy comments |
 
-**Recommendation for U3:** **D3-keep now.** If U1 picks B, the first hosting move is **D3-gateway**, not flattening Pages or touching `joingiya.com`.
+**Keep RT-keep now.** If U1 picks B, the first hosting move is **RT-gateway**, not flattening Pages or touching `joingiya.com`. No DNS/Worker change in this phase.
 
 ### 1.9 Daily intern activation codes — current working behavior (no changes)
 
@@ -172,16 +172,16 @@ Worker path map (`workers/portal-ra-spike/src/index.js`): strips `/ra-spike` for
 
 This is a **classroom cohort gate** (shared secret for today’s interns). It is not identity-bound, not one-time per person, and not L1/L2.
 
-**Options (do not implement until U4):**
+**Options (A1 labels, not NEXO D4 — NEXO D4 is “attend Preview before paying”). Do not change intern code policy now:**
 
 | Option | Meaning | Fits Versa? |
 |---|---|---|
-| **D4-keep** | Keep daily codes for intern classroom cohorts indefinitely | Yes — different problem from Versa |
-| **D4-parallel** | Keep daily codes for current intern batches; Versa L1 uses V1 entitlements | Yes — V1 already refuses to grant intern role |
-| **D4-retire-later** | After intern program policy changes, stop issuing daily codes | Only after Nilo + in-flight cohort end |
-| **D4-replace-now** | Point intern signup at Versa codes | **Rejected for now** — owner: do not retrofit `activation_codes`; freeze irreversible portal commits |
+| **CC-keep** | Keep daily codes for intern classroom cohorts indefinitely | Yes — different problem from Versa |
+| **CC-parallel** | Keep daily codes for current intern batches; Versa L1 uses V1 entitlements | Yes — V1 already refuses to grant intern role; NEXO F1: do not model Versa codes on `activation_codes` |
+| **CC-retire-later** | After intern program policy changes, stop issuing daily codes | Only after Nilo + in-flight cohort end |
+| **CC-replace-now** | Point intern signup at Versa codes | **Rejected for now** — NEXO #26 F1 + owner: do not retrofit `activation_codes`; freeze irreversible portal commits |
 
-**Recommendation for U4:** **D4-parallel.** Classroom codes stay. V1 stays portable. F1 (U6) hardens the table without changing the product.
+**Keep CC-parallel.** Classroom codes stay. V1 stays portable. F1 (U4) hardens the table without changing the product.
 
 ### 1.10 Versa verifier (V1) and GIA/CC (MVP 01)
 
@@ -202,7 +202,7 @@ GIA (/gia) ──handoffs──► Command Center (/recruitment/command)
              G1 adapters: recruit | intern | ra  (synthetic lookup; portal URL forbidden)
 ```
 
-**V1 lock-in map:** CSV parser, digest, import, identity-bound redeem, rate-limit RPC, generic deny, isolated Activate UI, vitest + PGlite matrix. **Not locked to either portal.** `PROGRAM_ROUTES` currently `spike-interns` | `ra-spike` — that constant is a default, not a product decision (U5).
+**V1 lock-in map:** CSV parser, digest, import, identity-bound redeem, rate-limit RPC, generic deny, isolated Activate UI, vitest + PGlite matrix. **Not locked to either portal.** `PROGRAM_ROUTES` currently `spike-interns` | `ra-spike` — that constant is a default; destination is part of reopened D1 (U2), not intern enrollment.
 
 **MVP 01 lock-in map:** candidate + consent + STOP + FEP + handoff + staff roles + append-only events + evaluate/engage (`0007`) + GIA five recruit tools + intern/RA adapter **shape**. `program-source.mjs` throws on portal hostnames. **Not locked to Vite intern internals.**
 
@@ -212,7 +212,6 @@ PR #6 SHA `8e84fbc` still has Checkpoint 01 defects (opt_out in UI vs PATCH allo
 
 - Hosted RLS / whether F1 is still live  
 - Whether `CROSS_PORTAL_HANDOFF_SECRET` / `SETUP_SECRET` are set on both Pages projects  
-- Exact NEXO #26 D1–D8 wording (private)  
 - Exact NEXO #32 body (parent directive on SPIKE #7 was followed)  
 - Versa code-delivery UX  
 - Real learner counts / dual-account overlap  
@@ -234,14 +233,14 @@ Legend: **Reuse** = production-valuable as-is, including its tests · **Refactor
 | Venture Blueprint / FEC / coach AI | `smoke:canvas-pptx`, `smoke:fec-canvas-schema`, `smoke:coach-compose`, `smoke:venture-studio` | **Reuse** | Core internship product |
 | SPIKE LIFE domain packages | **37** package tests; `smoke:spike-life-workshop` | **Reuse** (as a module) | Cleanest bounded context; do not fold into CRM |
 | Role enum intern/coach/mentor/admin/superuser | `paths.js` RBAC | **Refactor** | Keep roles; add **program entitlements** beside them; “intern” is overloaded |
-| Daily activation codes + staff RPCs | intern-signup server path | **Reuse** (product) / **Refactor** (F1 client SELECT) | Classroom gate; U4/U6 |
+| Daily activation codes + staff RPCs | intern-signup server path | **Reuse** (product) / **Refactor** (F1 client SELECT) | Classroom gate; CC-parallel / U4 F1 |
 | Open RA-SPIKE signup | `functions/api/ra-spike/signup.js` | **Reuse** until L2 paid gate is real | Do not silently require codes for current rookies |
 | Dual Supabase projects | `db:migrate`, `db:migrate:ra-spike`, `audit:program-db` | **Reuse as data planes** (U2) | Physical merge not in this phase |
 | `SpikeMasterPortal` / `RaSpikeApp` shells | portal smoke journeys | **Refactor** then optionally **Replace** | Extract program modules; no big-bang UI rewrite |
 | Pages Functions auth APIs | intern-signup, RA signup, handoff | **Refactor** | Seed of an identity service |
 | `functions/_shared/versaCode/*` + `versaCode.test.js` + PGlite test | `npm run test:versa-code` (on v1) | **Reuse / extract** | This **is** the portable slice |
 | Cross-portal handoff + portal-hint | StaffProgramSwitcher on `main` | **Reuse** during coexistence; **Archive** after unified identity | |
-| Worker `portal-ra-spike` | live proxy | **Reuse** until one origin | Cheap coexistence (D3-keep) |
+| Worker `portal-ra-spike` | live proxy | **Reuse** until one origin | Cheap coexistence (RT-keep) |
 | Git branch `ra-spike` | — | **Archive** after confirming live SHA | Production is main-line |
 | Stale PRs #2/#3/#4 | — | **Archive** | Do not merge |
 | Nextgen GIA engine + candidate/handoff/FEP | PR #6 109 tests; G1 `engine.test.ts`, `gia-api.test.ts`, `otp.test.ts`, `programs.test.ts`, `repository.test.mjs` | **Reuse / extend in Nextgen** | Architecture-agnostic recruit MVP |
@@ -267,8 +266,8 @@ Legend: **Reuse** = production-valuable as-is, including its tests · **Refactor
 2. **Role = program.** `INTERN` collapses “which program” into “which permission.” Coaches switching portals use HMAC handoff instead of enrollment.
 3. **Two learning origins, one brand.** Intern `/` vs RA `/ra-spike/` behind a Worker last touched July 10. Staff toggle is easy to miss. Rookies hitting intern URLs get hard-redirected.
 4. **Two code languages.** Daily classroom codes vs Versa identity-bound codes. Product and security discussions keep mixing them (F1 is the classroom table).
-5. **Git fiction vs production.** Operators treating `ra-spike` branch as live will ship the wrong tree (U7).
-6. **GIA cannot yet see learners.** Official ecosystem guide (D6 extended) still has empty intern/RA knowledge and a synthetic program source — correct for now, but UX will fork if GIA is copied into Vite.
+5. **Git fiction vs production.** Operators treating `ra-spike` branch as live will ship the wrong tree (U5).
+6. **GIA cannot yet see learners.** Official ecosystem guide (NEXO #26 GIA amendments, not D6 — D6 is manual monthly billing) still has empty intern/RA knowledge and a synthetic program source — correct for now, but UX will fork if GIA is copied into Vite.
 7. **Three front-end stacks.** Vite intern, Vite RA (same repo, two shells), Nextgen GIA/CC, plus static `spike-next/` and joingiya.com. Shared design language does not exist.
 8. **Security debt on the live intern gate.** F1 anon SELECT of the daily code; guest revalida RPCs; service-role Functions. None of this waits on U1.
 9. **Catalog is a stub.** `agency-training` / `leader-academy` slugs exist; Advisor Launch through Enterprise Builder do not. Adding a program today means forking a portal.
