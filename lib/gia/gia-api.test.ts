@@ -6,12 +6,15 @@ import { applyAllMigrations } from './apply-migrations.mjs';
 const SECRET = 'g'.repeat(32);
 const sessionId = randomBytes(32).toString('hex');
 const mac = createHmac('sha256', SECRET).update(sessionId).digest('hex');
-const state = vi.hoisted(() => ({ db: null as unknown as PGlite }));
+const state = vi.hoisted(() => ({
+  db: null as unknown as PGlite,
+  cookies: {} as Record<string, string>,
+}));
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({
-    get: (name: string) => name === 'gia_session' ? { value: `${sessionId}.${mac}` } : undefined,
-    set: () => undefined,
+    get: (name: string) => Object.prototype.hasOwnProperty.call(state.cookies, name) ? { value: state.cookies[name] } : undefined,
+    set: (name: string, value: string) => { state.cookies[name] = value; },
   }),
 }));
 vi.mock('@/lib/gia/origin', () => ({ sameOrigin: () => true }));
@@ -52,6 +55,7 @@ describe('GIA API reject audit', () => {
     await state.db.exec(`TRUNCATE ${TABLES} CASCADE`);
     await state.db.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
     clearDevOtps();
+    state.cookies = { gia_session: `${sessionId}.${mac}` };
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -89,5 +93,56 @@ describe('GIA API reject audit', () => {
     expect(body.error).toBe('verification_required');
     expect(body.challenge).not.toHaveProperty('devCode');
     expect(JSON.stringify(body)).not.toMatch(/"devCode"/);
+  });
+
+  it('keeps an intern cookie when body.program is omitted and denies FEP listing', async () => {
+    const sessionIdFep = '11111111-1111-4111-8111-111111111111';
+    await state.db.query("INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,now()+interval '3 days',5)", [sessionIdFep]);
+    state.cookies.gia_program = 'intern';
+    const listed = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'list_fep_sessions' }),
+    }));
+    expect(listed.status).toBe(400);
+    expect(await listed.json()).toEqual({ error: 'wrong_program' });
+    expect(state.cookies.gia_program).toBe('intern');
+  });
+
+  it('rejects explicit null, empty, and garbage program instead of failing open to recruit', async () => {
+    state.cookies.gia_program = 'intern';
+    for (const program of [null, '']) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'list_fep_sessions', program }),
+      }));
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'invalid_program' });
+      expect(state.cookies.gia_program).toBe('intern');
+    }
+    state.cookies.gia_program = 'admin';
+    const garbage = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'list_fep_sessions' }),
+    }));
+    expect(garbage.status).toBe(400);
+    expect(await garbage.json()).toEqual({ error: 'invalid_program' });
+  });
+
+  it('does not serve recruit FEP FAQ on an intern cookie', async () => {
+    state.cookies.gia_program = 'intern';
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.intent).toBe('request_leader');
+    expect(body.reason).toBe('route_spike_interns');
+    expect(body.citation).toBeUndefined();
+    expect(body.sessions).toBeUndefined();
   });
 });

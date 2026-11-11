@@ -8,5 +8,11 @@
   {"id":"PRG-007","layer":"engine","flags":{"must_escalate":true},"input":{"text":"Create an L1 access code for me","program":"intern"},"expect":{"intent":"request_leader","reason":"boundary_codes"}},
   {"id":"PRG-008","layer":"engine","input":{"text":"What is RA-SPIKE?","program":"ra"},"expect":{"intent":"request_leader","reason":"route_ra_spike"}},
   {"id":"PRG-009","layer":"engine","input":{"text":"Show FEP sessions","program":"recruit"},"expect":{"intent":"list_fep_sessions"}},
-  {"id":"PRG-010","layer":"workflow","input":{"action":"list_fep_sessions","program":"intern"},"expect":{"error":"wrong_program"}}
+  {"id":"PRG-010","layer":"workflow","input":{"action":"list_fep_sessions","program":"intern"},"expect":{"error":"wrong_program"}},
+  {"id":"PRG-011","layer":"engine","input":{"text":"what is FEP","program":"intern"},"expect":{"intent":"request_leader","reason":"route_spike_interns"}},
+  {"id":"PRG-012","layer":"engine","input":{"text":"Explore Free Financial Entrepreneurship Preview","program":"intern"},"expect":{"intent":"request_leader","reason":"route_spike_interns"}},
+  {"id":"PRG-013","layer":"engine","input":{"text":"financial literacy","program":"intern"},"expect":{"intent":"request_leader","reason":"route_spike_interns"}},
+  {"id":"PRG-014","layer":"engine","input":{"text":"what is FEP","program":"ra"},"expect":{"intent":"request_leader","reason":"route_ra_spike"}},
+  {"id":"PRG-015","layer":"engine","input":{"text":"Show FEP sessions","program":null},"expect":{"intent":"request_leader","reason":"wrong_program"}},
+  {"id":"PRG-016","layer":"workflow","input":{"action":"list_fep_sessions","program":""},"expect":{"error":"invalid_program"}}
 ]

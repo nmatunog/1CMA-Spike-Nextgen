@@ -49,13 +49,13 @@ export default function Gia() {
       <p>GIA is a role-aware guide. Program status comes from a local adapter you can swap later. It does not open a learning portal or change entitlements.</p>
       {(['recruit', 'intern', 'ra'] as const).map((id) => (
         <label key={id} style={{ display: 'inline-flex', gap: 8, marginRight: 16 }}>
-          <input type='radio' name='gia-program' value={id} checked={program === id} onChange={() => setProgram(id)} />
+          <input type='radio' name='gia-program' value={id} checked={program === id} onChange={() => { setProgram(id); setSessions([]); }} />
           {id === 'recruit' ? 'Recruit' : id === 'intern' ? 'Intern' : 'RA'}
         </label>
       ))}
     </fieldset>
     <section aria-label='Conversation' aria-live='polite' style={{ display: 'grid', gap: 12 }}>{turns.map((t, i) => <article key={i} style={{ padding: 16, border: '1px solid #64748b', borderRadius: 12, overflowWrap: 'anywhere' }}><p>{t.text}</p>{t.citation && <a href={t.citation.source}>{t.citation.id} · v{t.citation.version}</a>}</article>)}</section>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{['Join Free Financial Literacy', 'Explore Free Financial Entrepreneurship Preview', 'Talk to a 1CMA Leader'].map(label => <button disabled={busy || stopped} key={label} onClick={() => call('message', { text: label })}>{label}</button>)}</div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{(program === 'recruit' ? ['Join Free Financial Literacy', 'Explore Free Financial Entrepreneurship Preview', 'Talk to a 1CMA Leader'] : ['Talk to a 1CMA Leader']).map(label => <button disabled={busy || stopped} key={label} onClick={() => call('message', { text: label })}>{label}</button>)}</div>
     {!saved && !stopped && <form onSubmit={e => { e.preventDefault(); if (consent) call('consent', { ...contact, agree: true, notice: NOTICE }); }} style={{ display: 'grid', gap: 12 }}>
       <h2>Save a contact for booking or leader follow-up</h2><p>Use synthetic details only. Your name and email will be shared with authorized 1CMA staff for recruitment, booking and follow-up. STOP stops future contact. Do not send IDs or documents. Chat uploads are discarded.</p>
       <label>Name <input required maxLength={100} value={contact.name} onChange={e => setContact({ ...contact, name: e.target.value })}/></label>
@@ -74,7 +74,7 @@ export default function Gia() {
       <label>Mock verification code <input inputMode='numeric' autoComplete='one-time-code' maxLength={6} value={otp} onChange={e => setOtp(e.target.value)}/></label>
       <button disabled={busy || otp.trim().length !== 6}>Verify and show my status</button>
     </form>}
-    {sessions.map(s => <article key={s.id}><p>{new Date(s.starts_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })} Manila · {s.seats_left} seats</p><button disabled={!saved || busy || stopped || s.seats_left < 1} onClick={() => call('book_fep', { sessionId: s.id })}>Book this FEP</button></article>)}
+    {program === 'recruit' && sessions.map(s => <article key={s.id}><p>{new Date(s.starts_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })} Manila · {s.seats_left} seats</p><button disabled={!saved || busy || stopped || s.seats_left < 1} onClick={() => call('book_fep', { sessionId: s.id })}>Book this FEP</button></article>)}
     <form onSubmit={e => { e.preventDefault(); if (text.trim()) { call('message', { text }); setText(''); } }} style={{ display: 'flex', gap: 8 }}><input aria-label='Message GIA' placeholder='Ask GIA or request Bisaya / Tagalog' maxLength={1000} value={text} onChange={e => setText(e.target.value)} style={{ flex: 1, minWidth: 0 }}/><button disabled={busy || stopped || !text.trim()}>Send</button></form>
     <style>{`button,input { font: inherit; padding: 10px; } button { border: 1px solid #64748b; border-radius: 8px; cursor: pointer; } button:disabled { opacity: .5; cursor: default; } h1 { font-size: clamp(1.5rem, 5vw, 2rem); }`}</style>
   </main>;

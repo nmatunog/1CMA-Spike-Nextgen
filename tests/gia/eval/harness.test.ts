@@ -96,7 +96,7 @@ async function runWorkflowCase(c: EvalCase, round: number) {
       await perform(repository, identity, 'book_fep', { sessionId, program: input.program });
       return perform(repository, identity, 'book_fep', { sessionId: secondId, program: input.program });
     }
-    const payload = { reason: input.reason, otp: input.otp, sessionId, program: input.program };
+    const payload = { reason: input.reason, otp: input.otp, sessionId, ...(input.program !== undefined ? { program: input.program } : {}) };
     return await perform(repository, identity, input.action, payload);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'error' };

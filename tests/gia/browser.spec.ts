@@ -12,6 +12,13 @@ for (const viewport of [{width:390,height:844},{width:1440,height:1000}]) {
     await expect(page.getByRole('button',{name:'Save consent and contact'})).toBeDisabled();
     await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
     await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
+    await page.getByRole('radio',{name:'Intern'}).click();
+    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Join Free Financial Literacy'})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Talk to a 1CMA Leader'})).toBeVisible();
+    await page.getByRole('radio',{name:'Recruit'}).click();
+    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
     await expect(page.locator('input[type=file]')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({path:`work/gia-${viewport.width}.png`,fullPage:true});
@@ -28,6 +35,21 @@ test('pilot backend defaults to disabled', async ({request}) => {
   if (process.env.GIA_PILOT_ENABLED === 'true') test.skip();
   const response = await request.post('/api/gia',{data:{action:'message',text:'hello'}});
   expect(response.status()).toBe(503);expect(await response.json()).toEqual({error:'pilot_disabled'});
+});
+test('intern guide hides FEP and denies FEP listing', async ({page}) => {
+  test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
+  await page.goto('/gia');
+  await page.getByRole('radio',{name:'Intern'}).click();
+  await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'})).toHaveCount(0);
+  await page.getByRole('textbox',{name:'Message GIA'}).fill('Show FEP sessions');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByText(/FEP session booking is part of the recruitment guide/)).toBeVisible();
+  await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toHaveCount(0);
+  await page.getByRole('textbox',{name:'Message GIA'}).fill('what is FEP');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByText(/Approved answers for SPIKE for Interns are not in this GIA guide yet/)).toBeVisible();
+  await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toHaveCount(0);
 });
 test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', async ({page,browser}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');

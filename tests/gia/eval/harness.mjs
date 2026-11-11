@@ -84,7 +84,10 @@ export function judgeWorkflow(c, result) {
 }
 
 export function runEngineCase(c) {
-  const result = respond(c.input.text, c.input.language || 'en', packNamed(c.input.pack), EVAL_NOW, { program: c.input.program });
+  const context = Object.prototype.hasOwnProperty.call(c.input || {}, 'program') && c.input.program !== undefined
+    ? { program: c.input.program }
+    : {};
+  const result = respond(c.input.text, c.input.language || 'en', packNamed(c.input.pack), EVAL_NOW, context);
   return judgeEngine(c, result);
 }
 

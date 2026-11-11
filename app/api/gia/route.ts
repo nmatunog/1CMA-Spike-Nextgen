@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { knowledge, respond } from '@/lib/gia/engine.mjs';
 import { perform, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
-import { parseProgram } from '@/lib/gia/programs.mjs';
+import { LEAST_PRIVILEGED_PROGRAM, resolveStoredProgram } from '@/lib/gia/programs.mjs';
 import { repository } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
 import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
@@ -46,14 +46,22 @@ async function audit(id: string, metadata: { action: string; intent?: string | n
 function clientHash(req: Request) {
   return hashClientKey(req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '');
 }
-function resolveProgram(body: Record<string, unknown>, jar: Awaited<ReturnType<typeof cookies>>) {
-  if (Object.prototype.hasOwnProperty.call(body, 'program')) {
-    const parsed = parseProgram(body.program);
-    if (!parsed) throw new Error('invalid_program');
-    jar.set('gia_program', parsed, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
-    return parsed;
+function readProgram(body: Record<string, unknown>, jar: Awaited<ReturnType<typeof cookies>>) {
+  const cookie = jar.get('gia_program');
+  const resolved = resolveStoredProgram({
+    hasBodyProgram: Object.prototype.hasOwnProperty.call(body, 'program'),
+    bodyProgram: body.program,
+    cookieProgram: cookie == null ? null : cookie.value,
+  });
+  if ('persist' in resolved && resolved.persist && resolved.program) {
+    jar.set('gia_program', resolved.program, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
   }
-  return parseProgram(jar.get('gia_program')?.value) || 'recruit';
+  return resolved;
+}
+function programOrThrow(resolved: ReturnType<typeof resolveStoredProgram>): string {
+  if ('error' in resolved && resolved.error) throw new Error(resolved.error);
+  if (!('program' in resolved) || !resolved.program) throw new Error('invalid_program');
+  return resolved.program;
 }
 export async function POST(req: Request) {
   if (process.env.GIA_PILOT_ENABLED !== 'true') return NextResponse.json({ error: 'pilot_disabled' }, { status: 503 });
@@ -89,16 +97,22 @@ export async function POST(req: Request) {
     const jar = await cookies();
     const language = jar.get('gia_language')?.value;
     const ipHash = clientHash(req);
-    const program = resolveProgram(body, jar);
+    const resolved = readProgram(body, jar);
+    if (body.action === 'opt_out') {
+      const result = await perform(repository, id, 'opt_out', {});
+      return NextResponse.json(publicResult(result));
+    }
     if (body.action === 'message') {
       if (typeof body.text !== 'string' || body.text.length > 1000) throw new Error('invalid_message');
-      const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en', knowledge, new Date(), { program });
+      const engineProgram = 'program' in resolved && resolved.program ? resolved.program : LEAST_PRIVILEGED_PROGRAM;
+      const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en', knowledge, new Date(), { program: engineProgram });
       const reason = 'reason' in response && typeof response.reason === 'string' ? response.reason : null;
       const rawCitation = 'citation' in response ? response.citation : null;
       const citation = rawCitation && typeof rawCitation === 'object' && 'id' in rawCitation && 'version' in rawCitation && 'source' in rawCitation
         ? { id: String(rawCitation.id), version: String(rawCitation.version), source: String(rawCitation.source) }
         : null;
-      if (response.intent === 'opt_out') return NextResponse.json(await perform(repository, id, 'opt_out'));
+      if (response.intent === 'opt_out') return NextResponse.json(await perform(repository, id, 'opt_out', {}));
+      const program = programOrThrow(resolved);
       // Suppression is checked before responding or changing language.
       const suppressed = await repository.run(id, tx => tx.suppressed());
       if (suppressed) {
@@ -137,6 +151,7 @@ export async function POST(req: Request) {
       await recordRejected(repository, id, 'unknown_action', typeof body.action === 'string' ? body.action : 'rejected');
       throw new Error('unknown_action');
     }
+    const program = programOrThrow(resolved);
     const result = await perform(repository, id, body.action, { ...body, program, clientHash: ipHash });
     if (result && typeof result === 'object' && 'error' in result && (result.error === 'verification_required' || result.error === 'otp_locked')) {
       return NextResponse.json(publicResult(result), { status: 400 });

@@ -1,5 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { adapterAllows, parseProgram, programAdapter, lookupProgramStatus, PROGRAMS } from './programs.mjs';
+import {
+  adapterAllows,
+  adapterAllowsTopic,
+  parseProgram,
+  programAdapter,
+  lookupProgramStatus,
+  programFromContext,
+  requireProgram,
+  resolveStoredProgram,
+  PROGRAMS,
+  DEFAULT_VISITOR_PROGRAM,
+  LEAST_PRIVILEGED_PROGRAM,
+} from './programs.mjs';
 import { createSyntheticProgramSource, programSource, resetProgramSource } from './program-source.mjs';
 import { GIA_TOOLS } from './engine.mjs';
 import { respond } from './engine.mjs';
@@ -7,13 +19,42 @@ import { respond } from './engine.mjs';
 describe('program adapters', () => {
   beforeEach(() => resetProgramSource());
 
-  it('defaults empty to recruit and rejects unknown programs', () => {
-    expect(parseProgram(undefined)).toBe('recruit');
-    expect(parseProgram('')).toBe('recruit');
+  it('parses known programs and treats empty or unknown as invalid', () => {
+    expect(parseProgram(undefined)).toBeNull();
+    expect(parseProgram(null)).toBeNull();
+    expect(parseProgram('')).toBeNull();
+    expect(parseProgram('   ')).toBeNull();
     expect(parseProgram('intern')).toBe('intern');
     expect(parseProgram('RA-SPIKE')).toBe('ra');
     expect(parseProgram('portal')).toBeNull();
+    expect(parseProgram('admin')).toBeNull();
     expect(PROGRAMS).toEqual(['recruit', 'intern', 'ra']);
+    expect(DEFAULT_VISITOR_PROGRAM).toBe('recruit');
+    expect(LEAST_PRIVILEGED_PROGRAM).toBe('intern');
+  });
+
+  it('defaults to recruit only when the program field is absent', () => {
+    expect(requireProgram({})).toBe('recruit');
+    expect(requireProgram({ action: 'list_fep_sessions' })).toBe('recruit');
+    expect(requireProgram({ program: undefined })).toBe('recruit');
+    expect(() => requireProgram({ program: null })).toThrow('invalid_program');
+    expect(() => requireProgram({ program: '' })).toThrow('invalid_program');
+    expect(() => requireProgram({ program: 'admin' })).toThrow('invalid_program');
+    expect(requireProgram({ program: 'intern' })).toBe('intern');
+  });
+
+  it('does not fail open to recruit from a tampered body or cookie', () => {
+    expect(resolveStoredProgram({ hasBodyProgram: false, cookieProgram: null })).toEqual({ program: 'recruit' });
+    expect(resolveStoredProgram({ hasBodyProgram: true, bodyProgram: null, cookieProgram: 'intern' })).toEqual({ error: 'invalid_program' });
+    expect(resolveStoredProgram({ hasBodyProgram: true, bodyProgram: '', cookieProgram: 'intern' })).toEqual({ error: 'invalid_program' });
+    expect(resolveStoredProgram({ hasBodyProgram: false, cookieProgram: '' })).toEqual({ error: 'invalid_program' });
+    expect(resolveStoredProgram({ hasBodyProgram: false, cookieProgram: 'admin' })).toEqual({ error: 'invalid_program' });
+    expect(resolveStoredProgram({ hasBodyProgram: false, cookieProgram: 'intern' })).toEqual({ program: 'intern' });
+    expect(resolveStoredProgram({ hasBodyProgram: true, bodyProgram: 'intern', cookieProgram: 'recruit' })).toEqual({ program: 'intern', persist: true });
+    expect(programFromContext({})).toBe('recruit');
+    expect(programFromContext({ program: null })).toBe('intern');
+    expect(programFromContext({ program: '' })).toBe('intern');
+    expect(programFromContext({ program: 'admin' })).toBe('intern');
   });
 
   it('keeps all five GIA tools on recruit and withholds FEP tools from intern/RA', () => {
@@ -23,6 +64,10 @@ describe('program adapters', () => {
     expect(adapterAllows('intern', 'get_my_status')).toBe(true);
     expect(adapterAllows('ra', 'opt_out')).toBe(true);
     expect(adapterAllows('intern', 'consent')).toBe(true);
+    expect(adapterAllowsTopic('recruit', 'fep')).toBe(true);
+    expect(adapterAllowsTopic('intern', 'fep')).toBe(false);
+    expect(adapterAllowsTopic('intern', 'literacy')).toBe(false);
+    expect(adapterAllowsTopic('ra', 'fep')).toBe(false);
   });
 
   it('looks up intern status from the synthetic source without a portal', async () => {
@@ -70,5 +115,25 @@ describe('program adapters', () => {
     expect(codes.reason).toBe('boundary_codes');
     const recruit = respond('Show FEP sessions', 'en', undefined, undefined, { program: 'recruit' });
     expect(recruit.intent).toBe('list_fep_sessions');
+  });
+
+  it('does not serve recruit FAQ to intern/RA and fail-closes tampered program context', () => {
+    const internFep = respond('what is FEP', 'en', undefined, undefined, { program: 'intern' });
+    expect(internFep.intent).toBe('request_leader');
+    expect(internFep.reason).toBe('route_spike_interns');
+    expect(internFep).not.toHaveProperty('citation');
+    const internExplore = respond('Explore Free Financial Entrepreneurship Preview', 'en', undefined, undefined, { program: 'intern' });
+    expect(internExplore.intent).toBe('request_leader');
+    expect(internExplore.reason).toBe('route_spike_interns');
+    const internLit = respond('financial literacy', 'en', undefined, undefined, { program: 'intern' });
+    expect(internLit.intent).toBe('request_leader');
+    expect(internLit.reason).toBe('route_spike_interns');
+    const raFep = respond('what is FEP', 'en', undefined, undefined, { program: 'ra' });
+    expect(raFep.reason).toBe('route_ra_spike');
+    const tampered = respond('Show FEP sessions', 'en', undefined, undefined, { program: null });
+    expect(tampered.intent).toBe('request_leader');
+    expect(tampered.reason).toBe('wrong_program');
+    const empty = respond('Show FEP sessions', 'en', undefined, undefined, { program: '' });
+    expect(empty.reason).toBe('wrong_program');
   });
 });

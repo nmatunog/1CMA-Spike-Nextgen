@@ -73,6 +73,8 @@ Chromium checks run at 390px and 1440px, check horizontal overflow, and exercise
 
 GIA is the role-aware guide across **recruit**, **intern**, and **RA**. Each program is an adapter: recruit keeps the five FEP tools; intern/RA expose `get_my_status`, `request_leader`, and `opt_out` only. Program status is read from a swappable `ProgramSource` (`lib/gia/program-source.mjs`). This increment ships the **synthetic** source only. `GIA_PROGRAM_SOURCE` other than `synthetic` is refused. No portal hostname is stored or called. OTP, STOP, and escalation guarantees are unchanged.
 
+Visitor default is recruit **only** when both the request body `program` field and the `gia_program` cookie are absent. An explicit `null`, empty, or unknown value in the body or cookie returns `invalid_program`. Tampered engine context fail-closes to intern (least FEP privilege) instead of recruit. Intern/RA `knowledgeTopics` are empty, so recruit literacy/FEP FAQ and the recruit-only quick-reply buttons are not served on those adapters.
+
 No schema migration. C1 is adding `0007` in parallel; this increment does not need `0008`. Program context is a request/cookie attribute, not an entitlement GIA writes.
 
 The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required). Program-adapter cases in `tests/gia/eval/program-cases.json` are extra runs on top of EV-001..EV-078.
