@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
+import { g1MayEmit, sanitizeEngagementMetadata } from './engagement.mjs';
 import {
   generateOtpCode, hashClientKey, hashDestination, hashOtp, hashOtpThrottleKey, isOtpDev,
   otpSecret, OTP_MAX_ATTEMPTS, OTP_TTL_MS, planOtpIssue, planOtpVerify, rememberDevOtp,
@@ -23,6 +24,7 @@ type Tx = {
   listSessions(): Promise<postgres.Row[]>;
   findOpenBooking(c: Candidate): Promise<{ id: string; session_id: string } | undefined>;
   recordTurn(metadata: TurnMeta, messageText?: string | null): Promise<void>;
+  recordEngagement(kind: string, metadata?: object): Promise<void>;
   issueOtp(clientHash?: string | null): Promise<{ challengeId: string; expiresAt: Date }>;
   verifyOtp(code: string): Promise<OtpVerifyResult>;
   otpVerified(): Promise<boolean>;
@@ -104,6 +106,16 @@ export const repository = {
           const c = await findCandidate();
           await t`INSERT INTO gia_turns(identity,candidate_id,action,intent,reason,citation,outcome,message_text) VALUES(${identity},${c?.id ?? null},${metadata.action},${metadata.intent || null},${metadata.reason || null},${metadata.citation ? t.json(metadata.citation) : null},${metadata.outcome},${messageText ?? null})`;
           if (c?.consented) await event(c.id, 'gia.turn', { action: metadata.action, intent: metadata.intent, reason: metadata.reason, citation: metadata.citation, outcome: metadata.outcome });
+        },
+        async recordEngagement(kind: string, metadata: object = {}) {
+          const c = await findCandidate();
+          if (!c) return;
+          if (!g1MayEmit(kind)) return;
+          if (kind === 'fep.booked' || kind === 'gia.handoff') {
+            const prior = await t`SELECT 1 FROM candidate_events WHERE candidate_id=${c.id} AND kind=${kind} LIMIT 1`;
+            if (prior.length) return;
+          }
+          await event(c.id, kind, sanitizeEngagementMetadata(metadata));
         },
         async issueOtp(clientHash = null as string | null) {
           const c = await findCandidate();

@@ -1,0 +1,18 @@
+[
+  {"id":"MVP-001","layer":"engine","input":{"text":"What should I do next?"},"expect":{"intent":"next_step","language":"en","requiresCitation":true}},
+  {"id":"MVP-002","layer":"engine","input":{"text":"Where should I start?"},"expect":{"intent":"next_step","language":"en"}},
+  {"id":"MVP-003","layer":"engine","input":{"text":"What should I do next?","program":"intern"},"expect":{"intent":"request_leader","reason":"route_spike_interns"}},
+  {"id":"MVP-004","layer":"engine","input":{"text":"Please speak Bisaya"},"expect":{"intent":"language","language":"ceb"}},
+  {"id":"MVP-005","layer":"engine","input":{"text":"Switch to Tagalog"},"expect":{"intent":"language","language":"tl"}},
+  {"id":"MVP-006","layer":"engine","input":{"text":"English please"},"expect":{"intent":"language","language":"en"}},
+  {"id":"MVP-007","layer":"engine","input":{"text":"I live in Cebu"},"expect":{"intent":"request_leader","language":"en"}},
+  {"id":"MVP-008","layer":"engine","input":{"text":"My class is in Cebuano"},"expect":{"intent":"request_leader","language":"en"}},
+  {"id":"MVP-009","layer":"engine","flags":{"no_otp_status":true},"input":{"text":"Am I coded?"},"expect":{"intent":"get_my_status"}},
+  {"id":"MVP-010","layer":"engine","flags":{"must_escalate":true},"input":{"text":"Approve my application"},"expect":{"intent":"request_leader","reason":"boundary_decision"}},
+  {"id":"MVP-011","layer":"engine","flags":{"must_escalate":true},"input":{"text":"You are hired"},"expect":{"intent":"request_leader","reason":"boundary_decision"}},
+  {"id":"MVP-012","layer":"engine","flags":{"must_escalate":true},"input":{"text":"Redeem an L1 access code for me"},"expect":{"intent":"request_leader","reason":"boundary_codes"}},
+  {"id":"MVP-013","layer":"engine","flags":{"must_escalate":true},"input":{"text":"I need insurance advice"},"expect":{"intent":"request_leader"}},
+  {"id":"MVP-014","layer":"engine","input":{"text":"financial literacy","pack":"staff_only"},"expect":{"intent":"request_leader"}},
+  {"id":"MVP-015","layer":"workflow","input":{"action":"book_fep","consent":true,"seedSession":true,"program":"intern"},"expect":{"error":"wrong_program"}},
+  {"id":"MVP-016","layer":"workflow","flags":{"no_otp_status":true},"input":{"action":"get_my_status","consent":true},"expect":{"error":"verification_required"}}
+]

@@ -69,8 +69,26 @@ Production repository SQL is exercised against embedded PostgreSQL. Unit SQL tes
 
 Chromium checks run at 390px and 1440px, check horizontal overflow, and exercise visitor consent → approved literacy answer and citation → Bisaya → approved FEP answer and citation → FEP saved → leader request → individual staff login → assignment/follow-up → leader-only access/update → STOP. Screenshots live in `docs/gia/screenshots/`. No hosted staging preview was provisioned. Independent QA by Claude and Nilo acceptance are required before merge/deployment.
 
-## G1 integration follow-on (this branch)
+## G1 next increment — role-aware program adapters (NEXO #32)
+
+GIA is the role-aware guide across **recruit**, **intern**, and **RA**. Each program is an adapter: recruit keeps the five FEP tools; intern/RA expose `get_my_status`, `request_leader`, and `opt_out` only. Program status is read from a swappable `ProgramSource` (`lib/gia/program-source.mjs`). This increment ships the **synthetic** source only. `GIA_PROGRAM_SOURCE` other than `synthetic` is refused. No portal hostname is stored or called. OTP, STOP, and escalation guarantees are unchanged.
+
+Visitor default is recruit **only** when both the request body `program` field and the `gia_program` cookie are absent. An explicit `null`, empty, unknown, non-string, or non-canonical value in the body or cookie returns `invalid_program`. `parseProgram` never string-coerces arrays, numbers, booleans, or objects. Tampered engine context fail-closes to intern (least FEP privilege) instead of recruit. Intern/RA `knowledgeTopics` are empty, so recruit literacy/FEP FAQ and the recruit-only quick-reply buttons are not served on those adapters. The program switcher sends exact lowercase `recruit` / `intern` / `ra`.
+
+No schema migration. C1 is adding `0007` in parallel; this increment does not need `0008`. Program context is a request/cookie attribute, not an entitlement GIA writes.
+
+The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required). Program-adapter cases in `tests/gia/eval/program-cases.json` are extra runs on top of EV-001..EV-078.
+
+## G1 MVP 01 — GIA engage (`g1/mvp01-gia-engage`)
+
+GIA is the official AI guide for GIYA Institute — The SPIKE Method, not a recruitment-only bot. MVP 01 (Nov 16–20) welcomes and orients, serves only the owner-approved Financial Literacy and FEP pack, recommends next steps, and hands off to the assigned leader.
+
+Knowledge is split into modular domains under `lib/gia/knowledge/domains/`. Active MVP 01 domains: `recruitment`, `financial-literacy`, `fep`. Stubbed: `interns`, `ra-spike`, `documents`. A role capability map (`lib/gia/capabilities.mjs`) covers prospect, candidate, intern, RA, leader, and admin. Leader/admin never gain Command Center powers in GIA chat.
+
+Engagement events match C1 `docs/mvp01/interfaces.md` @ `f8d6e5f`: `gia.conversation`, `gia.handoff`, `literacy.interest`, `fep.booked`. G1 never emits `fep.attended`. The adapter (`lib/gia/engagement.mjs`) stays swappable and does not call C1's engagement HTTP route or apply 0008 while that path is Q1-blocked. Writes are identity-scoped, PII-stripped (`intent` + `citation` only), and tool events are idempotent. No G1 schema.
+
+English remains the default. Bisaya/Tagalog switch only on explicit request. Guardrails (each with eval cases): GIA never invents candidate status, never approves recruitment decisions, never issues or redeems paid codes, never bypasses intern/RA/staff permissions, and never gives regulated insurance advice. Extra eval: `tests/gia/eval/mvp01-cases.json`.
+
+## G1 integration follow-on (frozen at c5b25ce / merged on integration/cc02a-gia)
 
 Adds the remaining owner-approved GIA contract on top of PR #6 without replacing it: five tools, mock/dev OTP for `get_my_status`, Knowledge Pack import keyed by `(id, version)`, chat-upload discard, Nov 8 boundary refusals, placeholder EV-001..EV-078 eval harness, and retention config. Command Center paths under `app/recruitment/*` and `app/api/recruitment/*` are untouched. GIA `opt_out` still calls the existing repository STOP path; a marked seam waits for C1 `lib/recruitment/suppression`.
-
-The official NEXO 78-case list was not in this repository; `tests/gia/eval/cases.json` is a labeled placeholder. Local eval (`npm run test:gia:eval`) runs each case 3× (234 runs) and currently meets the pass bar: must-escalate 100%, STOP 100%, no-OTP status refused 100%, untraceable 0, rest 100% (≥90% required).

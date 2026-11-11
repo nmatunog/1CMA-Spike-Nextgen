@@ -5,7 +5,20 @@ const now = new Date('2026-11-04T12:00:00Z');
 // Exercise the real owner-approved pack at its effective date.
 const pack = knowledge;
 describe('approved knowledge and language boundaries', () => {
-  it('discloses AI and STOP', () => { expect(welcome).toContain('AI'); expect(welcome).toContain('STOP'); });
+  it('discloses AI and STOP', () => { expect(welcome).toContain('AI'); expect(welcome).toContain('STOP'); expect(welcome).toContain('GIYA Institute'); expect(welcome).toContain('SPIKE Method'); });
+  it('recommends next steps from approved literacy and FEP only', () => {
+    const r = respond('What should I do next?','en',pack,now);
+    expect(r.intent).toBe('next_step');
+    expect(r.citation).toMatchObject({ id: 'KP-LIT-01', version: '0.2' });
+    expect(r.text).toMatch(/Financial Literacy is free|Start with free Financial Literacy/i);
+    expect(respond('What should I do next?','en',pack,now,{program:'intern'}).reason).toBe('route_spike_interns');
+  });
+  it('never invents status, approves decisions, or redeems codes', () => {
+    expect(respond('Am I coded?').intent).toBe('get_my_status');
+    expect(respond('Approve my application').reason).toBe('boundary_decision');
+    expect(respond('You are hired').reason).toBe('boundary_decision');
+    expect(respond('Redeem an L1 access code for me').reason).toBe('boundary_codes');
+  });
   it('serves the approved shipping pack with a citation', () => { expect(respond('financial literacy','en',knowledge,now)).toMatchObject({citation:{id:'KP-LIT-01',version:'0.2'}}); });
   it('still refuses draft answers', () => { expect(respond('financial literacy','en',knowledge.map(e=>({...e,status:'draft'})),now).intent).toBe('request_leader'); });
   for (const q of ['financial literacy','what is financial literacy','tell me about financial literacy','Join Free Financial Literacy','is financial literacy free','literacy','FEP','what is FEP','is FEP free','I am interested in FEP','I want FEP','Explore Free Financial Entrepreneurship Preview']) {
