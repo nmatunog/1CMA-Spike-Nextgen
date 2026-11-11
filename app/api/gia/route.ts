@@ -131,7 +131,7 @@ export async function POST(req: Request) {
           action: 'message',
           intent: listing ? null : response.intent,
           citation,
-          conversation: true,
+          conversation: !listing,
         });
         if (c?.consented && response.intent === 'request_leader') return { handoff: await tx.handoff(c, reason || 'unapproved_or_unknown') };
         return null;

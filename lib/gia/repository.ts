@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
+import { g1MayEmit, sanitizeEngagementMetadata } from './engagement.mjs';
 import {
   generateOtpCode, hashClientKey, hashDestination, hashOtp, hashOtpThrottleKey, isOtpDev,
   otpSecret, OTP_MAX_ATTEMPTS, OTP_TTL_MS, planOtpIssue, planOtpVerify, rememberDevOtp,
@@ -109,11 +110,12 @@ export const repository = {
         async recordEngagement(kind: string, metadata: object = {}) {
           const c = await findCandidate();
           if (!c) return;
-          if (kind === 'gia.conversation_started') {
+          if (!g1MayEmit(kind)) return;
+          if (kind === 'fep.booked' || kind === 'gia.handoff') {
             const prior = await t`SELECT 1 FROM candidate_events WHERE candidate_id=${c.id} AND kind=${kind} LIMIT 1`;
             if (prior.length) return;
           }
-          await event(c.id, kind, metadata);
+          await event(c.id, kind, sanitizeEngagementMetadata(metadata));
         },
         async issueOtp(clientHash = null as string | null) {
           const c = await findCandidate();
