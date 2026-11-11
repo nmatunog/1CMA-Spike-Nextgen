@@ -94,3 +94,74 @@ test('MVP 01 capture → register → evaluate → engage persists in Command Ce
   await staffContext.close();
   await leaderContext.close();
 });
+
+test('GIA visitor conversation and handoff appear on the candidate timeline', async ({ browser, page }) => {
+  test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
+  const access = JSON.parse(await readFile('work/demo-access.json', 'utf8'));
+  const visitor = 'Synthetic GIA Timeline Visitor';
+
+  await page.goto('/gia');
+  await page.getByLabel('Name', { exact: true }).fill(visitor);
+  await page.getByLabel('Email', { exact: true }).fill('gia-timeline@example.test');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Save consent and contact' }).click();
+  await expect(page.getByText(/consent and contact have been saved/)).toBeVisible();
+  await page.getByRole('button', { name: 'Join Free Financial Literacy' }).click();
+  await expect(page.getByRole('link', { name: 'KP-LIT-01 · v0.2' })).toBeVisible();
+  await page.getByRole('button', { name: 'Talk to a 1CMA Leader' }).click();
+  await expect(page.getByText(/1CMA leader/i).last()).toBeVisible();
+  await page.getByRole('button', { name: 'Save leader request' }).click();
+  await expect(page.getByText(/Your leader request is saved/)).toBeVisible();
+  await page.screenshot({ path: 'docs/gia/screenshots/gia-timeline-handoff.png', fullPage: true });
+  await page.screenshot({ path: 'work/gia-timeline-handoff.png', fullPage: true });
+
+  const staffContext = await browser.newContext();
+  const staffPage = await staffContext.newPage();
+  await staffPage.goto('/login');
+  await staffPage.getByLabel('Email').fill(access.email);
+  await staffPage.getByLabel('Password').fill(access.password);
+  await staffPage.getByRole('button', { name: 'Sign in' }).click();
+  await staffPage.waitForURL('/');
+  await staffPage.goto('/recruitment/command');
+  await expect(staffPage.getByRole('heading', { name: visitor }).first()).toBeVisible({ timeout: 15000 });
+  await staffPage.getByRole('button', { name: visitor, exact: true }).first().click();
+  await expect(staffPage.getByRole('listitem').filter({ hasText: 'gia.conversation' }).first()).toContainText('not a decision');
+  await expect(staffPage.getByRole('listitem').filter({ hasText: 'gia.handoff' }).first()).toBeVisible();
+  await expect(staffPage.getByRole('listitem').filter({ hasText: 'literacy.interest' }).first()).toBeVisible();
+
+  const follow = staffPage.locator('form').filter({ has: staffPage.getByRole('button', { name: 'Save follow-up' }) });
+  await follow.getByLabel('Assigned leader email').fill(access.leaderEmail);
+  await follow.getByLabel('Next action', { exact: true }).fill('Leader intro after GIA handoff');
+  await follow.getByRole('button', { name: 'Save follow-up' }).click();
+  await expect(staffPage.getByRole('status')).toHaveText('Follow-up saved');
+
+  const evalForm = staffPage.locator('form').filter({ has: staffPage.getByRole('button', { name: 'Record evaluation' }) });
+  await evalForm.getByLabel('Background', { exact: true }).fill('Synthetic GIA timeline background');
+  await evalForm.getByLabel('Education').fill('Synthetic college');
+  await evalForm.getByLabel('Career interests / motivation').fill('Literacy then FEP');
+  await evalForm.getByLabel('Program interest').selectOption('literacy');
+  await evalForm.getByLabel('Availability / readiness').fill('Evenings Asia/Manila');
+  await evalForm.getByLabel('Outcome').selectOption('proceed');
+  await evalForm.getByLabel('Recommended next action').selectOption('literacy');
+  await evalForm.getByRole('button', { name: 'Record evaluation' }).click();
+  await expect(staffPage.getByRole('status')).toHaveText('Evaluation saved');
+  await staffPage.screenshot({ path: 'docs/mvp01/screenshots/gia-timeline.png', fullPage: true });
+  await staffPage.screenshot({ path: 'work/mvp01-gia-timeline.png', fullPage: true });
+
+  await page.getByRole('button', { name: 'STOP / opt out' }).click();
+  await expect(page.getByText(/opted out/i)).toBeVisible();
+  await page.screenshot({ path: 'docs/gia/screenshots/gia-stop.png', fullPage: true });
+
+  const internContext = await browser.newContext();
+  const internPage = await internContext.newPage();
+  await internPage.goto('/gia');
+  await internPage.getByRole('radio', { name: 'Intern' }).click();
+  await expect(internPage.getByRole('button', { name: 'Show FEP sessions' })).toHaveCount(0);
+  await internPage.getByRole('textbox', { name: 'Message GIA' }).fill('Show FEP sessions');
+  await internPage.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(internPage.getByText(/FEP session booking is part of the recruitment guide/)).toBeVisible();
+  await internPage.screenshot({ path: 'docs/gia/screenshots/gia-intern-fep-denied.png', fullPage: true });
+
+  await staffContext.close();
+  await internContext.close();
+});

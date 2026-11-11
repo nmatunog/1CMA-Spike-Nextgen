@@ -85,7 +85,7 @@ GIA is the official AI guide for GIYA Institute — The SPIKE Method, not a recr
 
 Knowledge is split into modular domains under `lib/gia/knowledge/domains/`. Active MVP 01 domains: `recruitment`, `financial-literacy`, `fep`. Stubbed: `interns`, `ra-spike`, `documents`. A role capability map (`lib/gia/capabilities.mjs`) covers prospect, candidate, intern, RA, leader, and admin. Leader/admin never gain Command Center powers in GIA chat.
 
-Engagement events match C1 `docs/mvp01/interfaces.md` @ `f8d6e5f`: `gia.conversation`, `gia.handoff`, `literacy.interest`, `fep.booked`. G1 never emits `fep.attended`. The adapter (`lib/gia/engagement.mjs`) stays swappable and does not call C1's engagement HTTP route or apply 0008 while that path is Q1-blocked. Writes are identity-scoped, PII-stripped (`intent` + `citation` only), and tool events are idempotent. No G1 schema.
+Engagement events match C1 `docs/mvp01/interfaces.md` @ `eefc126`: `gia.conversation`, `gia.handoff`, `literacy.interest`, `fep.booked`. G1 never emits `fep.attended`. Consented visitor writes go through `recordGiaVisitorEngagement` (not the staff HTTP route). Metadata is C1's `intent`/`citation` string allowlist (≤80, no OTP/code tokens). `engagementPort().list()` requires an identity or candidate scope. `canReadDomain` gates FAQ serving in the engine.
 
 English remains the default. Bisaya/Tagalog switch only on explicit request. Guardrails (each with eval cases): GIA never invents candidate status, never approves recruitment decisions, never issues or redeems paid codes, never bypasses intern/RA/staff permissions, and never gives regulated insurance advice. Extra eval: `tests/gia/eval/mvp01-cases.json`.
 

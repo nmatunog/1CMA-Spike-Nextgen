@@ -1,6 +1,8 @@
 import postgres from 'postgres';
 import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
 import { g1MayEmit, sanitizeEngagementMetadata } from './engagement.mjs';
+import { recordGiaVisitorEngagementOn } from '@/lib/mvp01/engage';
+import type { GiaEngagementKind } from '@/lib/mvp01/interfaces';
 import {
   generateOtpCode, hashClientKey, hashDestination, hashOtp, hashOtpThrottleKey, isOtpDev,
   otpSecret, OTP_MAX_ATTEMPTS, OTP_TTL_MS, planOtpIssue, planOtpVerify, rememberDevOtp,
@@ -115,7 +117,12 @@ export const repository = {
             const prior = await t`SELECT 1 FROM candidate_events WHERE candidate_id=${c.id} AND kind=${kind} LIMIT 1`;
             if (prior.length) return;
           }
-          await event(c.id, kind, sanitizeEngagementMetadata(metadata));
+          await recordGiaVisitorEngagementOn(t, {
+            candidateId: c.id,
+            kind: kind as GiaEngagementKind,
+            actor: 'gia',
+            metadata: sanitizeEngagementMetadata(metadata),
+          });
         },
         async issueOtp(clientHash = null as string | null) {
           const c = await findCandidate();

@@ -34,5 +34,7 @@ describe('MVP 01 knowledge domains and capabilities', () => {
     expect(canReadDomain('prospect', 'financial-literacy')).toBe(true);
     expect(canReadDomain('intern', 'fep')).toBe(false);
     expect(canReadDomain('intern', 'interns')).toBe(false);
+    expect(canReadDomain('candidate', 'fep')).toBe(true);
+    expect(canReadDomain('ra', 'financial-literacy')).toBe(false);
   });
 });

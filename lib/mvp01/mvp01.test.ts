@@ -210,6 +210,18 @@ describe('MVP 01 capture register evaluate engage', () => {
       candidateId: captured.id, kind: 'gia.conversation', actor: admin.email,
       metadata: { intent: 'literacy', email: 'secret@example.test' },
     })).rejects.toThrow(/invalid/);
+    await expect(ingestGiaEngagementEvent(sql, admin, {
+      candidateId: captured.id, kind: 'gia.conversation', actor: admin.email,
+      metadata: { intent: '123456' },
+    })).rejects.toThrow(/invalid/);
+    await expect(ingestGiaEngagementEvent(sql, admin, {
+      candidateId: captured.id, kind: 'gia.conversation', actor: admin.email,
+      metadata: { citation: 'otp 9999' },
+    })).rejects.toThrow(/invalid/);
+    await expect(ingestGiaEngagementEvent(sql, admin, {
+      candidateId: captured.id, kind: 'gia.conversation', actor: admin.email,
+      metadata: { intent: 'access code L1-1234' },
+    })).rejects.toThrow(/invalid/);
   });
 
   it('refuses a leader recording engagement on an unassigned or other-leader candidate', async () => {

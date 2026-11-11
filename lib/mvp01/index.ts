@@ -20,6 +20,6 @@ export {
 export { MVP01_EVALUATION_CONFIG } from './evaluation-config';
 export { captureProspect } from '@/lib/recruitment/import';
 export { importVersaLead, giaAssistedIntake } from './stubs';
-export { ingestGiaEngagementEvent, recordGiaVisitorEngagement, canMessage } from './engage';
+export { ingestGiaEngagementEvent, recordGiaVisitorEngagement, recordGiaVisitorEngagementOn, canMessage, looksLikeSecretToken, sanitizeEngagementMetadata } from './engage';
 export { submitEvaluation, loadActiveEvaluationConfig } from './evaluate';
 export { provisionUserAccount, enrollAccount, assignProgramRole } from './accounts';

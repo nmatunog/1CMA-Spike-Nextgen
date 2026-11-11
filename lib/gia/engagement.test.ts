@@ -1,23 +1,26 @@
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { randomUUID } from 'node:crypto';
-import { applyAllMigrations } from './apply-migrations.mjs';
+import { applyAllMigrations, resetWorkflowTables, WORKFLOW_RESET_TABLES } from './apply-migrations.mjs';
 import { perform } from './workflow.mjs';
 import {
   GIA_ENGAGEMENT,
   GIA_ENGAGEMENT_KINDS,
   G1_EMITTED_KINDS,
   ENGAGEMENT_METADATA_KEYS,
-  ENGAGEMENT_CITATION_KEYS,
   buildEngagementEvent,
   callerOwnsCandidate,
   engagementPort,
   emitGiaEngagement,
+  flattenEngagementMetadata,
   g1MayEmit,
+  looksLikeSecretToken,
   resetEngagementPort,
   sanitizeEngagementMetadata,
 } from './engagement.mjs';
+import { looksLikeSecretToken as c1LooksLikeSecretToken, sanitizeEngagementMetadata as c1Sanitize } from '@/lib/mvp01/engage';
 import { respond } from './engine.mjs';
+import { canReadDomain, visitorRole } from './capabilities.mjs';
 
 const state = vi.hoisted(() => ({ db: null as PGlite | null }));
 vi.mock('postgres', () => ({ default: () => {
@@ -36,9 +39,6 @@ vi.mock('postgres', () => ({ default: () => {
 import { repository } from './repository';
 
 const consent = { agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Engage', email: 'engage@example.test' };
-const TABLES = 'candidates,candidate_identities,candidate_consents,candidate_events,candidate_handoffs,fep_sessions,fep_bookings,gia_suppressions,landing_quiz_results,versa_lead_map,candidate_duplicate_flags,import_batches,command_audit_events,gia_otp_challenges,gia_otp_throttle,gia_turns';
-
-// Documented C1 contract from docs/mvp01/interfaces.md @ f8d6e5f (lib/mvp01/interfaces.ts).
 const C1_DOCUMENTED_KINDS = [
   'gia.conversation',
   'gia.handoff',
@@ -48,13 +48,12 @@ const C1_DOCUMENTED_KINDS = [
 ] as const;
 
 describe('GIA engagement adapter contract', () => {
-  it('matches C1 documented kinds and payload shape', () => {
+  it('matches C1 documented kinds and string metadata allowlist', () => {
     expect([...GIA_ENGAGEMENT_KINDS]).toEqual([...C1_DOCUMENTED_KINDS]);
     expect(Object.values(GIA_ENGAGEMENT)).toEqual([...C1_DOCUMENTED_KINDS]);
     expect([...G1_EMITTED_KINDS]).toEqual(['gia.conversation', 'gia.handoff', 'literacy.interest', 'fep.booked']);
     expect(g1MayEmit('fep.attended')).toBe(false);
     expect([...ENGAGEMENT_METADATA_KEYS]).toEqual(['intent', 'citation']);
-    expect([...ENGAGEMENT_CITATION_KEYS]).toEqual(['id', 'version', 'source']);
     const built = buildEngagementEvent({
       candidateId: '11111111-1111-4111-8111-111111111111',
       kind: 'gia.conversation',
@@ -67,10 +66,7 @@ describe('GIA engagement adapter contract', () => {
       candidateId: '11111111-1111-4111-8111-111111111111',
       kind: 'gia.conversation',
       actor: 'gia',
-      metadata: {
-        intent: 'answer',
-        citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://example.test/kp' },
-      },
+      metadata: { intent: 'answer', citation: 'KP-LIT-01' },
     });
     expect(Object.keys(built.event).sort()).toEqual(['actor', 'candidateId', 'kind', 'metadata']);
   });
@@ -78,34 +74,40 @@ describe('GIA engagement adapter contract', () => {
   it('refuses undocumented kinds and leader-only fep.attended', () => {
     expect(buildEngagementEvent({ kind: 'gia.stop', candidateId: 'x' })).toMatchObject({ ok: false, error: 'invalid_kind' });
     expect(buildEngagementEvent({ kind: 'gia.conversation_started', candidateId: 'x' })).toMatchObject({ ok: false, error: 'invalid_kind' });
-    expect(buildEngagementEvent({ kind: 'gia.fl_interest', candidateId: 'x' })).toMatchObject({ ok: false, error: 'invalid_kind' });
     expect(buildEngagementEvent({ kind: 'fep.attended', candidateId: 'x' })).toMatchObject({ ok: false, error: 'kind_not_allowed' });
   });
 
-  it('strips PII and extra keys from metadata', () => {
-    const metadata = sanitizeEngagementMetadata({
-      intent: 'answer',
-      citation: {
-        id: 'KP-LIT-01',
-        version: '0.2',
-        source: 'https://example.test/kp',
-        email: 'hidden@example.test',
-      },
-      email: 'visitor@example.test',
-      phone: '+639170000000',
-      message: 'raw chat about my passport',
-      text: 'Am I coded?',
-      otp: '123456',
-      code: '654321',
-      name: 'Synthetic Visitor',
-      actor: 'admin',
-    });
-    expect(metadata).toEqual({
+  it('runs spec.metadata through the C1 intent/citation allowlist and drops extras', () => {
+    const spec = {
       intent: 'answer',
       citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://example.test/kp' },
-    });
-    const packed = JSON.stringify(metadata);
-    expect(packed).not.toMatch(/visitor@example|639170000000|passport|Am I coded|123456|654321|Synthetic Visitor|admin|hidden@/);
+      metadata: {
+        intent: 'answer',
+        citation: { id: 'KP-LIT-01' },
+        email: 'visitor@example.test',
+        phone: '+639170000000',
+        message: 'raw chat',
+        otp: '123456',
+      },
+    };
+    const flattened = flattenEngagementMetadata(spec);
+    expect(flattened).toEqual({ intent: 'answer', citation: 'KP-LIT-01' });
+    expect(Object.keys(flattened).sort()).toEqual(['citation', 'intent']);
+    expect(sanitizeEngagementMetadata(spec.metadata)).toEqual({ intent: 'answer', citation: 'KP-LIT-01' });
+    expect(c1Sanitize({ intent: 'answer', citation: 'KP-LIT-01' })).toEqual({ intent: 'answer', citation: 'KP-LIT-01' });
+    expect(() => c1Sanitize(spec.metadata)).toThrow(/invalid/);
+  });
+
+  it('rejects OTP- and code-shaped tokens on both C1 and G1', () => {
+    for (const token of ['1234', '123456', 'otp 99', 'access code L1-1234']) {
+      expect(looksLikeSecretToken(token)).toBe(true);
+      expect(c1LooksLikeSecretToken(token)).toBe(true);
+      expect(sanitizeEngagementMetadata({ intent: token })).toEqual({});
+      expect(() => c1Sanitize({ intent: token })).toThrow(/invalid/);
+    }
+    expect(looksLikeSecretToken('KP-LIT-01')).toBe(false);
+    expect(c1LooksLikeSecretToken('KP-LIT-01')).toBe(false);
+    expect(sanitizeEngagementMetadata({ citation: 'KP-LIT-01' })).toEqual({ citation: 'KP-LIT-01' });
   });
 
   it('treats a mismatched candidateId as out of scope', () => {
@@ -114,6 +116,20 @@ describe('GIA engagement adapter contract', () => {
     expect(callerOwnsCandidate('aaa', 'bbb')).toBe(false);
     expect(callerOwnsCandidate(null, 'bbb')).toBe(false);
     expect(callerOwnsCandidate('aaa', ['aaa'] as unknown)).toBe(false);
+  });
+
+  it('requires identity or candidate scope to list engagement rows', async () => {
+    await expect(engagementPort().list()).rejects.toThrow(/unscoped_list/);
+    await expect(engagementPort().list('')).rejects.toThrow(/unscoped_list/);
+    await expect(engagementPort().list({})).rejects.toThrow(/unscoped_list/);
+    await engagementPort().record({ identity: 'a', kind: 'gia.conversation', metadata: { intent: 'answer' } });
+    expect((await engagementPort().list('a')).map(row => row.kind)).toEqual(['gia.conversation']);
+  });
+
+  it('wires canReadDomain so intern/RA cannot read FEP or literacy', () => {
+    expect(canReadDomain(visitorRole({ program: 'intern' }), 'fep')).toBe(false);
+    expect(canReadDomain(visitorRole({ program: 'ra' }), 'financial-literacy')).toBe(false);
+    expect(canReadDomain(visitorRole({ program: 'recruit' }), 'financial-literacy')).toBe(true);
   });
 });
 
@@ -128,9 +144,7 @@ describe('GIA engagement adapter', () => {
     await applyAllMigrations((sql: string) => state.db!.exec(sql));
   });
   beforeEach(async () => {
-    await state.db!.exec('ALTER TABLE gia_turns DISABLE TRIGGER USER');
-    await state.db!.exec(`TRUNCATE ${TABLES} CASCADE`);
-    await state.db!.exec('ALTER TABLE gia_turns ENABLE TRIGGER USER');
+    await resetWorkflowTables((sql: string) => state.db!.exec(sql), WORKFLOW_RESET_TABLES);
     resetEngagementPort();
   });
   afterAll(async () => { await state.db?.close(); });
@@ -155,10 +169,6 @@ describe('GIA engagement adapter', () => {
     expect(kinds.filter(k => k === GIA_ENGAGEMENT.handoff)).toHaveLength(1);
     expect(kinds).not.toEqual(expect.arrayContaining([
       'gia.conversation_started',
-      'gia.fl_interest',
-      'gia.fep_guidance',
-      'gia.fep_booking',
-      'gia.handoff_requested',
       'gia.stop',
       'fep.attended',
     ]));
@@ -169,7 +179,6 @@ describe('GIA engagement adapter', () => {
       GIA_ENGAGEMENT.handoff,
     ]));
     expect(memory.every(row => row.actor === 'gia')).toBe(true);
-    expect(memory.every(row => !('email' in row.metadata) && !('text' in row.metadata) && !('otp' in row.metadata))).toBe(true);
   });
 
   it('classifies literacy interest without a candidate row', async () => {
@@ -185,10 +194,7 @@ describe('GIA engagement adapter', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error('expected engagement events');
     expect(result.events.map(row => row.kind)).toEqual([GIA_ENGAGEMENT.conversation, GIA_ENGAGEMENT.literacyInterest]);
-    expect(result.events[0].metadata).toEqual({
-      intent: 'answer',
-      citation: { id: reply.citation?.id, version: reply.citation?.version, source: reply.citation?.source },
-    });
+    expect(result.events[0].metadata).toEqual({ intent: 'answer', citation: 'KP-LIT-01' });
     expect((await engagementPort().list('anon')).map(row => row.kind)).toEqual([
       GIA_ENGAGEMENT.conversation,
       GIA_ENGAGEMENT.literacyInterest,
@@ -214,24 +220,26 @@ describe('GIA engagement adapter', () => {
     expect(bKinds).not.toContain(GIA_ENGAGEMENT.conversation);
     expect(aKinds).not.toContain(GIA_ENGAGEMENT.conversation);
     expect((await engagementPort().list('engage-a')).some(row => row.candidateId === b.id)).toBe(false);
-    expect((await engagementPort().list('engage-b')).some(row => row.kind === GIA_ENGAGEMENT.conversation)).toBe(false);
   });
 
-  it('does not persist PII when a scoped conversation event is written', async () => {
+  it('does not persist PII or OTP-shaped tokens on a scoped conversation event', async () => {
     await perform(repository, 'engage-a', 'consent', consent);
     const result = await repository.run('engage-a', tx => emitGiaEngagement(tx, 'engage-a', {
       conversation: true,
       intent: 'answer',
       citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://example.test/kp' },
-      metadata: { email: 'engage@example.test', phone: '+639170000000', message: 'secret chat', otp: '123456' },
+      metadata: { email: 'engage@example.test', phone: '+639170000000', message: 'secret chat', otp: '123456', intent: 'answer' },
     })) as { ok: boolean };
     expect(result.ok).toBe(true);
     const rows = (await state.db!.query("SELECT kind, metadata FROM candidate_events WHERE kind='gia.conversation'")).rows as Array<{ kind: string; metadata: Record<string, unknown> }>;
     expect(rows).toHaveLength(1);
-    expect(rows[0].metadata).toEqual({
-      intent: 'answer',
-      citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://example.test/kp' },
-    });
+    expect(rows[0].metadata).toMatchObject({ intent: 'answer', citation: 'KP-LIT-01', officialDecision: false });
     expect(JSON.stringify(rows[0].metadata)).not.toMatch(/engage@example|639170000000|secret chat|123456/);
+    await repository.run('engage-a', tx => emitGiaEngagement(tx, 'engage-a', {
+      conversation: true,
+      metadata: { intent: '123456' },
+    }));
+    const second = (await state.db!.query("SELECT metadata FROM candidate_events WHERE kind='gia.conversation' ORDER BY created_at DESC LIMIT 1")).rows[0] as { metadata: Record<string, unknown> };
+    expect(JSON.stringify(second.metadata)).not.toMatch(/123456/);
   });
 });

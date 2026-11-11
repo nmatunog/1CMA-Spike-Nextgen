@@ -11,7 +11,9 @@ describe('approved knowledge and language boundaries', () => {
     expect(r.intent).toBe('next_step');
     expect(r.citation).toMatchObject({ id: 'KP-LIT-01', version: '0.2' });
     expect(r.text).toMatch(/Financial Literacy is free|Start with free Financial Literacy/i);
-    expect(respond('What should I do next?','en',pack,now,{program:'intern'}).reason).toBe('route_spike_interns');
+    expect(respond('What should I do next?','en',pack,now,{program:'intern'})).toMatchObject({ reason: 'route_spike_interns' });
+    expect(respond('financial literacy','en',pack,now,{program:'intern'})).toMatchObject({ reason: 'route_spike_interns' });
+    expect(respond('what is FEP','en',pack,now,{program:'intern'})).toMatchObject({ reason: 'route_spike_interns' });
   });
   it('never invents status, approves decisions, or redeems codes', () => {
     expect(respond('Am I coded?').intent).toBe('get_my_status');
