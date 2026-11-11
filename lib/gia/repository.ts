@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
 let client: ReturnType<typeof postgres> | undefined;
 type Candidate = { id: string; stage: string; consented?: boolean };
 type Tx = {
@@ -14,7 +15,7 @@ type Tx = {
 };
 export function sql() {
   if (!process.env.DATABASE_URL) throw new Error('database_unavailable');
-  return client ||= postgres(process.env.DATABASE_URL, { max: 4, prepare: false });
+  return client ||= postgres(process.env.DATABASE_URL, { max: 1, prepare: false });
 }
 export const repository = {
   async run(identity: string, fn: (tx: Tx) => Promise<unknown>) {
@@ -25,7 +26,7 @@ export const repository = {
       const event = async (id: string, kind: string, metadata = {}) => { await t`INSERT INTO candidate_events(candidate_id,kind,actor,metadata) VALUES(${id},${kind},'gia',${t.json(metadata)})`; };
       return fn({
         async audit(c: Candidate, metadata: object) { await event(c.id, 'gia.turn', metadata); },
-        async suppressed() { return (await t`SELECT 1 FROM gia_suppressions WHERE identity=${identity} UNION ALL SELECT 1 FROM candidates c JOIN candidate_identities i ON i.candidate_id=c.id WHERE i.source='gia_web_session' AND i.external_id=${identity} AND c.stage='opt_out'`).length > 0; },
+        async suppressed() { return identityIsSuppressed(t, identity); },
         async suppressIdentity() { await t`INSERT INTO gia_suppressions(identity) VALUES(${identity}) ON CONFLICT DO NOTHING`; },
         async findCandidate() {
           const rows = await t`SELECT c.*, EXISTS(SELECT 1 FROM candidate_consents s WHERE s.candidate_id=c.id AND s.source='gia_web_session' AND s.purpose='recruitment' AND s.revoked_at IS NULL) AS consented FROM candidates c JOIN candidate_identities i ON i.candidate_id=c.id WHERE i.source='gia_web_session' AND i.external_id=${identity} FOR UPDATE OF c`;
@@ -42,11 +43,7 @@ export const repository = {
           if (rows.length) await event(c.id, 'consent.granted', { notice });
         },
         async optOut(c: Candidate) {
-          await t`UPDATE candidates SET stage='opt_out',next_action=NULL,due_at=NULL WHERE id=${c.id}`;
-          await t`UPDATE candidate_consents SET revoked_at=now() WHERE candidate_id=${c.id} AND revoked_at IS NULL`;
-          await t`UPDATE candidate_handoffs SET state='cancelled' WHERE candidate_id=${c.id} AND state='open'`;
-          await t`INSERT INTO gia_suppressions(identity) VALUES(${identity}) ON CONFLICT DO NOTHING`;
-          if (c.stage !== 'opt_out') await event(c.id, 'opt_out');
+          await applyCandidateStop(t, { candidateId: c.id, actor: 'gia', currentStage: c.stage, extraIdentities: [identity] });
         },
         async handoff(c: Candidate, reason: string) {
           const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason) VALUES(${c.id},${reason}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at`;

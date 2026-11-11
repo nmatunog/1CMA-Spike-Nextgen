@@ -2,7 +2,7 @@ import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { staff } from "@/lib/gia/staff";
 import { getDb } from "@/lib/db/client";
-import { candidates } from "@/lib/db/schema";
+import { landingQuizResults } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 
@@ -10,6 +10,7 @@ async function assertAdmin() {
   return (await staff())?.role === "admin";
 }
 
+/** DNA-quiz admin list. Isolated from recruitment Command Center candidates. */
 export async function GET() {
   if (!(await assertAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,8 +19,8 @@ export async function GET() {
     const db = getDb();
     const rows = await db
       .select()
-      .from(candidates)
-      .orderBy(desc(candidates.score));
+      .from(landingQuizResults)
+      .orderBy(desc(landingQuizResults.score));
     return NextResponse.json({
       candidates: rows.map((c) => ({
         id: c.id,
