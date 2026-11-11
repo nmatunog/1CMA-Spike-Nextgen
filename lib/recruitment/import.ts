@@ -211,12 +211,7 @@ export async function previewOrImportCsv(
         lines.push(row);
         continue;
       }
-      if (row.email && await identityIsSuppressed(t, row.email)) {
-        rejected += 1;
-        lines.push({ line: row.line, status: 'rejected', reason: 'suppressed' });
-        continue;
-      }
-      if (row.phone && await identityIsSuppressed(t, `tel:${row.phone}`)) {
+      if (await importRowSuppressed(t, row)) {
         rejected += 1;
         lines.push({ line: row.line, status: 'rejected', reason: 'suppressed' });
         continue;
@@ -225,12 +220,6 @@ export async function previewOrImportCsv(
         const versaId = await findByVersa(t, row.versaLeadRef || '');
         const verifiedId = versaId || await findVerified(t, row.email || '', row.phone || '');
         if (verifiedId) {
-          const [c] = await t`SELECT stage FROM candidates WHERE id=${verifiedId}`;
-          if (isStopped(c)) {
-            rejected += 1;
-            lines.push({ line: row.line, status: 'rejected', reason: 'suppressed' });
-            continue;
-          }
           await mergeCandidate(t, actor.email, batchId, verifiedId, row);
           merged += 1;
           accepted += 1;
@@ -296,6 +285,17 @@ export async function previewOrImportCsv(
   });
 }
 
+/** Same STOP / suppression gates as a live import. Dry-run must call this too. */
+async function importRowSuppressed(t: SqlTx, row: ImportLine) {
+  if (row.email && await identityIsSuppressed(t, row.email)) return true;
+  if (row.phone && await identityIsSuppressed(t, `tel:${row.phone}`)) return true;
+  const versaId = await findByVersa(t, row.versaLeadRef || '');
+  const verifiedId = versaId || await findVerified(t, row.email || '', row.phone || '');
+  if (!verifiedId) return false;
+  const [c] = await t`SELECT stage FROM candidates WHERE id=${verifiedId}`;
+  return isStopped(c);
+}
+
 async function simulate(t: SqlTx, prospects: ImportLine[]) {
   let accepted = 0;
   let rejected = 0;
@@ -308,6 +308,11 @@ async function simulate(t: SqlTx, prospects: ImportLine[]) {
     if (row.status === 'rejected') {
       rejected += 1;
       lines.push({ line: row.line, status: 'rejected', reason: row.reason });
+      continue;
+    }
+    if (await importRowSuppressed(t, row)) {
+      rejected += 1;
+      lines.push({ line: row.line, status: 'rejected', reason: 'suppressed' });
       continue;
     }
     const versaId = await findByVersa(t, row.versaLeadRef || '');
@@ -331,6 +336,31 @@ async function simulate(t: SqlTx, prospects: ImportLine[]) {
     if (row.phone) seenPhone.set(row.phone, row.line);
   }
   return { accepted, rejected, flagged, merged, lines };
+}
+
+export const INTAKE_ERROR_CODES = [
+  'forbidden',
+  'invalid',
+  'missing_name',
+  'missing_contact',
+  'invalid_email',
+  'invalid_phone',
+  'invalid_source',
+  'invalid_versa_lead_ref',
+  'invalid_spike_learner_ref',
+  'consent_notice_required',
+  'duplicate_verified',
+  'versa_lead_ref_conflict',
+  'suppressed',
+] as const;
+
+export type IntakeErrorCode = (typeof INTAKE_ERROR_CODES)[number];
+
+export function intakeErrorCode(error: unknown): IntakeErrorCode {
+  const message = error instanceof Error ? error.message : '';
+  return (INTAKE_ERROR_CODES as readonly string[]).includes(message)
+    ? (message as IntakeErrorCode)
+    : 'invalid';
 }
 
 export async function createManualLead(

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { staff } from '@/lib/gia/staff';
 import { sql } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
-import { createManualLead } from '@/lib/recruitment/import';
+import { createManualLead, intakeErrorCode } from '@/lib/recruitment/import';
 
 export const runtime = 'nodejs';
 
@@ -27,8 +27,8 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    if (message === 'forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    return NextResponse.json({ error: message || 'invalid' }, { status: 400 });
+    const code = intakeErrorCode(error);
+    if (code === 'forbidden') return NextResponse.json({ error: code }, { status: 403 });
+    return NextResponse.json({ error: code }, { status: 400 });
   }
 }

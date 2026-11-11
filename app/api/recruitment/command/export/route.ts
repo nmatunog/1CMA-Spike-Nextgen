@@ -26,6 +26,9 @@ export async function POST(req: Request) {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': 'attachment; filename="command-export.csv"',
         'Cache-Control': 'no-store',
+        'X-Export-Truncated': result.truncated ? 'true' : 'false',
+        'X-Export-Rows': String(result.rows),
+        'X-Export-Cap': String(result.cap),
       },
     });
   } catch {

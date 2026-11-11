@@ -26,6 +26,8 @@ export const EXPORT_COLUMNS = [
 
 export type ExportColumn = (typeof EXPORT_COLUMNS)[number];
 
+export const EXPORT_ROW_CAP = 500;
+
 function jsonParam(t: SqlTx | Sql, value: unknown) {
   return t.json ? t.json(value) : JSON.stringify(value);
 }
@@ -45,11 +47,17 @@ function redactSecret(value: string) {
   return value;
 }
 
-export async function exportCandidatesCsv(sql: Sql, actor: StaffActor, filters: CommandFilters) {
+export async function exportCandidatesCsv(
+  sql: Sql,
+  actor: StaffActor,
+  filters: CommandFilters,
+  opts?: { cap?: number },
+) {
   const leader = scopedLeader(actor, filters.leader);
   const source = filters.source?.trim() || '';
   const stage = filters.stage?.trim() || '';
   const q = (filters.q || '').trim().slice(0, 80);
+  const cap = Math.max(1, Math.floor(opts?.cap ?? EXPORT_ROW_CAP));
   const rows = await sql`
     SELECT
       c.id, c.name, c.email, c.phone, c.stage, c.assigned_leader, c.next_action, c.due_at,
@@ -77,9 +85,12 @@ export async function exportCandidatesCsv(sql: Sql, actor: StaffActor, filters: 
         SELECT 1 FROM candidate_identities i WHERE i.candidate_id = c.id AND i.source = ${source}
       ))
     ORDER BY c.created_at DESC
-    LIMIT 500`;
+    LIMIT ${cap + 1}`;
 
-  const lines = rows.map((row: Record<string, unknown>) => {
+  const truncated = rows.length > cap;
+  const exportedRows = truncated ? rows.slice(0, cap) : rows;
+
+  const lines = exportedRows.map((row: Record<string, unknown>) => {
     const consented = row.consent_status === 'granted';
     const email = consented ? String(row.email || '') : '';
     const phone = consented ? String(row.phone || '') : '';
@@ -107,9 +118,16 @@ export async function exportCandidatesCsv(sql: Sql, actor: StaffActor, filters: 
 
   const csv = toCsv([...EXPORT_COLUMNS], lines);
   if (/access_code|l1_code|l2_code|redemption/i.test(csv)) throw new Error('export_blocked');
+  const meta = {
+    columns: EXPORT_COLUMNS,
+    rows: lines.length,
+    truncated,
+    cap,
+    role: actor.role,
+  };
   await sql.begin(async (t: SqlTx) => {
     await t`INSERT INTO command_audit_events(kind,actor,metadata)
-      VALUES(${EVENT_KINDS.csvExported},${actor.email},${jsonParam(t, { columns: EXPORT_COLUMNS, rows: lines.length, role: actor.role })})`;
+      VALUES(${EVENT_KINDS.csvExported},${actor.email},${jsonParam(t, meta)})`;
   });
-  return { csv, rows: lines.length, columns: EXPORT_COLUMNS };
+  return { csv, rows: lines.length, truncated, cap, columns: EXPORT_COLUMNS };
 }
