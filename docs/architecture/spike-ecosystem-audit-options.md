@@ -1,10 +1,10 @@
 # Options, recommendation, and migration
 
-Companion to [`spike-ecosystem-audit.md`](./spike-ecosystem-audit.md) (exec summary and D1–D8). Same A1 audit, 2026-11-11.
+Companion to [`spike-ecosystem-audit.md`](./spike-ecosystem-audit.md) (exec summary and D1–D8). Same A1 audit, 2026-11-11. `c1/mvp01-journey` (`f8d6e5fe`) is C1’s in-progress MVP 01 branch — continue there; do not avoid it.
 
 ## 4. Option A — Coordinated modular apps
 
-**Equal footing with B.** Keep intern and RA (and later programs) as **separate apps**, share **platform services** with clear interfaces.
+**Equal footing with B.** This is the rationalized form of what exists: keep intern and RA (and later programs) as **separate apps**, share **platform services** with clear interfaces.
 
 ```
 [ Versa landing ]     [ GIA + Command Center ]     [ joingiya.com ]
@@ -20,13 +20,13 @@ Companion to [`spike-ecosystem-audit.md`](./spike-ecosystem-audit.md) (exec summ
    future program apps plug the same interfaces
 ```
 
-**Township mapping:** each program app is a lot. Shared services are roads. Interfaces: IdentityProvider, EntitlementGrantor (already in V1), GIA `programSource.lookup({ program, identity })`, Command Center event CSV (`code_id`, `versa_lead_ref`, `offering_id`, `redeemed_at`, `entitlement_status`).
+**Township mapping:** each program app is a “lot.” Shared services are “roads.” Interfaces: IdentityProvider, EntitlementGrantor (already in V1), GIA `programSource.lookup({ program, identity })`, Command Center event CSV (`code_id`, `versa_lead_ref`, `offering_id`, `redeemed_at`, `entitlement_status`).
 
 **Identity.** Auth remains Supabase-per-program in phase 1. New link table: `versa_lead_ref` ↔ `auth user` ↔ `program_slug` ↔ `program_role`. D7 candidate record stays in Nextgen. Learning-plane Account is a pointer, not a merged Auth.
 
 **Data.** Learning records stay in the two (later N) Supabase projects (U2 keep). No destructive DB change.
 
-**UX.** Catalog page (new, small) routes continue-to-SPIKE-Learning into the right origin. Staff still use handoff until a later identity phase.
+**UX.** Catalog page (new, small) routes “continue to SPIKE Learning” into the right origin. Staff still use handoff until a later identity phase.
 
 **GIA/CC.** Stay in Nextgen. G1 adapters grow real lookups via the identity link, never via portal scrape (`portal_hardwire_forbidden` already in G1).
 
@@ -63,7 +63,7 @@ giya.institute / portal.1cma.online   (gateway origin — later; not a DNS chang
 
 **Data.** Phase 1: existing Supabase projects remain **program data planes** behind the identity plane (same physical DBs as U2-keep). Phase 2 (separate Nilo checkpoint): optional merge. Never drop-first.
 
-**UX.** One login, one My Learning, program switcher as enrollment list. Distinct curricula and nav per module (`PROGRAM_REGISTRY` already wants this). Mobile-first shell; intern and RA visual language converge gradually, not in the first slice.
+**UX.** One login, one “My Learning,” program switcher as enrollment list. Distinct curricula and nav per module (`PROGRAM_REGISTRY` already wants this). Mobile-first shell; intern and RA visual language converge gradually, not in the first slice.
 
 **GIA/CC.** Same Nextgen codebase, mounted as modules or reverse-proxied behind the gateway. GIA reads role + enrollment; still cannot grant L2.
 
@@ -97,19 +97,19 @@ If Nilo prefers permanent separate apps, A is a complete, honest target: keep in
 
 | Piece | Lives | Bound to U1? | Rule |
 |---|---|---|---|
-| Command Center evaluate/engage | Nextgen `c1/cc-03-evaluate-engage` `d77c3f2` | No | Continue. Interface out: candidate id, consent, evaluation, next action, events |
-| GIA recruit tools + intern/RA adapters | Nextgen `g1/gia-next-program-adapters` | No | Keep `programSource` swappable; never pass a portal hostname |
+| Command Center evaluate/engage | Nextgen `c1/mvp01-journey` `f8d6e5fe` (on `c1/cc-03-evaluate-engage` `d77c3f2`) | No | Continue on `c1/mvp01-journey`. Interface out: candidate id, consent, evaluation, next action, events |
+| GIA recruit tools + intern/RA adapters | Nextgen `g1/gia-next-program-adapters` `cb37ab59` | No | Keep `programSource` swappable; never pass a portal hostname |
 | V1 versaCode module | SPIKE `v1` `609c006` | No | IdentityProvider / EntitlementGrantor; destination host is a later plug |
 | Intern daily codes | SPIKE `main` | No | Unchanged (U4) |
 | Brand routing | Worker + two Pages | No | Unchanged (U3) |
-| `c1/mvp01-journey` | **does not exist** | — | Map MVP 01 to CC-03 + G1 adapters; optionally rename later |
+| `c1/mvp01-journey` | C1 in-progress MVP 01 (`f8d6e5fe`) | No | Continue. Capture→Register→Evaluate→Engage; 0008 identity tables; G1 interfaces published. Do not avoid. |
 
 ### 6.3 Phased migration (no big-bang)
 
 **Phase 0 — now (no Nilo architecture pick required)**  
 MVP 01 in Nextgen. V1 portable tests. F1 stays repo-only until U6. Freeze SPIKE irreversible commits. Archive git `ra-spike` as a label only (U7 still needs a nod before deleting the branch).
 
-**Phase 1 — first vertical slice (after U1 is at least A-coexist / B-destination or A-permanent)**  
+**Phase 1 — first vertical slice (after U1 is at least “A-coexist / B-destination” or “A-permanent”)**  
 Versa synthetic L1 CSV → verified identity → portable entitlement → destination **stub** (do not enroll intern role). Prove intern records and RA records untouched. Flag off in production. Draft PR only.
 
 **Phase 2 — catalog + identity link (needs U2/U5)**  
@@ -121,7 +121,9 @@ One origin owns login/catalog; Worker (or successor) proxies existing apps. Staf
 **Phase 4 — physical DB decision (only if U2 later says merge)**  
 Dual-write, cutover, rollback. Separate Nilo checkpoint. Not in this audit’s authorization.
 
-### 6.4 Component disposition
+### 6.4 Component disposition (reuse / refactor / replace / archive / build)
+
+Summarized from §2; this is the migration legend.
 
 - **Reuse:** intern curriculum + studio, RA curriculum + gates + revalida, venture blueprint, SPIKE LIFE + its tests, smoke journeys, V1 versaCode + tests, GIA engine + CC + G1 adapters + their tests, Worker proxy, intern Capacitor shell, joingiya.com, district command center (separate), daily code **product**, RA open signup, both Supabase **data**.
 - **Refactor:** global role enum → program role; intern/RA shells into packages; Pages Functions auth into identity service; F1 client SELECT (without changing code policy).
@@ -134,10 +136,41 @@ Dual-write, cutover, rollback. Separate Nilo checkpoint. Not in this audit’s a
 ## 7. Immediate engineering posture
 
 - **A1:** this document only. No SPIKE code changes. `SKIP_AUTO_SHIP=1 AUTO_SHIP=0` on any SPIKE command.
-- **C1/G1:** continue MVP 01 on `c1/cc-03-evaluate-engage` and `g1/gia-next-program-adapters`. Do not import `activationCodeService` or intern routes.
+- **C1/G1:** continue MVP 01 on **`c1/mvp01-journey`** (`f8d6e5fe`) and `g1/gia-next-program-adapters` (`cb37ab59`). Do not import `activationCodeService` or intern routes. Do not tell anyone to avoid `c1/mvp01-journey`.
 - **V1:** keep portable; no intern-signup hook; no PR to `main` until SLICE-1.
 - **SEC-1:** F1 hosted apply is U6, independent of U1.
 - **Q1:** QA exact GIA/CC SHAs and V1 `609c006`; this audit is not a QA PASS.
 - **Ops:** live RA-SPIKE = Pages SHA `5efff0c` on main-line, not git `ra-spike`.
 
 No checkpoint in this document authorizes deleting program data, rewriting playbooks, enabling Versa codes in production, changing domain routing, or altering daily-code policy.
+
+---
+
+## Appendix A — key paths
+
+- Routes/RBAC: `src/routes/paths.js`  
+- Internship shell: `src/SpikeMasterPortal.jsx`  
+- RA-SPIKE shell: `src/apps/ra-spike/RaSpikeApp.jsx`  
+- Programs: `src/lib/programs/`  
+- Intern signup: `functions/api/auth/intern-signup.js`  
+- RA signup: `functions/api/ra-spike/signup.js`  
+- Daily codes: `functions/_shared/activationCode.js`, `src/lib/activationCodeService.js`, `supabase/activation_codes.sql`  
+- Dual DB guard: `functions/_shared/supabaseAdmin.js`  
+- RA proxy: `workers/portal-ra-spike/`  
+- V1: `functions/_shared/versaCode/` (branch `v1/l1-versa-csv-verification`)  
+- F1 fix: branch `sec1/f1-activation-codes`  
+- GIA/CC: Nextgen `lib/gia/`, `app/gia/`, `app/recruitment/command/`  
+- G1 adapters: `lib/gia/programs.mjs`, `lib/gia/program-source.mjs`  
+- MVP 01: Nextgen **`c1/mvp01-journey`** (`f8d6e5fe`; built on `c1/cc-03-evaluate-engage` `d77c3f2`)  
+- Versa landing mock: Nextgen `spike-next/`
+
+## Appendix B — owner sources used
+
+- SPIKE #7 and comments `6723607138`, `6732176943`, `6787485319`, `6787541078`, `6787556423`, `6787711991`, `6787838720`  
+- Nextgen #4, #5, #7 (including NEXO #27 excerpts and Command Center home decision)  
+- Nextgen PR #6 head `8e84fbc`  
+- This audit’s owner clarifications: architecture not locked; D1–D8; D2 reopened; document D3/D4 with options; keep tests/modules  
+
+## Appendix C — evidence method
+
+Read-only inspection of `nmatunog/SPIKE` (workspace `main`, GitHub branches, Cloudflare Pages/Workers GET, public HTTP). Read-only GitHub inspection of `nmatunog/1CMA-Spike-Nextgen` including `c1/mvp01-journey` `f8d6e5fe`. NEXO Contents/PRs readable; NEXO issue bodies unread (Issues API 403). Attached `uploads/nexo-26-*.json` not present in this workspace. No hosted DB session. No commits to SPIKE. This file is the only write, on Nextgen branch `a1/ecosystem-audit`.
