@@ -11,6 +11,7 @@ import {
   saveFollowUp,
   staffDirectory,
 } from '@/lib/recruitment/store';
+import { listDuplicateFlags } from '@/lib/recruitment/import';
 import { manilaDaysAgo, manilaToday, MANILA_TIME_ZONE } from '@/lib/recruitment/time';
 
 export const runtime = 'nodejs';
@@ -41,6 +42,7 @@ export async function GET(req: Request) {
     const candidates = await listCandidates(db, actor, filters);
     const handoffs = await listHandoffs(db, actor, filters);
     const sources = await listSources(db);
+    const duplicates = actor.role === 'admin' ? await listDuplicateFlags(db, actor) : [];
     return NextResponse.json({
       role: actor.role,
       timezone: MANILA_TIME_ZONE,
@@ -49,6 +51,7 @@ export async function GET(req: Request) {
       candidates,
       handoffs,
       sources,
+      duplicates,
       leaders: actor.role === 'admin' ? staffDirectory() : [],
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {

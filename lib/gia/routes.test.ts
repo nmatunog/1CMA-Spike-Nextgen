@@ -8,6 +8,8 @@ import { POST as STOP } from '@/app/api/recruitment/command/stop/route';
 import { GET as legacyGET } from '@/app/api/admin/candidates/route';
 import { DELETE as legacyDELETE } from '@/app/api/admin/candidates/[id]/route';
 import { POST as quizPOST } from '@/app/api/candidates/route';
+import { POST as IMPORT } from '@/app/api/recruitment/command/import/route';
+import { POST as EXPORT } from '@/app/api/recruitment/command/export/route';
 beforeEach(() => { ctx.actor=null;ctx.calls=0; });
 it('rejects anonymous reads before touching candidate data', async () => {
   expect((await GET(new Request('https://pilot.test/api/recruitment/command'))).status).toBe(401);
@@ -44,4 +46,21 @@ it('rejects unauthenticated STOP', async () => {
 it('rejects cross-origin public quiz posts before writing', async () => {
   const req=new Request('https://pilot.test/api/candidates',{method:'POST',headers:{origin:'https://attacker.test','content-type':'application/json'},body:JSON.stringify({name:'Synthetic Quiz',email:'quiz@example.test',phone:'+10000000000',score:80})});
   expect((await quizPOST(req)).status).toBe(403);
+});
+it('does not return raw database errors from public quiz POST', async () => {
+  const req=new Request('https://pilot.test/api/candidates',{method:'POST',headers:{origin:'https://pilot.test','content-type':'application/json'},body:JSON.stringify({name:'Synthetic Quiz',email:'quiz@example.test',phone:'+10000000000',score:80})});
+  const res=await quizPOST(req);
+  expect(res.status).toBe(503);
+  expect(await res.json()).toEqual({error:'service_unavailable'});
+});
+it('blocks unauthenticated and leader CSV import before touching records', async () => {
+  expect((await IMPORT(new Request('https://pilot.test/api/recruitment/command/import',{method:'POST',body:'{}'}))).status).toBe(401);
+  ctx.actor={email:'leader@example.test',role:'leader'};
+  expect((await IMPORT(new Request('https://pilot.test/api/recruitment/command/import',{method:'POST',headers:{origin:'https://pilot.test'},body:'{}'}))).status).toBe(403);
+  expect(ctx.calls).toBe(0);
+});
+it('blocks cross-origin CSV export', async () => {
+  ctx.actor={email:'admin@example.test',role:'admin'};
+  const req=new Request('https://pilot.test/api/recruitment/command/export',{method:'POST',headers:{origin:'https://attacker.test'},body:'{}'});
+  expect((await EXPORT(req)).status).toBe(403);expect(ctx.calls).toBe(0);
 });

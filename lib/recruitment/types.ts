@@ -61,6 +61,51 @@ export type HandoffQueueItem = {
 export type CandidateDetail = QueueCandidate & {
   email: string;
   phone: string;
+  versa_lead_ref?: string | null;
+  spike_learner_ref?: string | null;
+  program_interest?: string | null;
+  email_verified?: boolean;
+  phone_verified?: boolean;
+  consent_status?: 'granted' | 'revoked' | 'none';
+};
+
+export type DuplicateFlag = {
+  id: string;
+  matchOn: string;
+  leftId: string;
+  rightId: string;
+  leftName: string;
+  rightName: string;
+};
+
+export type ImportLine = {
+  line: number;
+  status: 'pending' | 'created' | 'merged' | 'flagged' | 'rejected';
+  reason?: string;
+  candidateId?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  source?: string;
+  versaLeadRef?: string;
+  spikeLearnerRef?: string;
+  programInterest?: string;
+  offering?: string;
+  codeStatus?: string;
+  consentClaimed?: boolean;
+};
+
+export type ImportReport = {
+  batchId: string;
+  dryRun: boolean;
+  filename: string;
+  sha256: string;
+  idempotent: boolean;
+  accepted: number;
+  rejected: number;
+  flagged: number;
+  merged: number;
+  lines: ImportLine[];
 };
 
 export type AuditEvent = {

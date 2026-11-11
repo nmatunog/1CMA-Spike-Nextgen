@@ -40,8 +40,7 @@ export async function POST(req: Request) {
       .values({ name, email, phone, score })
       .returning({ id: landingQuizResults.id });
     return NextResponse.json({ ok: true, id: row?.id });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Database error";
-    return NextResponse.json({ error: message }, { status: 503 });
+  } catch {
+    return NextResponse.json({ error: "service_unavailable" }, { status: 503 });
   }
 }

@@ -218,6 +218,11 @@
   min-width: 0;
 }
 
+.intake {
+  margin: 16px 0 24px;
+  min-width: 0;
+}
+
 @media (min-width: 800px) {
   .metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));

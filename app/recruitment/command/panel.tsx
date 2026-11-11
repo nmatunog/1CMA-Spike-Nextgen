@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { WRITABLE_STAGES, LITERACY_STATUSES, STOP_STAGE } from '@/lib/recruitment/stages';
 import { formatManilaStamp, manilaDaysAgo, manilaToday, toManilaDateTimeLocal } from '@/lib/recruitment/time';
-import type { AuditEvent, CandidateDetail, DashboardCounts, HandoffQueueItem, QueueCandidate } from '@/lib/recruitment/types';
+import type { AuditEvent, CandidateDetail, DashboardCounts, DuplicateFlag, HandoffQueueItem, ImportReport, QueueCandidate } from '@/lib/recruitment/types';
 import styles from './command.module.css';
 
 type Payload = {
@@ -12,6 +12,7 @@ type Payload = {
   candidates: QueueCandidate[];
   handoffs: HandoffQueueItem[];
   sources: string[];
+  duplicates?: DuplicateFlag[];
   leaders: { email: string; role: string }[];
 };
 
@@ -23,8 +24,8 @@ const METRICS: { key: keyof DashboardCounts; label: string }[] = [
   { key: 'applications', label: 'Applications' },
   { key: 'coded', label: 'Coded' },
   { key: 'activated', label: 'Activated' },
-  { key: 'unassigned', label: 'Unassigned' },
-  { key: 'overdueFollowups', label: 'Overdue follow-ups' },
+  { key: 'unassigned', label: 'Unassigned (current)' },
+  { key: 'overdueFollowups', label: 'Overdue follow-ups (current)' },
 ];
 
 export default function Command() {
@@ -40,6 +41,7 @@ export default function Command() {
   const [q, setQ] = useState('');
   const [stage, setStage] = useState('');
   const [confirmStop, setConfirmStop] = useState(false);
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ from, to, source, leader, q, stage });
@@ -141,6 +143,89 @@ export default function Command() {
     }
   }
 
+  async function postJson(url: string, body: unknown) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    return { ok: r.ok, d, r };
+  }
+
+  async function importCsv(file: File, dryRun: boolean) {
+    setBusy(true);
+    try {
+      const csv = await file.text();
+      const { ok, d } = await postJson('/api/recruitment/command/import', { csv, filename: file.name, dryRun });
+      if (!ok) {
+        setMessage(d.error === 'forbidden_secret_column' ? 'CSV rejected: secret/code columns are not allowed' : 'Import failed');
+        return;
+      }
+      setImportReport(d as ImportReport);
+      if (!dryRun) await load({ keepMessage: true });
+      setMessage(d.idempotent ? 'Repeat import had no effect' : dryRun ? 'Dry run complete' : `Import ${d.batchId.slice(0, 8)} accepted ${d.accepted}`);
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function intake(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    const f = new FormData(e.currentTarget);
+    try {
+      const { ok, d } = await postJson('/api/recruitment/command/intake', {
+        name: f.get('iname'),
+        email: f.get('iemail'),
+        phone: f.get('iphone'),
+        source: f.get('isource') || 'manual',
+        versaLeadRef: f.get('ivlr'),
+        programInterest: f.get('iinterest'),
+        consentGranted: f.get('iconsent') === 'on',
+        noticeVersion: f.get('inotice') || '',
+      });
+      setMessage(ok ? 'Manual lead saved' : d.error === 'duplicate_verified' ? 'Verified identity already exists' : 'Intake failed');
+      if (ok) {
+        (e.target as HTMLFormElement).reset();
+        await load({ keepMessage: true });
+      }
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function exportCsv() {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/recruitment/command/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source, leader, q, stage }),
+      });
+      if (!r.ok) {
+        setMessage('Export failed');
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'command-export.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      setMessage('Export downloaded');
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const row = detail?.candidate;
   const stopped = row?.stage === STOP_STAGE;
 
@@ -188,6 +273,7 @@ export default function Command() {
       </form>
 
       <h2>Dashboard</h2>
+      <p className={styles.meta}>Event counts use the Manila date filter. Unassigned and overdue are current snapshots and ignore that window.</p>
       <dl className={styles.metrics}>
         {METRICS.map((m) => (
           <div className={styles.metric} key={m.key}>
@@ -196,6 +282,105 @@ export default function Command() {
           </div>
         ))}
       </dl>
+
+      <div className={styles.toolbar}>
+        <button type="button" disabled={busy} onClick={() => exportCsv()}>Export CSV</button>
+        <span className={styles.meta}>Approved columns only · consent-aware contacts · no GIA dialogue or access codes</span>
+      </div>
+
+      {data?.role === 'admin' && (
+        <section className={styles.intake}>
+          <h2>Manual intake</h2>
+          <p className={styles.meta}>Consent is never inferred. Leave the box unchecked unless the person gave informed consent in this conversation.</p>
+          <form className={styles.filters} onSubmit={intake}>
+            <label className={styles.field}>Name
+              <input name="iname" required maxLength={120} />
+            </label>
+            <label className={styles.field}>Email
+              <input name="iemail" type="email" maxLength={120} />
+            </label>
+            <label className={styles.field}>Phone
+              <input name="iphone" maxLength={20} />
+            </label>
+            <label className={styles.field}>Source
+              <select name="isource" defaultValue="manual">
+                <option value="manual">manual</option>
+                <option value="versa">versa</option>
+                <option value="messenger">messenger</option>
+              </select>
+            </label>
+            <label className={styles.field}>Versa lead ref
+              <input name="ivlr" maxLength={80} />
+            </label>
+            <label className={styles.field}>Program interest
+              <input name="iinterest" maxLength={80} />
+            </label>
+            <label className={styles.field}>Consent notice version
+              <input name="inotice" maxLength={80} placeholder="only if consent is given" />
+            </label>
+            <label className={styles.check}>
+              <input type="checkbox" name="iconsent" />
+              Explicit consent given (do not tick from a CSV)
+            </label>
+            <button disabled={busy}>Save manual lead</button>
+          </form>
+
+          <h2>CSV import</h2>
+          <p className={styles.meta}>Dry run first. Auto-merge only on a verified email/mobile or the same versa_lead_ref. Unverified matches are flagged. Re-importing the same file has no effect. Access-code columns are rejected.</p>
+          <form className={styles.filters} onSubmit={(e) => e.preventDefault()}>
+            <label className={styles.field}>Synthetic CSV
+              <input type="file" name="csvfile" accept=".csv,text/csv" />
+            </label>
+            <button type="button" disabled={busy} onClick={(e) => {
+              const input = (e.currentTarget.form?.elements.namedItem('csvfile') as HTMLInputElement | null);
+              const file = input?.files?.[0];
+              if (file) importCsv(file, true);
+            }}>Dry run</button>
+            <button type="button" disabled={busy} onClick={(e) => {
+              const input = (e.currentTarget.form?.elements.namedItem('csvfile') as HTMLInputElement | null);
+              const file = input?.files?.[0];
+              if (file) importCsv(file, false);
+            }}>Import CSV</button>
+          </form>
+          {importReport && (
+            <div>
+              <p className={styles.meta}>
+                Batch {importReport.batchId} · accepted {importReport.accepted} · merged {importReport.merged} · flagged {importReport.flagged} · rejected {importReport.rejected}
+                {importReport.idempotent ? ' · repeat import (no changes)' : ''}
+                {importReport.dryRun ? ' · dry run' : ''}
+              </p>
+              <ol className={styles.history}>
+                {importReport.lines.map((line) => (
+                  <li key={line.line}>Line {line.line} · {line.status}{line.reason ? ` · ${line.reason}` : ''}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          <h2>Possible duplicates</h2>
+          {(data.duplicates || []).length === 0 && <p className={styles.meta}>No unverified identity collisions awaiting review.</p>}
+          {(data.duplicates || []).map((dup) => (
+            <div className={styles.card} key={dup.id}>
+              <p><strong>{dup.leftName}</strong> / <strong>{dup.rightName}</strong></p>
+              <p className={styles.meta}>Possible duplicate on {dup.matchOn}. Auto-merge is blocked until a contact is verified.</p>
+              <div className={styles.actions}>
+                <button type="button" onClick={() => setSelected(dup.leftId)}>{dup.leftName}</button>
+                <button type="button" onClick={() => setSelected(dup.rightId)}>{dup.rightName}</button>
+                <button type="button" disabled={busy} onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const { ok } = await postJson('/api/recruitment/command/duplicates', { id: dup.id });
+                    setMessage(ok ? 'Duplicate dismissed' : 'Update failed');
+                    if (ok) await load({ keepMessage: true });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>Keep both</button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <h2>Handoff queue</h2>
       <div className={styles.handoffs}>
@@ -243,7 +428,32 @@ export default function Command() {
             <form key={row.id + row.stage + (row.due_at || '')} onSubmit={(e) => update(e, row)}>
               <h2>{row.name}</h2>
               <p className={styles.meta}>Stage {row.stage} · Literacy {row.literacy_status} · SPIKE paid {row.spike_paid ? 'yes' : 'no'}</p>
-              <p className={styles.meta}>Contact (authorized record) · {row.email || 'no email'} · {row.phone || 'no phone'}</p>
+              <p className={styles.meta}>Contact (authorized record) · {row.email || 'no email'} · {row.phone || 'no phone'} · consent {row.consent_status || 'none'}</p>
+              <p className={styles.meta}>Versa lead {row.versa_lead_ref || 'none'} · SPIKE learner {row.spike_learner_ref || 'none'} · interest {row.program_interest || 'none'}</p>
+              {data?.role === 'admin' && !stopped && (
+                <div className={styles.actions}>
+                  {!row.email_verified && row.email && (
+                    <button type="button" disabled={busy} onClick={async () => {
+                      setBusy(true);
+                      try {
+                        const { ok } = await postJson('/api/recruitment/command/verify-contact', { id: row.id, channel: 'email' });
+                        setMessage(ok ? 'Email marked verified' : 'Verification failed');
+                        if (ok) await loadDetail(row.id);
+                      } finally { setBusy(false); }
+                    }}>Mark email verified</button>
+                  )}
+                  {!row.phone_verified && row.phone && (
+                    <button type="button" disabled={busy} onClick={async () => {
+                      setBusy(true);
+                      try {
+                        const { ok } = await postJson('/api/recruitment/command/verify-contact', { id: row.id, channel: 'phone' });
+                        setMessage(ok ? 'Phone marked verified' : 'Verification failed');
+                        if (ok) await loadDetail(row.id);
+                      } finally { setBusy(false); }
+                    }}>Mark phone verified</button>
+                  )}
+                </div>
+              )}
               {row.escalate_at && row.handoff_state === 'open' && new Date(row.escalate_at) < new Date() && (
                 <p className={styles.alert}>Escalate to Nilo — unclaimed after 18 hours.</p>
               )}
