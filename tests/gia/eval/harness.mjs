@@ -25,7 +25,7 @@ function untraceable(c, result) {
 function escalateReasonOk(c, reason, intent) {
   if (!c.flags?.must_escalate) return null;
   const expectedReason = c.expect?.reason;
-  const escalated = intent === 'request_leader';
+  const escalated = intent === 'request_leader' || intent === 'refuse';
   if (expectedReason) return escalated && reason === expectedReason;
   return escalated;
 }

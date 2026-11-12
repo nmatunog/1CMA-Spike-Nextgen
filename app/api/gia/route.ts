@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
-import { knowledge, respond } from '@/lib/gia/engine.mjs';
+import { knowledge, respond, isFepScheduleQuery } from '@/lib/gia/engine.mjs';
 import { perform, pickWorkflowInput, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
 import { LEAST_PRIVILEGED_PROGRAM, resolveStoredProgram } from '@/lib/gia/programs.mjs';
 import { emitGiaEngagement } from '@/lib/gia/engagement.mjs';
@@ -108,7 +108,11 @@ export async function POST(req: Request) {
     if (body.action === 'message') {
       if (typeof body.text !== 'string' || body.text.length > 1000) throw new Error('invalid_message');
       const engineProgram = 'program' in resolved && resolved.program ? resolved.program : LEAST_PRIVILEGED_PROGRAM;
-      const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en', knowledge, new Date(), { program: engineProgram });
+      const pre = await repository.run(id, async tx => ({
+        suppressed: await tx.suppressed(),
+        consented: !!(await tx.findCandidate())?.consented,
+      })) as { suppressed: boolean; consented: boolean };
+      const response = respond(body.text, ['en', 'ceb', 'tl'].includes(language || '') ? language : 'en', knowledge, new Date(), { program: engineProgram, consented: pre.consented });
       const reason = 'reason' in response && typeof response.reason === 'string' ? response.reason : null;
       const rawCitation = 'citation' in response ? response.citation : null;
       const citation = rawCitation && typeof rawCitation === 'object' && 'id' in rawCitation && 'version' in rawCitation && 'source' in rawCitation
@@ -117,7 +121,7 @@ export async function POST(req: Request) {
       if (response.intent === 'opt_out') return NextResponse.json(await perform(repository, id, 'opt_out', {}));
       const program = programOrThrow(resolved);
       // Suppression is checked before responding or changing language.
-      const suppressed = await repository.run(id, tx => tx.suppressed());
+      const suppressed = pre.suppressed;
       if (suppressed) {
         await audit(id, { action: 'message', intent: response.intent, reason, outcome: 'opted_out' });
         return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
@@ -128,14 +132,17 @@ export async function POST(req: Request) {
       const extra = await repository.run(id, async tx => {
         const c = await tx.findCandidate();
         await tx.recordTurn({ action: 'message', intent: response.intent, reason, citation, outcome: 'ok' }, storeText);
-        const listing = response.intent === 'list_fep_sessions' && /\b(show fep sessions|list fep sessions|list_fep_sessions|available fep|fep dates|fep seats)\b/i.test(String(body.text));
+        const listing = response.intent === 'list_fep_sessions' && isFepScheduleQuery(String(body.text).toLowerCase());
         await emitGiaEngagement(tx, id, {
           action: 'message',
           intent: listing ? null : response.intent,
           citation,
           conversation: !listing,
         });
-        if (c?.consented && response.intent === 'request_leader') return { handoff: await tx.handoff(c, reason || 'unapproved_or_unknown') };
+        const shouldHandoff = response.intent === 'request_leader'
+          || (response.intent === 'refuse' && reason === 'documents')
+          || reason === 'licensing_detail';
+        if (c?.consented && shouldHandoff) return { handoff: await tx.handoff(c, reason || 'unapproved_or_unknown') };
         return null;
       });
       if (response.intent === 'get_my_status') {
@@ -151,7 +158,7 @@ export async function POST(req: Request) {
           throw e;
         }
       }
-      if (response.intent === 'list_fep_sessions' && /\b(show fep sessions|list fep sessions|list_fep_sessions|available fep|fep dates|fep seats)\b/i.test(String(body.text))) {
+      if (response.intent === 'list_fep_sessions' && isFepScheduleQuery(String(body.text).toLowerCase())) {
         const listed = await perform(repository, id, 'list_fep_sessions', pickWorkflowInput('list_fep_sessions', {}, { program }));
         return NextResponse.json({ ...response, ...asObject(listed), ...asObject(extra) });
       }
