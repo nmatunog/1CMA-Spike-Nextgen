@@ -512,6 +512,18 @@ describe('GIA API reject audit', () => {
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
   });
 
+  it('prunes gia_rate_windows older than the TTL when a window is bumped', async () => {
+    const stale = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    await state.db.query('INSERT INTO gia_rate_windows(bucket, window_start, hits) VALUES($1, $2, 1)', ['stale', stale]);
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }));
+    expect(res.status).toBe(200);
+    expect((await state.db.query("SELECT bucket FROM gia_rate_windows WHERE bucket='stale'")).rows).toHaveLength(0);
+  });
+
   it('does not let a spoofed X-Forwarded-For bypass the unconsented urgent cap', async () => {
     const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
     const prevTrust = process.env.GIA_TRUSTED_PROXY;
