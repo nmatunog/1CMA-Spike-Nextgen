@@ -15,7 +15,7 @@
     "build:gia:offline": "node tests/gia/build-offline.mjs",
     "demo:gia": "node tests/gia/demo-server.mjs",
     "test:gia:browser": "playwright test",
-    "test:gia:eval": "vitest run tests/gia/eval/harness.test.ts tests/gia/eval/official-v03.test.ts tests/gia/eval/heldout-v01.test.ts tests/gia/eval/heldout-v02.test.ts"
+    "test:gia:eval": "vitest run tests/gia/eval/harness.test.ts tests/gia/eval/official-v03.test.ts tests/gia/eval/heldout-v01.test.ts tests/gia/eval/heldout-v02.test.ts tests/gia/eval/heldout-v03.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.41.0",

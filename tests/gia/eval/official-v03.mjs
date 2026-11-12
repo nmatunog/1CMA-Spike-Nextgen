@@ -12,7 +12,9 @@ export function loadOfficialCases() {
 }
 
 export function loadHeldoutCases(version = '0.1') {
-  const file = version === '0.2' ? 'gia-heldout-v0.2.jsonl' : 'gia-heldout-v0.1.jsonl';
+  const file = version === '0.3' ? 'gia-heldout-v0.3.jsonl'
+    : version === '0.2' ? 'gia-heldout-v0.2.jsonl'
+    : 'gia-heldout-v0.1.jsonl';
   const raw = readFileSync(new URL(`../../../data/${file}`, import.meta.url), 'utf8');
   return raw.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
 }
