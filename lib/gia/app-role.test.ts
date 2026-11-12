@@ -136,7 +136,8 @@ describe('gia_app least-privilege access', () => {
     expect(files).toContain('0006_app_role_full_access.sql');
     expect(files).toContain('0007_cc03_evaluate_engage.sql');
     expect(files).toContain('0008_mvp01_journey.sql');
-    expect(files[files.length - 1]).toBe('0008_mvp01_journey.sql');
+    expect(files).toContain('0009_gia_unconsented_urgent_handoff.sql');
+    expect(files[files.length - 1]).toBe('0009_gia_unconsented_urgent_handoff.sql');
   });
 
   it('FORCE RLS and a gia_app ALLOW policy on every workflow table', async () => {

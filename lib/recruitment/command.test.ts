@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { applyAllMigrations, futureFepInsertSql, seedFutureFep, resetWorkflowTables, WORKFLOW_RESET_TABLES } from './demo-seed.mjs';
 import { applyCandidateStop, assertWritable, isStopped, STOP_STAGE } from './suppression';
 import { WRITABLE_STAGES } from './stages';
-import { dashboardCounts, listCandidates, saveFollowUp, stopCandidate, parseFollowUpBody, recordEvaluation } from './store';
+import { dashboardCounts, listCandidates, listHandoffs, saveFollowUp, stopCandidate, parseFollowUpBody, recordEvaluation } from './store';
 import { manilaDaysAgo, manilaToday } from './time';
 import type { Sql } from './store';
 import type { StaffActor } from './types';
@@ -62,6 +62,24 @@ describe('CC-02a command center', () => {
     const sql = await readFile('migrations/0002_cc02a_command_center.sql', 'utf8');
     expect(sql).toMatch(/REVOKE ALL ON candidates FROM PUBLIC/);
     expect(sql).toMatch(/FORCE ROW LEVEL SECURITY/);
+  });
+
+  it('shows unconsented urgent visitor handoffs on the staff queue', async () => {
+    await q(`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,state,consented,program,visitor_identity) VALUES(NULL,'urgent','urgent','open',false,'recruit','deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef')`);
+    const leaderQueue = await listHandoffs(tag(state.db), leader, {});
+    const adminQueue = await listHandoffs(tag(state.db), admin, {});
+    expect(leaderQueue).toHaveLength(1);
+    expect(adminQueue).toHaveLength(1);
+    expect(leaderQueue[0]).toMatchObject({
+      candidate_id: null,
+      name: 'Unconsented visitor',
+      reason: 'urgent',
+      consented: false,
+      program: 'recruit',
+      visitor_identity: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+    });
+    expect(leaderQueue[0].created_at).toBeTruthy();
+    expect(JSON.stringify(leaderQueue[0])).not.toMatch(/@|suicide|kill myself|phone/i);
   });
 
   it('lists each candidate once when multiple handoffs exist', async () => {

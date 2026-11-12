@@ -157,6 +157,53 @@ describe('GIA API reject audit', () => {
     expect(await garbage.json()).toEqual({ error: 'invalid_program' });
   });
 
+  it('writes a minimal unconsented urgent handoff onto the staff queue', async () => {
+    const { listHandoffs } = await import('@/lib/recruitment/store');
+    const tag = Object.assign(async (parts: TemplateStringsArray, ...args: unknown[]) => {
+      const text = parts.reduce((s, p, i) => s + p + (i < args.length ? `$${i + 1}` : ''), '');
+      return (await state.db.query(text, args)).rows as Record<string, unknown>[];
+    }, { json: (v: unknown) => JSON.stringify(v), begin: async () => { throw new Error('unused'); } });
+
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'thinking about suicide' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.reason).toBe('urgent');
+    expect(body.handoff).toMatchObject({ reason: 'urgent', consented: false, program: 'recruit' });
+    expect(body.handoff.candidate_id).toBeFalsy();
+    expect(body.handoff.visitor_identity).toBe(sessionId);
+    expect(body.handoff.created_at).toBeTruthy();
+    expect(JSON.stringify(body.handoff)).not.toMatch(/thinking about suicide/i);
+
+    const stored = (await state.db.query('SELECT candidate_id,reason,urgency,consented,program,visitor_identity,resolution,general_answer FROM candidate_handoffs')).rows as Array<Record<string, unknown>>;
+    expect(stored).toHaveLength(1);
+    expect(stored[0].candidate_id).toBeNull();
+    expect(stored[0]).toMatchObject({ reason: 'urgent', urgency: 'urgent', program: 'recruit', visitor_identity: sessionId });
+    expect(stored[0].consented === false || stored[0].consented === 'f').toBe(true);
+    expect(stored[0].resolution).toBeNull();
+    expect(stored[0].general_answer).toBeNull();
+    const turns = (await state.db.query("SELECT message_text,reason FROM gia_turns WHERE action='message'")).rows as Array<{ message_text: string | null; reason: string | null }>;
+    expect(turns.every(row => row.message_text == null)).toBe(true);
+    expect(turns.some(row => row.reason === 'urgent')).toBe(true);
+    expect(JSON.stringify({ stored, turns })).not.toMatch(/thinking about suicide/i);
+
+    const queue = await listHandoffs(tag, { email: 'leader@example.test', role: 'leader' }, {});
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      name: 'Unconsented visitor',
+      reason: 'urgent',
+      consented: false,
+      program: 'recruit',
+      visitor_identity: sessionId,
+      candidate_id: null,
+    });
+    expect(queue[0].created_at).toBeTruthy();
+  });
+
   it('serves KP-SAFETY-01 on intern even without recruit topics', async () => {
     state.cookies.gia_program = 'intern';
     await POST(new Request('http://127.0.0.1/api/gia', {

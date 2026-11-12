@@ -490,9 +490,10 @@ export default function Command() {
       <div className={styles.handoffs}>
         {(data?.handoffs || []).length === 0 && <p className={styles.meta}>No open handoffs.</p>}
         {(data?.handoffs || []).map((h) => (
-          <button type="button" className={styles.handoff} key={h.id} onClick={() => setSelected(h.candidate_id)}>
+          <button type="button" className={styles.handoff} key={h.id} onClick={() => h.candidate_id && setSelected(h.candidate_id)}>
             <strong>{h.name}</strong>
-            <p className={styles.meta}>{h.reason} · {h.state} · due {formatManilaStamp(h.due_at)}</p>
+            <p className={styles.meta}>{h.reason} · {h.state} · consent={h.consented ? 'true' : 'false'}{h.program ? ` · ${h.program}` : ''} · due {formatManilaStamp(h.due_at)}</p>
+            {h.visitor_identity && <p className={styles.meta}>Visitor {h.visitor_identity} · {formatManilaStamp(h.created_at)}</p>}
             <div className={styles.row}>
               {h.escalated && <span className={`${styles.badge} ${styles.alert}`}>Escalate 18h</span>}
               {h.overdue && <span className={`${styles.badge} ${styles.warn}`}>Overdue 24h</span>}

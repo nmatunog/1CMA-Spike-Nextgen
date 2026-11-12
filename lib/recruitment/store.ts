@@ -283,26 +283,32 @@ export async function listHandoffs(sql: Sql, actor: StaffActor, filters: Command
   const leader = scopedLeader(actor, filters.leader);
   const source = filters.source?.trim() || '';
   const rows = await sql`
-    SELECT h.id, h.candidate_id, c.name, h.reason, h.state, h.due_at, h.escalate_at, c.assigned_leader
+    SELECT h.id, h.candidate_id, c.name, h.reason, h.state, h.due_at, h.escalate_at, c.assigned_leader,
+      h.consented, h.program, h.visitor_identity, h.created_at
     FROM candidate_handoffs h
-    JOIN candidates c ON c.id = h.candidate_id
+    LEFT JOIN candidates c ON c.id = h.candidate_id
     WHERE h.state IN ('open','acknowledged')
-      AND c.merged_into IS NULL
-      AND (${actor.role} = 'admin' OR c.assigned_leader = ${actor.email})
-      AND (${leader} = '' OR c.assigned_leader = ${leader})
-      AND (${source} = '' OR EXISTS (
+      AND (c.id IS NULL OR c.merged_into IS NULL)
+      AND (
+        ${actor.role} = 'admin'
+        OR c.assigned_leader = ${actor.email}
+        OR (h.consented = false AND h.reason = 'urgent')
+      )
+      AND (${leader} = '' OR c.assigned_leader = ${leader} OR (h.consented = false AND h.reason = 'urgent'))
+      AND (${source} = '' OR (c.id IS NOT NULL AND EXISTS (
         SELECT 1 FROM candidate_identities i WHERE i.candidate_id = c.id AND i.source = ${source}
-      ))
+      )))
     ORDER BY h.escalate_at ASC
     LIMIT 100`;
   const now = Date.now();
   return rows.map((row: Record<string, unknown>) => {
     const due = iso(row.due_at) || '';
     const escalate = iso(row.escalate_at) || '';
+    const consented = row.consented !== false && row.consented !== 'f' && row.consented !== 'false';
     return {
       id: String(row.id),
-      candidate_id: String(row.candidate_id),
-      name: String(row.name),
+      candidate_id: row.candidate_id ? String(row.candidate_id) : null,
+      name: row.name ? String(row.name) : 'Unconsented visitor',
       reason: String(row.reason),
       state: String(row.state),
       due_at: due,
@@ -310,6 +316,10 @@ export async function listHandoffs(sql: Sql, actor: StaffActor, filters: Command
       assigned_leader: (row.assigned_leader as string | null) || null,
       escalated: !!(escalate && new Date(escalate).getTime() < now && row.state === 'open'),
       overdue: !!(due && new Date(due).getTime() < now),
+      consented,
+      program: row.program == null ? null : String(row.program),
+      visitor_identity: row.visitor_identity == null ? null : String(row.visitor_identity),
+      created_at: iso(row.created_at) || '',
     };
   });
 }

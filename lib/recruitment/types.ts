@@ -58,7 +58,7 @@ export type QueueCandidate = {
 
 export type HandoffQueueItem = {
   id: string;
-  candidate_id: string;
+  candidate_id: string | null;
   name: string;
   reason: string;
   state: string;
@@ -67,6 +67,10 @@ export type HandoffQueueItem = {
   assigned_leader: string | null;
   escalated: boolean;
   overdue: boolean;
+  consented: boolean;
+  program: string | null;
+  visitor_identity: string | null;
+  created_at: string;
 };
 
 export type CandidateDetail = QueueCandidate & {

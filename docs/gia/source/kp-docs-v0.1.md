@@ -15,8 +15,6 @@ source: Owner-provided checklist (Nilo, 2026-11-04); https://github.com/nmatunog
 
 **Source:** owner-provided checklist (Nilo, 2026-11-04). Topic `licensing_documents`, stage S6, `review_by` = effective date + 30 days. Every entry ends with the iRecruit-or-leader submission line.
 
-**Before approving:** cross-check against the current official AIA iRecruit list, if one is available. Pending Nilo's approval.
-
 | ID | GIA says (English) | Hand off when |
 |---|---|---|
 | KP-DOCS-01 | Here's what to prepare: (1) your TIN and proof of it, (2) your SSS number and proof of it, (3) one valid government ID, (4) if you're working, proof of income tax filing, and (5) the names of 3 character references who aren't relatives. Ask me about any item for details. When ready, upload them to iRecruit or give them to your leader. Requirements can change, so your leader will confirm before you submit. | personal situation |

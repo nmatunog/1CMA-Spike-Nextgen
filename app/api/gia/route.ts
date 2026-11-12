@@ -128,7 +128,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
       }
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
-      const storeText = storeableMessageText(body.text, response.intent, reason);
+      const storeText = safetyUrgent ? null : storeableMessageText(body.text, response.intent, reason);
       // Only structured intent/citation metadata is retained for audit; document payloads are never saved.
       const extra = await repository.run(id, async tx => {
         const c = await tx.findCandidate();
@@ -148,7 +148,12 @@ export async function POST(req: Request) {
         const handoffReason = (response.intent === 'refuse' && reason === 'documents')
           ? 'licensing_detail'
           : (reason || 'unapproved_or_unknown');
-        if (c?.consented && shouldHandoff) return { handoff: await tx.handoff(c, handoffReason) };
+        if (c?.consented && shouldHandoff) {
+          return { handoff: await tx.handoff(c, handoffReason, {}, { program, consented: true }) };
+        }
+        if (safetyUrgent) {
+          return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false }) };
+        }
         return null;
       });
       if (response.intent === 'get_my_status') {

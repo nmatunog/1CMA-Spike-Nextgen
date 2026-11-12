@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { respond, knowledge, approved, welcome } from './engine.mjs';
+import { respond, knowledge, approved, welcome, isCrisis } from './engine.mjs';
 import { staffRole, canAccess } from './access.mjs';
 const now = new Date('2026-11-04T12:00:00Z');
 // Exercise the real owner-approved pack at its effective date.
@@ -74,17 +74,49 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
   });
   it('serves KP-SAFETY-01 with urgent handoff for crisis phrasing, including intern/RA', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
-    for (const q of ['I want to kill myself', 'I feel like ending it all', 'Gusto ko na mamatay', 'Ayoko na mabuhay', 'saktan ang sarili', 'I keep thinking about self-harm']) {
+    const crises = [
+      'I want to kill myself',
+      'I feel like ending it all',
+      'Gusto ko na mamatay',
+      'Ayoko na mabuhay',
+      'saktan ang sarili',
+      'I keep thinking about self-harm',
+      'suicide',
+      'suicidal',
+      'thinking about suicide',
+      'hurting myself',
+      'hurt myself',
+      "I don't want to live",
+      'better off dead',
+      'ayoko na mabuhay',
+      'ayaw na ko mabuhi',
+      'magpakamatay',
+      'nagpakamatay',
+      'gusto na nako mamatay',
+    ];
+    for (const q of crises) {
       const r = respond(q, 'en', knowledge, docsNow);
       expect(r.intent, q).toBe('answer');
       expect(r.topic, q).toBe('safety');
       expect(r.reason, q).toBe('urgent');
       expect(r.citation).toMatchObject({ id: 'KP-SAFETY-01' });
       expect(r.text).toMatch(/NCMH Crisis Hotline at 1553/);
+      expect(r.reason, q).not.toBe('restricted');
     }
     expect(respond('Ayoko na', 'en', knowledge, docsNow).intent).toBe('opt_out');
     expect(respond('I want to kill myself', 'en', knowledge, docsNow, { program: 'intern' })).toMatchObject({ citation: { id: 'KP-SAFETY-01' }, reason: 'urgent' });
     expect(respond('Gusto ko na mamatay', 'en', knowledge, docsNow, { program: 'ra' })).toMatchObject({ citation: { id: 'KP-SAFETY-01' }, reason: 'urgent' });
+    expect(respond('suicide', 'en', knowledge, docsNow).reason).toBe('urgent');
+    expect(respond('suicide prevention seminar schedule?', 'en', knowledge, docsNow).citation).toMatchObject({ id: 'KP-SAFETY-01' });
+  });
+  it('does not treat dying-to or dead-phone idioms as crisis', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    expect(isCrisis("I'm dying to join FEP")).toBe(false);
+    expect(isCrisis('patay na ang phone ko')).toBe(false);
+    expect(respond("I'm dying to join FEP", 'en', knowledge, docsNow).citation?.id).not.toBe('KP-SAFETY-01');
+    expect(respond("I'm dying to join FEP", 'en', knowledge, docsNow).reason).not.toBe('urgent');
+    expect(respond('patay na ang phone ko', 'en', knowledge, docsNow).citation?.id).not.toBe('KP-SAFETY-01');
+    expect(respond('patay na ang phone ko', 'en', knowledge, docsNow).reason).not.toBe('urgent');
   });
   it('does not treat status-of-mine, FEP booking help, or a bare month as other-person/urgent/compensation', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
