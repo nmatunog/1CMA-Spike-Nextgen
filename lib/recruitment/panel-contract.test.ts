@@ -16,6 +16,8 @@ describe('command panel contract', () => {
     expect(src).not.toMatch(/\{c\.email\}/);
     expect(src).not.toMatch(/\{c\.phone\}/);
     expect(src).toMatch(/consent=\{h\.consented \? 'true' : 'false'\}/);
+    expect(src).toMatch(/h\.unassigned/);
+    expect(src).toMatch(/Unassigned/);
   });
   it('keeps Follow-up saved visible after the queue reload', () => {
     expect(src).toMatch(/await load\(\{ keepMessage: true \}\)/);

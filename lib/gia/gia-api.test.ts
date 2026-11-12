@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   db: null as unknown as PGlite,
   cookies: {} as Record<string, string>,
   setCalls: [] as Array<{ name: string; value: string }>,
+  failHandoffInsert: false,
 }));
 
 vi.mock('next/headers', () => ({
@@ -27,6 +28,11 @@ vi.mock('postgres', () => ({ default: () => {
     const query = async (parts: TemplateStringsArray, ...args: unknown[]) => {
       const text = parts.reduce((s, p, i) => s + p + (i < args.length ? `$${i + 1}` : ''), '');
       if (text.includes('pg_advisory_xact_lock')) return [];
+      if (state.failHandoffInsert && /INSERT INTO candidate_handoffs/i.test(text)) {
+        const err = new Error('synthetic_sql') as Error & { code: string };
+        err.code = '40001';
+        throw err;
+      }
       return (await db.query(text, args)).rows;
     };
     query.json = (v: unknown) => JSON.stringify(v);
@@ -41,6 +47,9 @@ process.env.GIA_PILOT_ENABLED = 'true';
 process.env.GIA_OTP_DEV = 'true';
 process.env.GIA_OTP_COOLDOWN_MS = '0';
 process.env.DATABASE_URL = 'postgres://synthetic-api';
+process.env.GIA_RATE_LIMIT_IP_MAX = '10000';
+process.env.GIA_RATE_LIMIT_GLOBAL_MAX = '10000';
+process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1000';
 vi.stubEnv('NODE_ENV', 'test');
 
 const { POST } = await import('@/app/api/gia/route');
@@ -81,6 +90,7 @@ describe('GIA API reject audit', () => {
     resetEngagementPort();
     state.cookies = { gia_session: `${sessionId}.${mac}` };
     state.setCalls = [];
+    state.failHandoffInsert = false;
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -191,16 +201,19 @@ describe('GIA API reject audit', () => {
     expect(turns.some(row => row.reason === 'urgent')).toBe(true);
     expect(JSON.stringify({ stored, turns })).not.toMatch(/thinking about suicide/i);
 
-    const queue = await listHandoffs(tag, { email: 'leader@example.test', role: 'leader' }, {});
+    const queue = await listHandoffs(tag, { email: 'admin@example.test', role: 'admin' }, {});
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({
       name: 'Unconsented visitor',
       reason: 'urgent',
       consented: false,
       program: 'recruit',
-      visitor_identity: sessionId,
+      visitor_identity: sessionId.slice(0, 8),
       candidate_id: null,
+      unassigned: true,
     });
+    const leaders = await listHandoffs(tag, { email: 'leader@example.test', role: 'leader' }, {});
+    expect(leaders).toHaveLength(0);
     expect(queue[0].created_at).toBeTruthy();
   });
 
@@ -425,5 +438,77 @@ describe('GIA API reject audit', () => {
     expect(handoffs[0]).toMatchObject({ reason: 'unapproved_or_unknown', state: 'open' });
     const created = (await state.db.query("SELECT * FROM candidate_events WHERE kind='handoff.created'")).rows;
     expect(created).toHaveLength(1);
+  });
+
+  it('still serves KP-SAFETY-01 when the urgent handoff write throws a SQL error', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    state.failHandoffInsert = true;
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.text).toMatch(/NCMH Crisis Hotline at 1553/);
+    expect(body.error).toBeUndefined();
+    expect(body.handoff).toBeFalsy();
+    const logs = spy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(logs).toMatch(/gia_safety_handoff_failed/);
+    expect(logs).not.toMatch(/want to die|suicide|visitor@|@example/i);
+    spy.mockRestore();
+  });
+
+  it('rate-limits non-crisis traffic and still serves crisis text without extra urgent rows', async () => {
+    const prevIp = process.env.GIA_RATE_LIMIT_IP_MAX;
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    process.env.GIA_RATE_LIMIT_IP_MAX = '2';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    const headers = { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9' };
+    const ping = () => POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }));
+    expect((await ping()).status).toBe(200);
+    expect((await ping()).status).toBe(200);
+    const limited = await ping();
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: 'rate_limited' });
+
+    const crisis = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(crisis.status).toBe(200);
+    expect(await crisis.json()).toMatchObject({ citation: { id: 'KP-SAFETY-01' } });
+    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(0);
+
+    process.env.GIA_RATE_LIMIT_IP_MAX = '10000';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    await state.db.exec('TRUNCATE gia_rate_windows');
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.4' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect((await first.json()).handoff).toBeTruthy();
+    const nextId = randomBytes(32).toString('hex');
+    state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const second = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.4' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(second.status).toBe(200);
+    const secondBody = await second.json();
+    expect(secondBody.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(secondBody.handoff).toBeFalsy();
+    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(1);
+    process.env.GIA_RATE_LIMIT_IP_MAX = prevIp;
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
   });
 });

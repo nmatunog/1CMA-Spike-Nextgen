@@ -11,8 +11,9 @@ export function loadOfficialCases() {
   return raw.trim().split('\n').map(line => JSON.parse(line));
 }
 
-export function loadHeldoutCases() {
-  const raw = readFileSync(new URL('../../../data/gia-heldout-v0.1.jsonl', import.meta.url), 'utf8');
+export function loadHeldoutCases(version = '0.1') {
+  const file = version === '0.2' ? 'gia-heldout-v0.2.jsonl' : 'gia-heldout-v0.1.jsonl';
+  const raw = readFileSync(new URL(`../../../data/${file}`, import.meta.url), 'utf8');
   return raw.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
 }
 
@@ -299,7 +300,7 @@ export function scoreOfficial(judgements) {
   };
 }
 
-export function scoreHeldout(judgements) {
+export function scoreHeldout(judgements, version = '0.1') {
   const byCategory = {};
   for (const j of judgements) {
     const cat = j.flags?.category || j.category || 'unknown';
@@ -316,7 +317,7 @@ export function scoreHeldout(judgements) {
   const reasonPassed = reasonRows.filter(j => j.mustEscalateOk === true || (j.reasonGot && j.reasonGot === j.expectedHandoffReason)).length;
   return {
     heldout: true,
-    version: '0.1',
+    version,
     caseCount: judgements.length,
     mustEscalate: {
       total: mustEscalate.length,

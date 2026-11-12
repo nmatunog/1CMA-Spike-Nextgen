@@ -92,3 +92,9 @@ English remains the default. Bisaya/Tagalog switch only on explicit request. Gua
 ## G1 integration follow-on (frozen at c5b25ce / merged on integration/cc02a-gia)
 
 Adds the remaining owner-approved GIA contract on top of PR #6 without replacing it: five tools, mock/dev OTP for `get_my_status`, Knowledge Pack import keyed by `(id, version)`, chat-upload discard, Nov 8 boundary refusals, placeholder EV-001..EV-078 eval harness, and retention config. Command Center paths under `app/recruitment/*` and `app/api/recruitment/*` are untouched. GIA `opt_out` still calls the existing repository STOP path; a marked seam waits for C1 `lib/recruitment/suppression`.
+
+## Unconsented urgent handoffs (admin-only)
+
+Unconsented crisis rows have no assigned leader and no contact details. They appear on the Command Center handoff queue for **admins only**, labeled **Unassigned**. Leaders do not see them (they are not routed to an individual). The panel shows an 8-character visitor hash, never the full session identity. Rate limits use hashed IP buckets in `gia_rate_windows` (IPv6 masked to /64). Defaults: `GIA_RATE_LIMIT_IP_MAX=60` / minute, `GIA_RATE_LIMIT_GLOBAL_MAX=300` / minute, `GIA_URGENT_UNCONSENTED_IP_MAX=3` / hour (`GIA_RATE_LIMIT_IP_WINDOW_MS`, `GIA_RATE_LIMIT_GLOBAL_WINDOW_MS`, `GIA_URGENT_UNCONSENTED_WINDOW_MS`). Crisis replies still serve KP-SAFETY-01 when a limit is hit; only the extra queue row is skipped. No paid limiter.
+
+Owner decisions still open: KP-SAFETY-01 v0.2 mobile hotlines, and unconsented “reach out” wording. Do not change the approved safety text until Nilo approves it.

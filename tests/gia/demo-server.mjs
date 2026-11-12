@@ -20,6 +20,7 @@ const child = spawn(process.execPath,['node_modules/next/dist/bin/next','start',
   ...process.env, DATABASE_URL:'postgres://postgres:postgres@127.0.0.1:55432/postgres',
   GIA_PUBLIC_ORIGIN:'http://127.0.0.1:3002',
   GIA_PILOT_ENABLED:'true', GIA_SESSION_SECRET:randomBytes(32).toString('hex'), AUTH_SECRET:randomBytes(32).toString('hex'),
+  GIA_RATE_LIMIT_IP_MAX:'500', GIA_RATE_LIMIT_GLOBAL_MAX:'2000', GIA_URGENT_UNCONSENTED_IP_MAX:'50',
   RECRUITMENT_STAFF_ACCOUNTS:JSON.stringify({[access.email]:{salt,hash:scryptSync(access.password,salt,64).toString('hex')},[access.leaderEmail]:{salt,hash:scryptSync(access.leaderPassword,salt,64).toString('hex')}}),
   RECRUITMENT_STAFF_ROLES:JSON.stringify({[access.email]:'admin',[access.leaderEmail]:'leader'}),
 }});

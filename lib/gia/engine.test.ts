@@ -126,6 +126,17 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
     expect(respond('See you in a month', 'en', knowledge, docsNow).reason).not.toBe('compensation');
     expect(respond('Can I send my NBI clearance here?', 'en', knowledge, docsNow).reason).toBe('documents');
   });
+  it('uses general stems for deletion, compensation, product, and evaluation result', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    expect(respond('Please wipe my records', 'en', knowledge, docsNow).reason).toBe('deletion_request');
+    expect(respond('Remove my saved account', 'en', knowledge, docsNow).reason).toBe('deletion_request');
+    expect(respond("What's the typical take-home for advisors?", 'en', knowledge, docsNow).reason).toBe('compensation');
+    expect(respond('Is there a guaranteed paycheck?', 'en', knowledge, docsNow).reason).toBe('compensation');
+    expect(respond('Which insurance plan should a family buy?', 'en', knowledge, docsNow).reason).toBe('product_inquiry');
+    expect(respond('Help me choose a product for a relative', 'en', knowledge, docsNow).reason).toBe('product_inquiry');
+    expect(respond('What was my evaluation result?', 'en', knowledge, docsNow).reason).toBe('status_detail');
+    expect(respond('Did the evaluation pass or fail?', 'en', knowledge, docsNow).reason).toBe('status_detail');
+  });
   it('serves approved KP-DOCS-01 for the iRecruit checklist after 2026-11-12', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
     expect(knowledge.filter(e=>/^KP-DOCS-0[1-6]$/.test(e.id)).every(e=>e.status==='approved')).toBe(true);

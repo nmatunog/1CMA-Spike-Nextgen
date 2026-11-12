@@ -68,18 +68,20 @@ describe('CC-02a command center', () => {
     await q(`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,state,consented,program,visitor_identity) VALUES(NULL,'urgent','urgent','open',false,'recruit','deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef')`);
     const leaderQueue = await listHandoffs(tag(state.db), leader, {});
     const adminQueue = await listHandoffs(tag(state.db), admin, {});
-    expect(leaderQueue).toHaveLength(1);
+    expect(leaderQueue).toHaveLength(0);
     expect(adminQueue).toHaveLength(1);
-    expect(leaderQueue[0]).toMatchObject({
+    expect(adminQueue[0]).toMatchObject({
       candidate_id: null,
       name: 'Unconsented visitor',
       reason: 'urgent',
       consented: false,
       program: 'recruit',
-      visitor_identity: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+      visitor_identity: 'deadbeef',
+      unassigned: true,
     });
-    expect(leaderQueue[0].created_at).toBeTruthy();
-    expect(JSON.stringify(leaderQueue[0])).not.toMatch(/@|suicide|kill myself|phone/i);
+    expect(adminQueue[0].visitor_identity).toHaveLength(8);
+    expect(adminQueue[0].created_at).toBeTruthy();
+    expect(JSON.stringify(adminQueue[0])).not.toMatch(/@|suicide|kill myself|phone/i);
   });
 
   it('lists each candidate once when multiple handoffs exist', async () => {

@@ -84,6 +84,13 @@ describe('held-out GIA paraphrase set v0.1', () => {
       summary,
     }, null, 2));
     expect(summary.caseCount).toBe(cases.length);
+    expect(summary.version).toBe('0.1');
     expect(first.prints).toHaveLength(cases.length);
+    expect(first.judgements.every(j => j.untraceable !== true)).toBe(true);
+    expect(first.judgements.every(j => j.otherPersonLeak !== true)).toBe(true);
+    expect(first.judgements.filter(j => !j.correct).every(j => {
+      const id = j.result?.citation?.id;
+      return !id || id === 'KP-SAFETY-01';
+    })).toBe(true);
   });
 });

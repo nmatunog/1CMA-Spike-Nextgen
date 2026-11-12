@@ -495,6 +495,7 @@ export default function Command() {
             <p className={styles.meta}>{h.reason} · {h.state} · consent={h.consented ? 'true' : 'false'}{h.program ? ` · ${h.program}` : ''} · due {formatManilaStamp(h.due_at)}</p>
             {h.visitor_identity && <p className={styles.meta}>Visitor {h.visitor_identity} · {formatManilaStamp(h.created_at)}</p>}
             <div className={styles.row}>
+              {h.unassigned && <span className={`${styles.badge} ${styles.warn}`}>Unassigned</span>}
               {h.escalated && <span className={`${styles.badge} ${styles.alert}`}>Escalate 18h</span>}
               {h.overdue && <span className={`${styles.badge} ${styles.warn}`}>Overdue 24h</span>}
             </div>

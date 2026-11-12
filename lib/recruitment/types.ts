@@ -71,6 +71,7 @@ export type HandoffQueueItem = {
   program: string | null;
   visitor_identity: string | null;
   created_at: string;
+  unassigned: boolean;
 };
 
 export type CandidateDetail = QueueCandidate & {
