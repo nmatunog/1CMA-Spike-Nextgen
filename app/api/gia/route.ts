@@ -158,7 +158,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ...response, ...asObject(extra) });
     }
     if (typeof body.action !== 'string' || !(WORKFLOW_ACTIONS as readonly string[]).includes(body.action)) {
-      await recordRejected(repository, id, 'unknown_action', typeof body.action === 'string' ? body.action : 'rejected');
+      await recordRejected(repository, id, 'unknown_action');
       throw new Error('unknown_action');
     }
     const program = programOrThrow(resolved);

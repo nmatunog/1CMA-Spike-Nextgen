@@ -97,10 +97,11 @@ describe('GIA API reject audit', () => {
     expect(unknown.status).toBe(400);
     expect(await unknown.json()).toEqual({ error: 'unknown_action' });
 
-    const rows = (await state.db.query("SELECT action,outcome,message_text FROM gia_turns ORDER BY created_at")).rows as Array<{ action: string; outcome: string; message_text: string | null }>;
+    const rows = (await state.db.query("SELECT action,intent,outcome,message_text FROM gia_turns ORDER BY created_at")).rows as Array<{ action: string; intent: string | null; outcome: string; message_text: string | null }>;
     expect(rows.map(r => r.outcome)).toEqual(expect.arrayContaining(['malformed_request', 'request_too_large', 'unknown_action']));
+    expect(rows.filter(r => r.outcome === 'unknown_action').every(r => r.action === 'rejected' && r.intent === 'rejected')).toBe(true);
     expect(rows.every(r => r.message_text == null)).toBe(true);
-    expect(JSON.stringify(rows)).not.toMatch(/654321|do-not-store|not-json/);
+    expect(JSON.stringify(rows)).not.toMatch(/654321|do-not-store|not-json|cancel_fep/);
   });
 
   it('never returns a dev OTP code in API JSON', async () => {
@@ -271,7 +272,7 @@ describe('GIA API reject audit', () => {
   });
 
   it('never persists a pasted FREE/PRO code or 6-digit OTP in gia_turns', async () => {
-    const secrets = ['redeem FREE-ABC12345', 'redeem PRO-XYZ98765', '123456', 'visitor[at]example.test', '１２３４５６', '12\u200b3456'];
+    const secrets = ['redeem FREE-ABC12345', 'redeem PRO-XYZ98765', '123456', 'visitor[at]example.test', '１２３４５６', '12\u200b3456', 'my code is A3F9C1', 'my versa code is K7QX-MZ2P-RT8W', 'code: KQXMZPRT'];
     for (const text of secrets) {
       const res = await POST(new Request('http://127.0.0.1/api/gia', {
         method: 'POST',
@@ -283,15 +284,17 @@ describe('GIA API reject audit', () => {
     const rows = (await state.db.query("SELECT action,intent,message_text FROM gia_turns WHERE action='message'")).rows as Array<{ action: string; intent: string | null; message_text: string | null }>;
     expect(rows.length).toBeGreaterThanOrEqual(3);
     expect(rows.every(row => row.message_text == null)).toBe(true);
-    expect(JSON.stringify(rows)).not.toMatch(/FREE-ABC12345|PRO-XYZ98765|123456|visitor\[at\]example\.test|１２３４５６/);
-    const faq = await POST(new Request('http://127.0.0.1/api/gia', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'message', text: 'what is financial literacy' }),
-    }));
-    expect(faq.status).toBe(200);
-    const stored = (await state.db.query("SELECT message_text FROM gia_turns WHERE action='message' AND intent='answer' ORDER BY created_at DESC LIMIT 1")).rows as Array<{ message_text: string | null }>;
-    expect(stored[0]?.message_text).toBe('what is financial literacy');
+    expect(JSON.stringify(rows)).not.toMatch(/FREE-ABC12345|PRO-XYZ98765|123456|visitor\[at\]example\.test|１２３４５６|A3F9C1|K7QX-MZ2P-RT8W|KQXMZPRT/);
+    for (const text of ['what is financial literacy', 'what is FEP', 'the SPIKE Method', 'L2 is handled by a leader', 'FEP dates in 2026']) {
+      const faq = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(faq.status).toBe(200);
+      const stored = (await state.db.query("SELECT message_text FROM gia_turns WHERE action='message' ORDER BY created_at DESC LIMIT 1")).rows as Array<{ message_text: string | null }>;
+      expect(stored[0]?.message_text).toBe(text);
+    }
   });
 
   it('dedupes repeated unrecognized messages from the same candidate', async () => {

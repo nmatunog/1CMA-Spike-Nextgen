@@ -132,6 +132,19 @@ describe('GIA engagement adapter contract', () => {
     expect(c1LooksLikeContact('meet at GIYA Institute')).toBe(false);
   });
 
+  it('redacts unprefixed mixed codes and code-near-token phrases', () => {
+    for (const probe of ['my code is A3F9C1', 'my versa code is K7QX-MZ2P-RT8W', 'code: KQXMZPRT', 'ang kodigo kay KQXMZPRT']) {
+      expect(looksLikeSecretToken(probe)).toBe(true);
+      expect(c1LooksLikeSecretToken(probe)).toBe(true);
+      expect(storeableMessageText(probe, 'answer', null)).toBeNull();
+    }
+    expect(storeableMessageText('what is FEP', 'answer', null)).toBe('what is FEP');
+    expect(storeableMessageText('the SPIKE Method', 'answer', null)).toBe('the SPIKE Method');
+    expect(storeableMessageText('L2 is handled by a leader', 'answer', null)).toBe('L2 is handled by a leader');
+    expect(storeableMessageText('FEP dates in 2026', 'answer', null)).toBe('FEP dates in 2026');
+    expect(looksLikeSecretToken('KP-LIT-01')).toBe(false);
+  });
+
   it('treats a mismatched candidateId as out of scope', () => {
     expect(callerOwnsCandidate('aaa', 'aaa')).toBe(true);
     expect(callerOwnsCandidate('aaa', undefined)).toBe(true);

@@ -53,15 +53,54 @@ export function looksLikeContact(value: string) {
   return !!(phone && isValidPhone(phone));
 }
 
+function codeTokens(normalized: string) {
+  return normalized.match(/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/g) || [];
+}
+
+function isKnowledgeCitation(token: string) {
+  return /^KP-[A-Z]{2,5}-\d{1,3}$/i.test(token);
+}
+
+function compactAlnum(token: string) {
+  return token.replace(/-/g, '');
+}
+
+/** Mixed letter+digit token of 6+ chars (dashes allowed). Citations like KP-LIT-01 stay allowed. */
+function hasMixedCodeToken(normalized: string) {
+  return codeTokens(normalized).some(token => {
+    if (isKnowledgeCitation(token)) return false;
+    const compact = compactAlnum(token);
+    return compact.length >= 6 && /[A-Za-z]/.test(compact) && /\d/.test(compact);
+  });
+}
+
+/** "code" / "kodigo" / "kode" near a 6+ alphanumeric token (all-caps or mixed). */
+function codeWordNearToken(normalized: string) {
+  const word = /\b(?:code|codes|kodigo|kode)\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = word.exec(normalized))) {
+    const window = normalized.slice(Math.max(0, match.index - 32), Math.min(normalized.length, match.index + match[0].length + 40));
+    for (const token of codeTokens(window)) {
+      if (token.toLowerCase() === match[0].toLowerCase() || isKnowledgeCitation(token)) continue;
+      const compact = compactAlnum(token);
+      if (compact.length < 6) continue;
+      if (/\d/.test(compact) || compact === compact.toUpperCase()) return true;
+    }
+  }
+  return false;
+}
+
 /** OTP (4+ digit runs) and access-code shaped tokens. Citations like KP-LIT-01 stay allowed. */
 export function looksLikeSecretToken(value: string) {
   const normalized = normalizeForSecretCheck(value);
-  if (/\d{4,}/.test(normalized)) return true;
+  const withoutYears = normalized.replace(/\b(?:19|20)\d{2}\b/g, ' ');
+  if (/\d{4,}/.test(withoutYears)) return true;
   if (/\b(otp|passcode|one[ -]?time|access[_\s-]?code|activation[_\s-]?code)\b/i.test(normalized)) return true;
   if (/\b(?:FREE|PRO)[-_][A-Z0-9]{4,}\b/i.test(normalized)) return true;
-  if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(normalized)) return true;
+  if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(withoutYears)) return true;
   // Spaced/dashed 6-digit OTPs: "12 34 56", "123 456", "1 2 3 4 5 6". Dates like "12 2026" stay allowed.
-  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(normalized) || /\b\d{3}[\s.-]\d{3}\b/.test(normalized) || /\b(?:\d[\s.-]){5}\d\b/.test(normalized)) return true;
+  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(withoutYears) || /\b\d{3}[\s.-]\d{3}\b/.test(withoutYears) || /\b(?:\d[\s.-]){5}\d\b/.test(withoutYears)) return true;
+  if (hasMixedCodeToken(normalized) || codeWordNearToken(normalized)) return true;
   return false;
 }
 
