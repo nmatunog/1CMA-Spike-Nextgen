@@ -27,5 +27,18 @@ export const candidates = pgTable("candidates", {
     .notNull(),
 });
 
+/** Public DNA-quiz intake. Isolated from canonical recruitment `candidates`. */
+export const landingQuizResults = pgTable("landing_quiz_results", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  score: integer("score").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export type LeadRow = typeof leads.$inferSelect;
 export type CandidateRow = typeof candidates.$inferSelect;
+export type LandingQuizRow = typeof landingQuizResults.$inferSelect;

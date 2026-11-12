@@ -1,18 +1,16 @@
 import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { staff } from "@/lib/gia/staff";
 import { getDb } from "@/lib/db/client";
-import { candidates } from "@/lib/db/schema";
+import { landingQuizResults } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 
-const COOKIE = "admin_verified";
-
 async function assertAdmin() {
-  const jar = await cookies();
-  return jar.get(COOKIE)?.value === "1";
+  return (await staff())?.role === "admin";
 }
 
+/** DNA-quiz admin list. Isolated from recruitment Command Center candidates. */
 export async function GET() {
   if (!(await assertAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,8 +19,8 @@ export async function GET() {
     const db = getDb();
     const rows = await db
       .select()
-      .from(candidates)
-      .orderBy(desc(candidates.score));
+      .from(landingQuizResults)
+      .orderBy(desc(landingQuizResults.score));
     return NextResponse.json({
       candidates: rows.map((c) => ({
         id: c.id,
@@ -36,8 +34,8 @@ export async function GET() {
             : String(c.createdAt),
       })),
     });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Database error";
+  } catch {
+    const message = "Service unavailable";
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

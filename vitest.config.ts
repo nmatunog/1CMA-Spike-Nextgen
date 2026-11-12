@@ -7,7 +7,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["**/*.test.ts"],
+    include: ["**/*.test.ts", "lib/gia/*.test.mjs"],
   },
   resolve: {
     alias: {
