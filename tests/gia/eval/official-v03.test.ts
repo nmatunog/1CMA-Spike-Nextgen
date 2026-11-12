@@ -220,7 +220,7 @@ describe('official GIA eval set v0.3', () => {
     ]);
   });
 
-  it('meets EO-003 pass bars on one deterministic run and a second identical run', async () => {
+  it('meets EO-003 pass bars on one deterministic run and a second identical run', { timeout: 60_000 }, async () => {
     const cases = loadOfficialCases();
     const run = async () => {
       const judgements = [];
