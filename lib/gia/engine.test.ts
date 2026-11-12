@@ -32,6 +32,10 @@ describe('approved knowledge and language boundaries', () => {
   it('keeps English regardless of geography', () => { expect(respond('I live in Cebu').language).toBe('en'); });
   it('does not infer a language request from a language mention', () => { expect(respond('My class is in Cebuano').language).toBe('en'); });
   it('honors STOP during booking and polite requests', () => { expect(respond('Book FEP, actually STOP please').intent).toBe('opt_out'); });
+  it('honors an explicit STOP even when the same line has an activity-verb stop', () => {
+    expect(respond('Please STOP, I will stop attending').intent).toBe('opt_out');
+    expect(respond('STOP attending').intent).toBe('opt_out');
+  });
   it('does not treat stop-as-activity as opt-out when the ask is a refund', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
     expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).reason).toBe('refund');

@@ -39,7 +39,7 @@ function failClosed(judgements: Array<{ correct: boolean; untraceable?: boolean;
   })).toBe(true);
 }
 
-describe('held-out GIA paraphrase set v0.3', () => {
+describe('post-freeze GIA paraphrase set v0.3 (true held-out was the 35fcb5a freeze)', () => {
   beforeAll(async () => {
     process.env.GIA_SESSION_SECRET = 'h'.repeat(32);
     process.env.GIA_OTP_DEV = 'true';
@@ -90,16 +90,21 @@ describe('held-out GIA paraphrase set v0.3', () => {
     const summary = scoreHeldout(first.judgements, '0.3');
     await mkdir('work', { recursive: true });
     await writeFile('work/gia-heldout-v0.3-results.json', JSON.stringify({
-      heldout: true,
-      seen: false,
+      heldout: false,
+      seen: true,
+      postFreeze: true,
+      frozenHeldoutAt: '35fcb5a',
+      frozenHeldout: {
+        escalate: '52/108',
+        refuse: '9/54',
+        leaks: ['HO3-DOC-TL-02', 'HO3-DOC-TL-03', 'HO3-DOC-CEB-02', 'HO3-DOC-CEB-03'],
+      },
       version: '0.3',
       determinismRuns: 3,
-      summary,
+      summary: { ...summary, heldout: false, seen: true, postFreeze: true },
     }, null, 2));
     expect(summary.caseCount).toBe(cases.length);
     expect(summary.version).toBe('0.3');
-    expect(summary.heldout).toBe(true);
-    expect(summary.seen).toBe(false);
     expect(first.prints).toHaveLength(cases.length);
     failClosed(first.judgements);
   });
