@@ -511,4 +511,35 @@ describe('GIA API reject audit', () => {
     process.env.GIA_RATE_LIMIT_IP_MAX = prevIp;
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
   });
+
+  it('does not let a spoofed X-Forwarded-For bypass the unconsented urgent cap', async () => {
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    delete process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUST_FORWARDED_FOR;
+    delete process.env.GIA_TRUST_CF_CONNECTING_IP;
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.50' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect((await first.json()).handoff).toBeTruthy();
+    const nextId = randomBytes(32).toString('hex');
+    state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const spoofed = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.77' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(spoofed.status).toBe(200);
+    const body = await spoofed.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.handoff).toBeFalsy();
+    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(1);
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
 });
