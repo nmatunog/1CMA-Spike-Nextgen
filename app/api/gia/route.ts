@@ -9,7 +9,7 @@ import { repository } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
 import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
 import { assertOtpDevNotProduction, hashClientKey } from '@/lib/gia/otp.mjs';
-import { looksLikeContact, looksLikeSecretToken } from '@/lib/mvp01/engage';
+import { storeableMessageText } from '@/lib/mvp01/engage';
 export const runtime = 'nodejs';
 function secret() {
   const s = process.env.GIA_SESSION_SECRET;
@@ -66,12 +66,6 @@ function programOrThrow(resolved: ReturnType<typeof resolveStoredProgram>): stri
   return resolved.program;
 }
 
-/** Never persist pasted codes, OTPs, or contact-shaped chat in gia_turns.message_text. */
-function storeableMessageText(text: string, intent: string | null, reason: string | null) {
-  if (reason === 'documents' || intent === 'get_my_status') return null;
-  if (looksLikeSecretToken(text) || looksLikeContact(text)) return null;
-  return text;
-}
 export async function POST(req: Request) {
   if (process.env.GIA_PILOT_ENABLED !== 'true') return NextResponse.json({ error: 'pilot_disabled' }, { status: 503 });
   if (!sameOrigin(req)) return NextResponse.json({ error: 'invalid_origin' }, { status: 403 });
@@ -108,7 +102,9 @@ export async function POST(req: Request) {
     const ipHash = clientHash(req);
     const resolved = readProgram(body, jar);
     if (body.action === 'opt_out') {
-      const result = await perform(repository, id, 'opt_out', {});
+      const result = await perform(repository, id, 'opt_out', {
+        text: storeableMessageText(body.text, 'opt_out', null),
+      });
       return NextResponse.json(publicResult(result));
     }
     if (body.action === 'message') {
@@ -168,7 +164,16 @@ export async function POST(req: Request) {
       throw new Error('unknown_action');
     }
     const program = programOrThrow(resolved);
-    const result = await perform(repository, id, body.action, { ...body, program, clientHash: ipHash });
+    const result = await perform(repository, id, body.action, {
+      ...body,
+      program,
+      clientHash: ipHash,
+      text: storeableMessageText(
+        body.text,
+        typeof body.action === 'string' ? body.action : null,
+        typeof body.reason === 'string' ? body.reason : null,
+      ),
+    });
     if (result && typeof result === 'object' && 'error' in result && (result.error === 'verification_required' || result.error === 'otp_locked')) {
       return NextResponse.json(publicResult(result), { status: 400 });
     }

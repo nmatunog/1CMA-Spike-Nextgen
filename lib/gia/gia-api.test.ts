@@ -46,6 +46,7 @@ vi.stubEnv('NODE_ENV', 'test');
 const { POST } = await import('@/app/api/gia/route');
 const { clearDevOtps } = await import('./otp.mjs');
 const { resetEngagementPort } = await import('./engagement.mjs');
+const { WORKFLOW_ACTIONS } = await import('./workflow.mjs');
 
 const TABLES = WORKFLOW_RESET_TABLES;
 
@@ -203,6 +204,60 @@ describe('GIA API reject audit', () => {
     expect(await stopped.json()).toMatchObject({ ok: true });
   });
 
+  it('never persists smuggled secrets on any WORKFLOW_ACTIONS intent', async () => {
+    const secrets = [
+      'redeem FREE-ABC12345',
+      'redeem PRO-XYZ98765',
+      '123456',
+      '12 34 56',
+      'visitor at example.test',
+      'visitor@example.test',
+      '09171234567',
+    ];
+    const leak = /FREE-ABC12345|PRO-XYZ98765|123456|12 34 56|visitor at example\.test|visitor@example\.test|09171234567/;
+    const sessionIdFep = '33333333-3333-4333-8333-333333333333';
+    await state.db.query("INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,now()+interval '3 days',5)", [sessionIdFep]);
+    const post = (body: Record<string, unknown>) => POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }));
+    expect([...WORKFLOW_ACTIONS]).toEqual(['consent', 'list_fep_sessions', 'book_fep', 'request_leader', 'get_my_status', 'opt_out']);
+    for (const text of secrets) {
+      const listed = await post({ action: 'list_fep_sessions', text });
+      expect(listed.status).toBe(200);
+    }
+    for (const text of secrets) {
+      const consented = await post({
+        action: 'consent',
+        agree: true,
+        notice: 'gia-pilot-2026-11-04',
+        name: 'Synthetic Visitor',
+        email: 'visitor@example.test',
+        text,
+      });
+      expect(consented.status).toBe(200);
+    }
+    for (const action of WORKFLOW_ACTIONS as readonly string[]) {
+      for (const text of secrets) {
+        const extra: Record<string, unknown> = { action, text };
+        if (action === 'consent') {
+          extra.agree = true;
+          extra.notice = 'gia-pilot-2026-11-04';
+          extra.name = 'Synthetic Visitor';
+          extra.email = 'visitor@example.test';
+        }
+        if (action === 'book_fep') extra.sessionId = sessionIdFep;
+        const res = await post(extra);
+        expect([200, 400]).toContain(res.status);
+      }
+    }
+    const rows = (await state.db.query('SELECT action,intent,message_text FROM gia_turns')).rows as Array<{ action: string; intent: string | null; message_text: string | null }>;
+    expect(rows.some(row => (WORKFLOW_ACTIONS as readonly string[]).includes(row.action))).toBe(true);
+    expect(rows.every(row => row.message_text == null)).toBe(true);
+    expect(JSON.stringify(rows)).not.toMatch(leak);
+  });
+
   it('never persists a pasted FREE/PRO code or 6-digit OTP in gia_turns', async () => {
     const secrets = ['redeem FREE-ABC12345', 'redeem PRO-XYZ98765', '123456'];
     for (const text of secrets) {
@@ -217,6 +272,14 @@ describe('GIA API reject audit', () => {
     expect(rows.length).toBeGreaterThanOrEqual(3);
     expect(rows.every(row => row.message_text == null)).toBe(true);
     expect(JSON.stringify(rows)).not.toMatch(/FREE-ABC12345|PRO-XYZ98765|123456/);
+    const faq = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is financial literacy' }),
+    }));
+    expect(faq.status).toBe(200);
+    const stored = (await state.db.query("SELECT message_text FROM gia_turns WHERE action='message' AND intent='answer' ORDER BY created_at DESC LIMIT 1")).rows as Array<{ message_text: string | null }>;
+    expect(stored[0]?.message_text).toBe('what is financial literacy');
   });
 
   it('dedupes repeated unrecognized messages from the same candidate', async () => {

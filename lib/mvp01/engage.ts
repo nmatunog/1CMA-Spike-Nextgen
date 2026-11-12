@@ -38,6 +38,8 @@ export function canMessage(
 
 export function looksLikeContact(value: string) {
   if (value.includes('@') || isValidEmail(value)) return true;
+  if (/\b[a-z0-9._%+-]+\s+(?:at|\[at\]|\(at\))\s+[a-z0-9.-]+\.[a-z]{2,}\b/i.test(value)) return true;
+  if (/\b[a-z0-9._%+-]+\s+at\s+[a-z0-9.-]+\s+dot\s+[a-z]{2,}\b/i.test(value)) return true;
   const phone = normalizePhone(value);
   return !!(phone && isValidPhone(phone));
 }
@@ -48,7 +50,17 @@ export function looksLikeSecretToken(value: string) {
   if (/\b(otp|passcode|one[ -]?time|access[_\s-]?code|activation[_\s-]?code)\b/i.test(value)) return true;
   if (/\b(?:FREE|PRO)[-_][A-Z0-9]{4,}\b/i.test(value)) return true;
   if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(value)) return true;
+  // Spaced/dashed 6-digit OTPs: "12 34 56", "123 456", "1 2 3 4 5 6". Dates like "12 2026" stay allowed.
+  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(value) || /\b\d{3}[\s.-]\d{3}\b/.test(value) || /\b(?:\d[\s.-]){5}\d\b/.test(value)) return true;
   return false;
+}
+
+/** Persist chat only when it is not a document/status payload and does not look like a secret or contact. */
+export function storeableMessageText(text: unknown, intent: string | null = null, reason: string | null = null) {
+  if (typeof text !== 'string' || !text) return null;
+  if (reason === 'documents' || intent === 'get_my_status') return null;
+  if (looksLikeSecretToken(text) || looksLikeContact(text)) return null;
+  return text;
 }
 
 export function sanitizeEngagementMetadata(raw: unknown): Record<string, string> {

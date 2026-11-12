@@ -19,7 +19,7 @@ import {
   resetEngagementPort,
   sanitizeEngagementMetadata,
 } from './engagement.mjs';
-import { looksLikeSecretToken as c1LooksLikeSecretToken, sanitizeEngagementMetadata as c1Sanitize } from '@/lib/mvp01/engage';
+import { looksLikeContact as c1LooksLikeContact, looksLikeSecretToken as c1LooksLikeSecretToken, sanitizeEngagementMetadata as c1Sanitize, storeableMessageText } from '@/lib/mvp01/engage';
 import { respond } from './engine.mjs';
 import { canReadDomain, visitorRole } from './capabilities.mjs';
 
@@ -100,7 +100,7 @@ describe('GIA engagement adapter contract', () => {
   });
 
   it('rejects OTP- and code-shaped tokens on both C1 and G1', () => {
-    for (const token of ['1234', '123456', 'otp 99', 'access code L1-1234', 'FREE-ABCD', 'PRO-WXYZ']) {
+    for (const token of ['1234', '123456', '12 34 56', 'otp 99', 'access code L1-1234', 'FREE-ABCD', 'PRO-WXYZ']) {
       expect(looksLikeSecretToken(token)).toBe(true);
       expect(c1LooksLikeSecretToken(token)).toBe(true);
       expect(() => sanitizeEngagementMetadata({ intent: token })).toThrow(/invalid/);
@@ -109,6 +109,20 @@ describe('GIA engagement adapter contract', () => {
     expect(looksLikeSecretToken('KP-LIT-01')).toBe(false);
     expect(c1LooksLikeSecretToken('KP-LIT-01')).toBe(false);
     expect(sanitizeEngagementMetadata({ citation: 'KP-LIT-01' })).toEqual({ citation: 'KP-LIT-01' });
+  });
+
+  it('redacts spaced OTPs and obfuscated emails without swallowing FAQ questions', () => {
+    expect(c1LooksLikeSecretToken('12 34 56')).toBe(true);
+    expect(c1LooksLikeSecretToken('123 456')).toBe(true);
+    expect(c1LooksLikeContact('visitor at example.test')).toBe(true);
+    expect(c1LooksLikeContact('visitor [at] example.test')).toBe(true);
+    expect(storeableMessageText('12 34 56', 'answer', null)).toBeNull();
+    expect(storeableMessageText('visitor at example.test', 'answer', null)).toBeNull();
+    expect(storeableMessageText('what is financial literacy', 'answer', null)).toBe('what is financial literacy');
+    expect(storeableMessageText('when is the next FEP', 'answer', null)).toBe('when is the next FEP');
+    expect(storeableMessageText('Talk to a 1CMA Leader', 'request_leader', null)).toBe('Talk to a 1CMA Leader');
+    expect(looksLikeSecretToken('what is financial literacy')).toBe(false);
+    expect(c1LooksLikeContact('meet at GIYA Institute')).toBe(false);
   });
 
   it('treats a mismatched candidateId as out of scope', () => {
