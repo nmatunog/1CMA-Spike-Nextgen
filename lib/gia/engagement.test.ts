@@ -116,8 +116,15 @@ describe('GIA engagement adapter contract', () => {
     expect(c1LooksLikeSecretToken('123 456')).toBe(true);
     expect(c1LooksLikeContact('visitor at example.test')).toBe(true);
     expect(c1LooksLikeContact('visitor [at] example.test')).toBe(true);
+    expect(c1LooksLikeContact('visitor[at]example.test')).toBe(true);
+    expect(c1LooksLikeContact('visitor(at)example.test')).toBe(true);
+    expect(c1LooksLikeSecretToken('１２３４５６')).toBe(true);
+    expect(c1LooksLikeSecretToken('12\u200b34\u200c56')).toBe(true);
     expect(storeableMessageText('12 34 56', 'answer', null)).toBeNull();
     expect(storeableMessageText('visitor at example.test', 'answer', null)).toBeNull();
+    expect(storeableMessageText('visitor[at]example.test', 'answer', null)).toBeNull();
+    expect(storeableMessageText('１２３４５６', 'answer', null)).toBeNull();
+    expect(storeableMessageText('12\u200b3456', 'answer', null)).toBeNull();
     expect(storeableMessageText('what is financial literacy', 'answer', null)).toBe('what is financial literacy');
     expect(storeableMessageText('when is the next FEP', 'answer', null)).toBe('when is the next FEP');
     expect(storeableMessageText('Talk to a 1CMA Leader', 'request_leader', null)).toBe('Talk to a 1CMA Leader');

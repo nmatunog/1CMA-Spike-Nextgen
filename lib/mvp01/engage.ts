@@ -36,22 +36,32 @@ export function canMessage(
   return state.prefs[channel] === true;
 }
 
+const ZERO_WIDTH = /[\u00AD\u034F\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g;
+
+/** NFKC + strip zero-width so fullwidth and hidden OTPs still match. */
+export function normalizeForSecretCheck(value: string) {
+  return value.normalize('NFKC').replace(ZERO_WIDTH, '');
+}
+
 export function looksLikeContact(value: string) {
-  if (value.includes('@') || isValidEmail(value)) return true;
-  if (/\b[a-z0-9._%+-]+\s+(?:at|\[at\]|\(at\))\s+[a-z0-9.-]+\.[a-z]{2,}\b/i.test(value)) return true;
-  if (/\b[a-z0-9._%+-]+\s+at\s+[a-z0-9.-]+\s+dot\s+[a-z]{2,}\b/i.test(value)) return true;
-  const phone = normalizePhone(value);
+  const normalized = normalizeForSecretCheck(value);
+  if (normalized.includes('@') || isValidEmail(normalized)) return true;
+  if (/\b[a-z0-9._%+-]+\s+(?:at|\[at\]|\(at\))\s+[a-z0-9.-]+\.[a-z]{2,}\b/i.test(normalized)) return true;
+  if (/\b[a-z0-9._%+-]+\s*(?:\[at\]|\(at\))\s*[a-z0-9.-]+\.[a-z]{2,}\b/i.test(normalized)) return true;
+  if (/\b[a-z0-9._%+-]+\s+at\s+[a-z0-9.-]+\s+dot\s+[a-z]{2,}\b/i.test(normalized)) return true;
+  const phone = normalizePhone(normalized);
   return !!(phone && isValidPhone(phone));
 }
 
 /** OTP (4+ digit runs) and access-code shaped tokens. Citations like KP-LIT-01 stay allowed. */
 export function looksLikeSecretToken(value: string) {
-  if (/\d{4,}/.test(value)) return true;
-  if (/\b(otp|passcode|one[ -]?time|access[_\s-]?code|activation[_\s-]?code)\b/i.test(value)) return true;
-  if (/\b(?:FREE|PRO)[-_][A-Z0-9]{4,}\b/i.test(value)) return true;
-  if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(value)) return true;
+  const normalized = normalizeForSecretCheck(value);
+  if (/\d{4,}/.test(normalized)) return true;
+  if (/\b(otp|passcode|one[ -]?time|access[_\s-]?code|activation[_\s-]?code)\b/i.test(normalized)) return true;
+  if (/\b(?:FREE|PRO)[-_][A-Z0-9]{4,}\b/i.test(normalized)) return true;
+  if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(normalized)) return true;
   // Spaced/dashed 6-digit OTPs: "12 34 56", "123 456", "1 2 3 4 5 6". Dates like "12 2026" stay allowed.
-  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(value) || /\b\d{3}[\s.-]\d{3}\b/.test(value) || /\b(?:\d[\s.-]){5}\d\b/.test(value)) return true;
+  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(normalized) || /\b\d{3}[\s.-]\d{3}\b/.test(normalized) || /\b(?:\d[\s.-]){5}\d\b/.test(normalized)) return true;
   return false;
 }
 

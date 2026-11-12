@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { knowledge, respond } from '@/lib/gia/engine.mjs';
-import { perform, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
+import { perform, pickWorkflowInput, recordRejected, WORKFLOW_ACTIONS } from '@/lib/gia/workflow.mjs';
 import { LEAST_PRIVILEGED_PROGRAM, resolveStoredProgram } from '@/lib/gia/programs.mjs';
 import { emitGiaEngagement } from '@/lib/gia/engagement.mjs';
 import { repository } from '@/lib/gia/repository';
@@ -102,9 +102,7 @@ export async function POST(req: Request) {
     const ipHash = clientHash(req);
     const resolved = readProgram(body, jar);
     if (body.action === 'opt_out') {
-      const result = await perform(repository, id, 'opt_out', {
-        text: storeableMessageText(body.text, 'opt_out', null),
-      });
+      const result = await perform(repository, id, 'opt_out', pickWorkflowInput('opt_out', body));
       return NextResponse.json(publicResult(result));
     }
     if (body.action === 'message') {
@@ -142,7 +140,7 @@ export async function POST(req: Request) {
       });
       if (response.intent === 'get_my_status') {
         try {
-          const status = await perform(repository, id, 'get_my_status', { ...body, program, clientHash: ipHash });
+          const status = await perform(repository, id, 'get_my_status', pickWorkflowInput('get_my_status', body, { program, clientHash: ipHash }));
           if (status && typeof status === 'object' && 'error' in status && (status.error === 'verification_required' || status.error === 'otp_locked')) {
             return NextResponse.json({ ...response, ...publicResult(status) }, { status: 400 });
           }
@@ -154,7 +152,7 @@ export async function POST(req: Request) {
         }
       }
       if (response.intent === 'list_fep_sessions' && /\b(show fep sessions|list fep sessions|list_fep_sessions|available fep|fep dates|fep seats)\b/i.test(String(body.text))) {
-        const listed = await perform(repository, id, 'list_fep_sessions', { program });
+        const listed = await perform(repository, id, 'list_fep_sessions', pickWorkflowInput('list_fep_sessions', {}, { program }));
         return NextResponse.json({ ...response, ...asObject(listed), ...asObject(extra) });
       }
       return NextResponse.json({ ...response, ...asObject(extra) });
@@ -164,16 +162,7 @@ export async function POST(req: Request) {
       throw new Error('unknown_action');
     }
     const program = programOrThrow(resolved);
-    const result = await perform(repository, id, body.action, {
-      ...body,
-      program,
-      clientHash: ipHash,
-      text: storeableMessageText(
-        body.text,
-        typeof body.action === 'string' ? body.action : null,
-        typeof body.reason === 'string' ? body.reason : null,
-      ),
-    });
+    const result = await perform(repository, id, body.action, pickWorkflowInput(body.action, body, { program, clientHash: ipHash }));
     if (result && typeof result === 'object' && 'error' in result && (result.error === 'verification_required' || result.error === 'otp_locked')) {
       return NextResponse.json(publicResult(result), { status: 400 });
     }

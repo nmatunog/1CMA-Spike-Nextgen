@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
 import { g1MayEmit, sanitizeEngagementMetadata } from './engagement.mjs';
+import { HANDOFF_REASONS } from './workflow.mjs';
 import { recordGiaVisitorEngagementOn } from '@/lib/mvp01/engage';
 import type { GiaEngagementKind } from '@/lib/mvp01/interfaces';
 import {
@@ -80,9 +81,10 @@ export const repository = {
           await applyCandidateStop(t, { candidateId: c.id, actor: 'gia', currentStage: c.stage, extraIdentities: [identity] });
         },
         async handoff(c: Candidate, reason: string) {
-          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason) VALUES(${c.id},${reason}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at`;
-          if (inserted.length) await event(c.id, 'handoff.created', { reason });
-          const [h] = inserted.length ? inserted : await t`SELECT id,due_at FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${reason} AND state IN ('open','acknowledged')`;
+          const allowed = (HANDOFF_REASONS as readonly string[]).includes(reason) ? reason : 'unapproved_or_unknown';
+          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason) VALUES(${c.id},${allowed}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at`;
+          if (inserted.length) await event(c.id, 'handoff.created', { reason: allowed });
+          const [h] = inserted.length ? inserted : await t`SELECT id,due_at FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${allowed} AND state IN ('open','acknowledged')`;
           return h;
         },
         async book(c: Candidate, sessionId: string) {
@@ -111,8 +113,9 @@ export const repository = {
         },
         async recordTurn(metadata: TurnMeta, messageText = null as string | null) {
           const c = await findCandidate();
-          await t`INSERT INTO gia_turns(identity,candidate_id,action,intent,reason,citation,outcome,message_text) VALUES(${identity},${c?.id ?? null},${metadata.action},${metadata.intent || null},${metadata.reason || null},${metadata.citation ? t.json(metadata.citation) : null},${metadata.outcome},${messageText ?? null})`;
-          if (c?.consented) await event(c.id, 'gia.turn', { action: metadata.action, intent: metadata.intent, reason: metadata.reason, citation: metadata.citation, outcome: metadata.outcome });
+          const reason = (HANDOFF_REASONS as readonly string[]).includes(metadata.reason || '') ? metadata.reason : null;
+          await t`INSERT INTO gia_turns(identity,candidate_id,action,intent,reason,citation,outcome,message_text) VALUES(${identity},${c?.id ?? null},${metadata.action},${metadata.intent || null},${reason},${metadata.citation ? t.json(metadata.citation) : null},${metadata.outcome},${messageText ?? null})`;
+          if (c?.consented) await event(c.id, 'gia.turn', { action: metadata.action, intent: metadata.intent, reason, citation: metadata.citation, outcome: metadata.outcome });
         },
         async recordEngagement(kind: string, metadata: object = {}) {
           const c = await findCandidate();

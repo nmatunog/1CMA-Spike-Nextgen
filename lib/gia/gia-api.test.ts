@@ -48,6 +48,25 @@ const { clearDevOtps } = await import('./otp.mjs');
 const { resetEngagementPort } = await import('./engagement.mjs');
 const { WORKFLOW_ACTIONS } = await import('./workflow.mjs');
 
+const SMUGGLE_SECRETS = [
+  'redeem FREE-ABC12345',
+  'redeem PRO-XYZ98765',
+  '123456',
+  '12 34 56',
+  'visitor at example.test',
+  'visitor@example.test',
+  'visitor[at]example.test',
+  'visitor(at)example.test',
+  '09171234567',
+  '１２３４５６',
+  '12\u200b34\u200c56',
+];
+const SMUGGLE_LEAK = /FREE-ABC12345|PRO-XYZ98765|123456|12 34 56|visitor at example\.test|visitor@example\.test|visitor\[at\]example\.test|visitor\(at\)example\.test|09171234567|１２３４５６|12\u200b34\u200c56/;
+
+function smuggleFields(secret: string) {
+  return { text: secret, reason: secret, citation: secret, message: secret, note: secret, otp: secret, phone: secret };
+}
+
 const TABLES = WORKFLOW_RESET_TABLES;
 
 describe('GIA API reject audit', () => {
@@ -205,16 +224,6 @@ describe('GIA API reject audit', () => {
   });
 
   it('never persists smuggled secrets on any WORKFLOW_ACTIONS intent', async () => {
-    const secrets = [
-      'redeem FREE-ABC12345',
-      'redeem PRO-XYZ98765',
-      '123456',
-      '12 34 56',
-      'visitor at example.test',
-      'visitor@example.test',
-      '09171234567',
-    ];
-    const leak = /FREE-ABC12345|PRO-XYZ98765|123456|12 34 56|visitor at example\.test|visitor@example\.test|09171234567/;
     const sessionIdFep = '33333333-3333-4333-8333-333333333333';
     await state.db.query("INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,now()+interval '3 days',5)", [sessionIdFep]);
     const post = (body: Record<string, unknown>) => POST(new Request('http://127.0.0.1/api/gia', {
@@ -223,43 +232,46 @@ describe('GIA API reject audit', () => {
       body: JSON.stringify(body),
     }));
     expect([...WORKFLOW_ACTIONS]).toEqual(['consent', 'list_fep_sessions', 'book_fep', 'request_leader', 'get_my_status', 'opt_out']);
-    for (const text of secrets) {
-      const listed = await post({ action: 'list_fep_sessions', text });
+    for (const secret of SMUGGLE_SECRETS) {
+      const listed = await post({ action: 'list_fep_sessions', ...smuggleFields(secret) });
       expect(listed.status).toBe(200);
     }
-    for (const text of secrets) {
+    for (const secret of SMUGGLE_SECRETS) {
       const consented = await post({
         action: 'consent',
         agree: true,
         notice: 'gia-pilot-2026-11-04',
         name: 'Synthetic Visitor',
-        email: 'visitor@example.test',
-        text,
+        email: 'ok@example.test',
+        ...smuggleFields(secret),
       });
       expect(consented.status).toBe(200);
     }
     for (const action of WORKFLOW_ACTIONS as readonly string[]) {
-      for (const text of secrets) {
-        const extra: Record<string, unknown> = { action, text };
+      for (const secret of SMUGGLE_SECRETS) {
+        const extra: Record<string, unknown> = { action, ...smuggleFields(secret) };
         if (action === 'consent') {
           extra.agree = true;
           extra.notice = 'gia-pilot-2026-11-04';
           extra.name = 'Synthetic Visitor';
-          extra.email = 'visitor@example.test';
+          extra.email = 'ok@example.test';
         }
         if (action === 'book_fep') extra.sessionId = sessionIdFep;
         const res = await post(extra);
         expect([200, 400]).toContain(res.status);
       }
     }
-    const rows = (await state.db.query('SELECT action,intent,message_text FROM gia_turns')).rows as Array<{ action: string; intent: string | null; message_text: string | null }>;
-    expect(rows.some(row => (WORKFLOW_ACTIONS as readonly string[]).includes(row.action))).toBe(true);
-    expect(rows.every(row => row.message_text == null)).toBe(true);
-    expect(JSON.stringify(rows)).not.toMatch(leak);
+    const turns = (await state.db.query('SELECT * FROM gia_turns')).rows as Array<{ action: string; message_text: string | null; reason: string | null }>;
+    const events = (await state.db.query('SELECT kind,actor,metadata FROM candidate_events')).rows;
+    const handoffs = (await state.db.query('SELECT reason,urgency,resolution,general_answer FROM candidate_handoffs')).rows;
+    expect(turns.some(row => (WORKFLOW_ACTIONS as readonly string[]).includes(row.action))).toBe(true);
+    expect(JSON.stringify({ turns, events, handoffs })).not.toMatch(SMUGGLE_LEAK);
+    expect(turns.every(row => row.message_text == null)).toBe(true);
+    expect(turns.every(row => row.reason == null || ['leader_requested', 'fep_change'].includes(row.reason))).toBe(true);
   });
 
   it('never persists a pasted FREE/PRO code or 6-digit OTP in gia_turns', async () => {
-    const secrets = ['redeem FREE-ABC12345', 'redeem PRO-XYZ98765', '123456'];
+    const secrets = ['redeem FREE-ABC12345', 'redeem PRO-XYZ98765', '123456', 'visitor[at]example.test', '１２３４５６', '12\u200b3456'];
     for (const text of secrets) {
       const res = await POST(new Request('http://127.0.0.1/api/gia', {
         method: 'POST',
@@ -271,7 +283,7 @@ describe('GIA API reject audit', () => {
     const rows = (await state.db.query("SELECT action,intent,message_text FROM gia_turns WHERE action='message'")).rows as Array<{ action: string; intent: string | null; message_text: string | null }>;
     expect(rows.length).toBeGreaterThanOrEqual(3);
     expect(rows.every(row => row.message_text == null)).toBe(true);
-    expect(JSON.stringify(rows)).not.toMatch(/FREE-ABC12345|PRO-XYZ98765|123456/);
+    expect(JSON.stringify(rows)).not.toMatch(/FREE-ABC12345|PRO-XYZ98765|123456|visitor\[at\]example\.test|１２３４５６/);
     const faq = await POST(new Request('http://127.0.0.1/api/gia', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
