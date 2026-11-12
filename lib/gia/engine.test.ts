@@ -32,6 +32,11 @@ describe('approved knowledge and language boundaries', () => {
   it('keeps English regardless of geography', () => { expect(respond('I live in Cebu').language).toBe('en'); });
   it('does not infer a language request from a language mention', () => { expect(respond('My class is in Cebuano').language).toBe('en'); });
   it('honors STOP during booking and polite requests', () => { expect(respond('Book FEP, actually STOP please').intent).toBe('opt_out'); });
+  it('does not treat stop-as-activity as opt-out when the ask is a refund', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    expect(respond('Is the fee refundable if I stop going?', 'en', knowledge, docsNow).reason).toBe('refund');
+    expect(respond('Is the fee refundable if I stop going?', 'en', knowledge, docsNow).intent).toBe('request_leader');
+  });
   it('serves the translated approved answer after explicit request', () => { const lang = respond('Bisaya').language; expect(respond('FEP',lang,pack,now).text).toContain('Libre'); });
   const sample = pack[0];
   if (!sample) throw new Error('shipping pack is empty');
