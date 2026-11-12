@@ -148,11 +148,16 @@ export async function POST(req: Request) {
         const handoffReason = (response.intent === 'refuse' && reason === 'documents')
           ? 'licensing_detail'
           : (reason || 'unapproved_or_unknown');
-        if (c?.consented && shouldHandoff) {
-          return { handoff: await tx.handoff(c, handoffReason, {}, { program, consented: true }) };
-        }
-        if (safetyUrgent) {
-          return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false }) };
+        try {
+          if (c?.consented && shouldHandoff) {
+            return { handoff: await tx.handoff(c, handoffReason, {}, { program, consented: true }) };
+          }
+          if (safetyUrgent) {
+            return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false }) };
+          }
+        } catch (e) {
+          if (!safetyUrgent) throw e;
+          return null;
         }
         return null;
       });

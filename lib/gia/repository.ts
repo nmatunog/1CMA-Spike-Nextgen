@@ -95,16 +95,21 @@ export const repository = {
           const urgency = allowed === 'urgent' ? 'urgent' : 'normal';
           const consented = extras.consented !== false;
           const program = extras.program || null;
-          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,resolution,gia_could_answer,general_answer,consented,program,visitor_identity) VALUES(${c.id},${allowed},${urgency},${resolution || null},${giaCouldAnswer},${generalAnswer},${consented},${program},${identity}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at,created_at,reason,urgency,consented,program,visitor_identity,resolution,gia_could_answer,general_answer`;
+          const adopted = await t`UPDATE candidate_handoffs SET candidate_id=${c.id}, consented=true, program=COALESCE(${program}, program), visitor_identity=NULL, urgency=${urgency}, resolution=COALESCE(${resolution || null}, resolution), gia_could_answer=${giaCouldAnswer}, general_answer=COALESCE(${generalAnswer}, general_answer) WHERE visitor_identity=${identity} AND candidate_id IS NULL AND reason=${allowed} AND state IN ('open','acknowledged') RETURNING id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity,resolution,gia_could_answer,general_answer`;
+          if (adopted.length) {
+            await event(c.id, 'handoff.created', { reason: allowed, gia_could_answer: giaCouldAnswer });
+            return adopted[0];
+          }
+          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,resolution,gia_could_answer,general_answer,consented,program,visitor_identity) VALUES(${c.id},${allowed},${urgency},${resolution || null},${giaCouldAnswer},${generalAnswer},${consented},${program},${null}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity,resolution,gia_could_answer,general_answer`;
           if (inserted.length) await event(c.id, 'handoff.created', { reason: allowed, gia_could_answer: giaCouldAnswer });
-          const [h] = inserted.length ? inserted : await t`SELECT id,due_at,created_at,reason,urgency,consented,program,visitor_identity,resolution,gia_could_answer,general_answer FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${allowed} AND state IN ('open','acknowledged')`;
+          const [h] = inserted.length ? inserted : await t`SELECT id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity,resolution,gia_could_answer,general_answer FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${allowed} AND state IN ('open','acknowledged')`;
           return h;
         },
         async handoffVisitor(input: { reason: string; program: string; consented: false }) {
           const allowed = (HANDOFF_REASONS as readonly string[]).includes(input.reason) ? input.reason : 'urgent';
           const program = input.program || null;
-          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,resolution,gia_could_answer,general_answer,consented,program,visitor_identity) VALUES(${null},${allowed},'urgent',${null},${false},${null},${false},${program},${identity}) ON CONFLICT (visitor_identity, reason) WHERE state IN ('open','acknowledged') AND visitor_identity IS NOT NULL DO NOTHING RETURNING id,due_at,created_at,reason,urgency,consented,program,visitor_identity`;
-          const [h] = inserted.length ? inserted : await t`SELECT id,due_at,created_at,reason,urgency,consented,program,visitor_identity FROM candidate_handoffs WHERE visitor_identity=${identity} AND reason=${allowed} AND state IN ('open','acknowledged')`;
+          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,resolution,gia_could_answer,general_answer,consented,program,visitor_identity) VALUES(${null},${allowed},'urgent',${null},${false},${null},${false},${program},${identity}) ON CONFLICT (visitor_identity, reason) WHERE state IN ('open','acknowledged') AND visitor_identity IS NOT NULL AND consented = false DO NOTHING RETURNING id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity`;
+          const [h] = inserted.length ? inserted : await t`SELECT id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity FROM candidate_handoffs WHERE visitor_identity=${identity} AND reason=${allowed} AND state IN ('open','acknowledged')`;
           return h;
         },
         async book(c: Candidate, sessionId: string) {

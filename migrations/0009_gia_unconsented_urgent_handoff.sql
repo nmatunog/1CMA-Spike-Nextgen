@@ -9,6 +9,6 @@ ALTER TABLE candidate_handoffs ADD COLUMN IF NOT EXISTS visitor_identity text;
 
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_visitor_handoff
   ON candidate_handoffs(visitor_identity, reason)
-  WHERE state IN ('open','acknowledged') AND visitor_identity IS NOT NULL;
+  WHERE state IN ('open','acknowledged') AND visitor_identity IS NOT NULL AND consented = false;
 
 COMMIT;
