@@ -4,14 +4,14 @@ as_of: 2026-11-04 11:30 PHT
 sensitivity: internal
 type: knowledge_draft
 project: 1CMA Recruitment Pilot
-status: draft
+status: approved
 version: 0.1
 source: Owner-provided checklist (Nilo, 2026-11-04); https://github.com/nmatunog/NEXO/issues/27#issuecomment-6621466060
 ---
 
 # GIA Knowledge Pack — Candidate Document Checklist (drafts v0.1)
 
-**Status: DRAFT — not served by GIA until Nilo approves.** Submission rule: [[DEC-2026-11-04-03 Candidate documents submitted only via iRecruit or leader]]
+**Status: APPROVED** — Nilo approved KP-DOCS-01..06 as written on 12 November 2026 (https://github.com/nmatunog/1CMA-Spike-Nextgen/pull/12#issuecomment-6819146826). The body below is the original v0.1 checklist; GIA serves it as approved. Submission rule: [[DEC-2026-11-04-03 Candidate documents submitted only via iRecruit or leader]]
 
 **Source:** owner-provided checklist (Nilo, 2026-11-04). Topic `licensing_documents`, stage S6, `review_by` = effective date + 30 days. Every entry ends with the iRecruit-or-leader submission line.
 

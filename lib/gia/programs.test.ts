@@ -82,6 +82,8 @@ describe('program adapters', () => {
     expect(adapterAllowsTopic('recruit', 'fep')).toBe(true);
     expect(adapterAllowsTopic('intern', 'fep')).toBe(false);
     expect(adapterAllowsTopic('intern', 'literacy')).toBe(false);
+    expect(adapterAllowsTopic('intern', 'safety')).toBe(true);
+    expect(adapterAllowsTopic('ra', 'safety')).toBe(true);
     expect(adapterAllowsTopic('ra', 'fep')).toBe(false);
   });
 

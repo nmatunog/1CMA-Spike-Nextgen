@@ -118,11 +118,12 @@ export async function POST(req: Request) {
       const citation = rawCitation && typeof rawCitation === 'object' && 'id' in rawCitation && 'version' in rawCitation && 'source' in rawCitation
         ? { id: String(rawCitation.id), version: String(rawCitation.version), source: String(rawCitation.source) }
         : null;
-      if (response.intent === 'opt_out') return NextResponse.json(await perform(repository, id, 'opt_out', {}));
+      const safetyUrgent = reason === 'urgent' && citation?.id === 'KP-SAFETY-01';
+      if (response.intent === 'opt_out' && !safetyUrgent) return NextResponse.json(await perform(repository, id, 'opt_out', {}));
       const program = programOrThrow(resolved);
-      // Suppression is checked before responding or changing language.
+      // Suppression is checked before responding or changing language, except crisis/safety.
       const suppressed = pre.suppressed;
-      if (suppressed) {
+      if (suppressed && !safetyUrgent) {
         await audit(id, { action: 'message', intent: response.intent, reason, outcome: 'opted_out' });
         return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
       }
@@ -140,9 +141,14 @@ export async function POST(req: Request) {
           conversation: !listing,
         });
         const shouldHandoff = response.intent === 'request_leader'
-          || (response.intent === 'refuse' && reason === 'documents')
-          || reason === 'licensing_detail';
-        if (c?.consented && shouldHandoff) return { handoff: await tx.handoff(c, reason || 'unapproved_or_unknown') };
+          || (response.intent === 'refuse' && (reason === 'documents' || reason === 'licensing_detail'))
+          || reason === 'licensing_detail'
+          || reason === 'urgent'
+          || reason === 'product_inquiry';
+        const handoffReason = (response.intent === 'refuse' && reason === 'documents')
+          ? 'licensing_detail'
+          : (reason || 'unapproved_or_unknown');
+        if (c?.consented && shouldHandoff) return { handoff: await tx.handoff(c, handoffReason) };
         return null;
       });
       if (response.intent === 'get_my_status') {

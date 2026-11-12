@@ -72,6 +72,28 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
     expect(respond('financial literacy','en',fake,now)).not.toHaveProperty('citation');
     expect(respond('financial literacy','en',fake,now).intent).toBe('request_leader');
   });
+  it('serves KP-SAFETY-01 with urgent handoff for crisis phrasing, including intern/RA', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    for (const q of ['I want to kill myself', 'I feel like ending it all', 'Gusto ko na mamatay', 'Ayoko na mabuhay', 'saktan ang sarili', 'I keep thinking about self-harm']) {
+      const r = respond(q, 'en', knowledge, docsNow);
+      expect(r.intent, q).toBe('answer');
+      expect(r.topic, q).toBe('safety');
+      expect(r.reason, q).toBe('urgent');
+      expect(r.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+      expect(r.text).toMatch(/NCMH Crisis Hotline at 1553/);
+    }
+    expect(respond('Ayoko na', 'en', knowledge, docsNow).intent).toBe('opt_out');
+    expect(respond('I want to kill myself', 'en', knowledge, docsNow, { program: 'intern' })).toMatchObject({ citation: { id: 'KP-SAFETY-01' }, reason: 'urgent' });
+    expect(respond('Gusto ko na mamatay', 'en', knowledge, docsNow, { program: 'ra' })).toMatchObject({ citation: { id: 'KP-SAFETY-01' }, reason: 'urgent' });
+  });
+  it('does not treat status-of-mine, FEP booking help, or a bare month as other-person/urgent/compensation', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    expect(respond('What is the status of my application?', 'en', knowledge, docsNow).intent).toBe('get_my_status');
+    expect(respond('I need help booking FEP', 'en', knowledge, docsNow, { consented: true }).intent).toBe('book_fep');
+    expect(respond('I need help booking FEP', 'en', knowledge, docsNow, { consented: true }).reason).not.toBe('urgent');
+    expect(respond('See you in a month', 'en', knowledge, docsNow).reason).not.toBe('compensation');
+    expect(respond('Can I send my NBI clearance here?', 'en', knowledge, docsNow).reason).toBe('documents');
+  });
   it('serves approved KP-DOCS-01 for the iRecruit checklist after 2026-11-12', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
     expect(knowledge.filter(e=>/^KP-DOCS-0[1-6]$/.test(e.id)).every(e=>e.status==='approved')).toBe(true);

@@ -157,6 +157,26 @@ describe('GIA API reject audit', () => {
     expect(await garbage.json()).toEqual({ error: 'invalid_program' });
   });
 
+  it('serves KP-SAFETY-01 on intern even without recruit topics', async () => {
+    state.cookies.gia_program = 'intern';
+    await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'consent', agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Intern', email: 'intern@example.test' }),
+    }));
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to kill myself' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.reason).toBe('urgent');
+    expect(body.text).toMatch(/NCMH Crisis Hotline at 1553/);
+    expect(body.handoff).toBeTruthy();
+  });
+
   it('does not serve recruit FEP FAQ on an intern cookie', async () => {
     state.cookies.gia_program = 'intern';
     const res = await POST(new Request('http://127.0.0.1/api/gia', {

@@ -16,8 +16,10 @@ describe('knowledge pack import', () => {
       expect(isApproved(imported.byKey.get(`KP-DOCS-${n}::0.1`), now)).toBe(true);
     }
     expect(knowledge.filter(e => isApproved(e, now)).map(e => e.id).sort()).toEqual([
-      'KP-DOCS-01','KP-DOCS-02','KP-DOCS-03','KP-DOCS-04','KP-DOCS-05','KP-DOCS-06','KP-FEP-01','KP-LIT-01',
+      'KP-DOCS-01','KP-DOCS-02','KP-DOCS-03','KP-DOCS-04','KP-DOCS-05','KP-DOCS-06','KP-FEP-01','KP-LIT-01','KP-SAFETY-01',
     ]);
+    expect(imported.byKey.get('KP-SAFETY-01::0.1').status).toBe('approved');
+    expect(isApproved(imported.byKey.get('KP-SAFETY-01::0.1'), now)).toBe(true);
   });
   it('rejects duplicate (id, version) keys', () => {
     expect(() => importKnowledge([lit, { ...lit }])).toThrow('knowledge_pack_invalid');
@@ -38,9 +40,11 @@ describe('knowledge pack import', () => {
     expect(isApproved({ ...lit, audience: 'staff_only' }, now)).toBe(false);
     expect(validateEntry({ ...lit, audience: 'staff_only' })).toContain('staff_only_cannot_be_approved_for_serving');
   });
-  it('refuses to import non LIT/FEP/DOCS entries as approved', () => {
+  it('refuses to import non LIT/FEP/DOCS/SAFETY entries as approved', () => {
     const rec = { ...lit, id: 'KP-REC-01', version: '9.9' };
     expect(validateEntry(rec)).toContain('only_lit_fep_docs_may_be_approved');
     expect(isApproved(rec, now)).toBe(false);
+    const safety = entries.find(e => e.id === 'KP-SAFETY-01');
+    expect(validateEntry({ ...safety, topic: 'literacy' })).toContain('safety_topic_must_be_safety');
   });
 });
