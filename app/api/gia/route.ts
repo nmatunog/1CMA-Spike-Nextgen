@@ -9,6 +9,7 @@ import { repository } from '@/lib/gia/repository';
 import { sameOrigin } from '@/lib/gia/origin';
 import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
 import { assertOtpDevNotProduction, hashClientKey } from '@/lib/gia/otp.mjs';
+import { looksLikeContact, looksLikeSecretToken } from '@/lib/mvp01/engage';
 export const runtime = 'nodejs';
 function secret() {
   const s = process.env.GIA_SESSION_SECRET;
@@ -63,6 +64,13 @@ function programOrThrow(resolved: ReturnType<typeof resolveStoredProgram>): stri
   if ('error' in resolved && resolved.error) throw new Error(resolved.error);
   if (!('program' in resolved) || !resolved.program) throw new Error('invalid_program');
   return resolved.program;
+}
+
+/** Never persist pasted codes, OTPs, or contact-shaped chat in gia_turns.message_text. */
+function storeableMessageText(text: string, intent: string | null, reason: string | null) {
+  if (reason === 'documents' || intent === 'get_my_status') return null;
+  if (looksLikeSecretToken(text) || looksLikeContact(text)) return null;
+  return text;
 }
 export async function POST(req: Request) {
   if (process.env.GIA_PILOT_ENABLED !== 'true') return NextResponse.json({ error: 'pilot_disabled' }, { status: 503 });
@@ -121,7 +129,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ text: 'You previously opted out. Please contact your leader to discuss re-subscribing.' });
       }
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
-      const storeText = reason === 'documents' || response.intent === 'get_my_status' ? null : body.text;
+      const storeText = storeableMessageText(body.text, response.intent, reason);
       // Only structured intent/citation metadata is retained for audit; document payloads are never saved.
       const extra = await repository.run(id, async tx => {
         const c = await tx.findCandidate();

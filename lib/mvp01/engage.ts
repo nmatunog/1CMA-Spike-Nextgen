@@ -36,7 +36,7 @@ export function canMessage(
   return state.prefs[channel] === true;
 }
 
-function looksLikeContact(value: string) {
+export function looksLikeContact(value: string) {
   if (value.includes('@') || isValidEmail(value)) return true;
   const phone = normalizePhone(value);
   return !!(phone && isValidPhone(phone));
@@ -46,6 +46,7 @@ function looksLikeContact(value: string) {
 export function looksLikeSecretToken(value: string) {
   if (/\d{4,}/.test(value)) return true;
   if (/\b(otp|passcode|one[ -]?time|access[_\s-]?code|activation[_\s-]?code)\b/i.test(value)) return true;
+  if (/\b(?:FREE|PRO)[-_][A-Z0-9]{4,}\b/i.test(value)) return true;
   if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(value)) return true;
   return false;
 }

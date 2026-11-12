@@ -94,7 +94,12 @@ export const repository = {
           if (count.n >= s.capacity) throw new Error('session_full');
           const [b] = await t`INSERT INTO fep_bookings(candidate_id,session_id) VALUES(${c.id},${sessionId}) RETURNING id`;
           await t`UPDATE candidates SET stage='fep_booked' WHERE id=${c.id} AND stage IN ('new_lead','contacted','not_now')`;
-          await event(c.id, 'fep.booked', { sessionId });
+          await recordGiaVisitorEngagementOn(t, {
+            candidateId: c.id,
+            kind: 'fep.booked',
+            actor: 'gia',
+            metadata: { intent: 'book_fep' },
+          });
           return b;
         },
         async listSessions() {

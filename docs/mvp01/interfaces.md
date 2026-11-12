@@ -98,7 +98,7 @@ Allowed `kind` values (append-only `candidate_events`):
 | `gia.handoff` | After `request_leader` / existing handoff insert |
 | `literacy.interest` | Visitor asks about free Financial Literacy and is not STOP'd |
 | `fep.booked` | After a successful `book_fep` (Command Center also emits this on stage change) |
-| `fep.attended` | Leader marks attendance (staff path) or G1 confirms attendance (visitor path) |
+| `fep.attended` | Leader marks attendance on the staff path. G1 never emits this kind. |
 
 Metadata is an **allowlist**: keys `intent` and `citation` only, string values ≤ 80 chars. Emails, phone-like values, and OTP/code-shaped tokens (4+ digit runs, access-code patterns) are rejected. Extra keys, numbers, objects, and messages are invalid. Duplicate tool events should be idempotent on G1's side; C1 inserts another row if called twice.
 

@@ -202,4 +202,43 @@ describe('GIA API reject audit', () => {
     expect(stopped.status).toBe(200);
     expect(await stopped.json()).toMatchObject({ ok: true });
   });
+
+  it('never persists a pasted FREE/PRO code or 6-digit OTP in gia_turns', async () => {
+    const secrets = ['redeem FREE-ABC12345', 'redeem PRO-XYZ98765', '123456'];
+    for (const text of secrets) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+    }
+    const rows = (await state.db.query("SELECT action,intent,message_text FROM gia_turns WHERE action='message'")).rows as Array<{ action: string; intent: string | null; message_text: string | null }>;
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    expect(rows.every(row => row.message_text == null)).toBe(true);
+    expect(JSON.stringify(rows)).not.toMatch(/FREE-ABC12345|PRO-XYZ98765|123456/);
+  });
+
+  it('dedupes repeated unrecognized messages from the same candidate', async () => {
+    await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'consent', agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Visitor', email: 'visitor@example.test' }),
+    }));
+    const text = 'asdf qwerty unknown gibberish please connect me';
+    for (let i = 0; i < 2; i++) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+      expect((await res.json()).intent).toBe('request_leader');
+    }
+    const handoffs = (await state.db.query('SELECT reason,state FROM candidate_handoffs')).rows as Array<{ reason: string; state: string }>;
+    expect(handoffs).toHaveLength(1);
+    expect(handoffs[0]).toMatchObject({ reason: 'unapproved_or_unknown', state: 'open' });
+    const created = (await state.db.query("SELECT * FROM candidate_events WHERE kind='handoff.created'")).rows;
+    expect(created).toHaveLength(1);
+  });
 });

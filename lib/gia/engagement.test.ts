@@ -10,6 +10,7 @@ import {
   ENGAGEMENT_METADATA_KEYS,
   buildEngagementEvent,
   callerOwnsCandidate,
+  createMemoryEngagementPort,
   engagementPort,
   emitGiaEngagement,
   flattenEngagementMetadata,
@@ -99,10 +100,10 @@ describe('GIA engagement adapter contract', () => {
   });
 
   it('rejects OTP- and code-shaped tokens on both C1 and G1', () => {
-    for (const token of ['1234', '123456', 'otp 99', 'access code L1-1234']) {
+    for (const token of ['1234', '123456', 'otp 99', 'access code L1-1234', 'FREE-ABCD', 'PRO-WXYZ']) {
       expect(looksLikeSecretToken(token)).toBe(true);
       expect(c1LooksLikeSecretToken(token)).toBe(true);
-      expect(sanitizeEngagementMetadata({ intent: token })).toEqual({});
+      expect(() => sanitizeEngagementMetadata({ intent: token })).toThrow(/invalid/);
       expect(() => c1Sanitize({ intent: token })).toThrow(/invalid/);
     }
     expect(looksLikeSecretToken('KP-LIT-01')).toBe(false);
@@ -118,12 +119,28 @@ describe('GIA engagement adapter contract', () => {
     expect(callerOwnsCandidate('aaa', ['aaa'] as unknown)).toBe(false);
   });
 
-  it('requires identity or candidate scope to list engagement rows', async () => {
+  it('requires identity scope to list engagement rows and checks candidateId against it', async () => {
     await expect(engagementPort().list()).rejects.toThrow(/unscoped_list/);
     await expect(engagementPort().list('')).rejects.toThrow(/unscoped_list/);
     await expect(engagementPort().list({})).rejects.toThrow(/unscoped_list/);
-    await engagementPort().record({ identity: 'a', kind: 'gia.conversation', metadata: { intent: 'answer' } });
+    await expect(engagementPort().list({ candidateId: '11111111-1111-4111-8111-111111111111' })).rejects.toThrow(/unscoped_list/);
+    await engagementPort().record({ identity: 'a', candidateId: '11111111-1111-4111-8111-111111111111', kind: 'gia.conversation', metadata: { intent: 'answer' } });
+    await engagementPort().record({ identity: 'b', candidateId: '22222222-2222-4222-8222-222222222222', kind: 'gia.conversation', metadata: { intent: 'answer' } });
     expect((await engagementPort().list('a')).map(row => row.kind)).toEqual(['gia.conversation']);
+    expect(await engagementPort().list({ identity: 'a', candidateId: '22222222-2222-4222-8222-222222222222' })).toEqual([]);
+    expect((await engagementPort().list({ identity: 'a', candidateId: '11111111-1111-4111-8111-111111111111' })).map(row => row.candidateId)).toEqual(['11111111-1111-4111-8111-111111111111']);
+  });
+
+  it('caps the in-memory engagement port with a ring buffer', async () => {
+    const port = createMemoryEngagementPort({ limit: 3 });
+    for (let i = 0; i < 5; i++) {
+      const recorded = await port.record({ identity: `id-${i}`, kind: 'gia.conversation', metadata: { intent: 'answer' } });
+      expect(recorded.ok).toBe(true);
+    }
+    expect(await port.list('id-0')).toEqual([]);
+    expect(await port.list('id-1')).toEqual([]);
+    expect((await port.list('id-2')).map(row => row.identity)).toEqual(['id-2']);
+    expect((await port.list('id-4')).map(row => row.identity)).toEqual(['id-4']);
   });
 
   it('wires canReadDomain so intern/RA cannot read FEP or literacy', () => {
@@ -235,11 +252,13 @@ describe('GIA engagement adapter', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].metadata).toMatchObject({ intent: 'answer', citation: 'KP-LIT-01', officialDecision: false });
     expect(JSON.stringify(rows[0].metadata)).not.toMatch(/engage@example|639170000000|secret chat|123456/);
-    await repository.run('engage-a', tx => emitGiaEngagement(tx, 'engage-a', {
+    const invalid = await repository.run('engage-a', tx => emitGiaEngagement(tx, 'engage-a', {
       conversation: true,
       metadata: { intent: '123456' },
-    }));
-    const second = (await state.db!.query("SELECT metadata FROM candidate_events WHERE kind='gia.conversation' ORDER BY created_at DESC LIMIT 1")).rows[0] as { metadata: Record<string, unknown> };
-    expect(JSON.stringify(second.metadata)).not.toMatch(/123456/);
+    })) as { ok: boolean; error?: string };
+    expect(invalid).toEqual({ ok: false, error: 'invalid' });
+    const after = (await state.db!.query("SELECT metadata FROM candidate_events WHERE kind='gia.conversation'")).rows as Array<{ metadata: Record<string, unknown> }>;
+    expect(after).toHaveLength(1);
+    expect(JSON.stringify(after[0].metadata)).not.toMatch(/123456/);
   });
 });
