@@ -157,6 +157,113 @@ describe('GIA API reject audit', () => {
     expect(await garbage.json()).toEqual({ error: 'invalid_program' });
   });
 
+  it('writes a minimal unconsented urgent handoff onto the staff queue', async () => {
+    const { listHandoffs } = await import('@/lib/recruitment/store');
+    const tag = Object.assign(async (parts: TemplateStringsArray, ...args: unknown[]) => {
+      const text = parts.reduce((s, p, i) => s + p + (i < args.length ? `$${i + 1}` : ''), '');
+      return (await state.db.query(text, args)).rows as Record<string, unknown>[];
+    }, { json: (v: unknown) => JSON.stringify(v), begin: async () => { throw new Error('unused'); } });
+
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'thinking about suicide' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.reason).toBe('urgent');
+    expect(body.handoff).toMatchObject({ reason: 'urgent', consented: false, program: 'recruit' });
+    expect(body.handoff.candidate_id).toBeFalsy();
+    expect(body.handoff.visitor_identity).toBe(sessionId);
+    expect(body.handoff.created_at).toBeTruthy();
+    expect(JSON.stringify(body.handoff)).not.toMatch(/thinking about suicide/i);
+
+    const stored = (await state.db.query('SELECT candidate_id,reason,urgency,consented,program,visitor_identity,resolution,general_answer FROM candidate_handoffs')).rows as Array<Record<string, unknown>>;
+    expect(stored).toHaveLength(1);
+    expect(stored[0].candidate_id).toBeNull();
+    expect(stored[0]).toMatchObject({ reason: 'urgent', urgency: 'urgent', program: 'recruit', visitor_identity: sessionId });
+    expect(stored[0].consented === false || stored[0].consented === 'f').toBe(true);
+    expect(stored[0].resolution).toBeNull();
+    expect(stored[0].general_answer).toBeNull();
+    const turns = (await state.db.query("SELECT message_text,reason FROM gia_turns WHERE action='message'")).rows as Array<{ message_text: string | null; reason: string | null }>;
+    expect(turns.every(row => row.message_text == null)).toBe(true);
+    expect(turns.some(row => row.reason === 'urgent')).toBe(true);
+    expect(JSON.stringify({ stored, turns })).not.toMatch(/thinking about suicide/i);
+
+    const queue = await listHandoffs(tag, { email: 'leader@example.test', role: 'leader' }, {});
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      name: 'Unconsented visitor',
+      reason: 'urgent',
+      consented: false,
+      program: 'recruit',
+      visitor_identity: sessionId,
+      candidate_id: null,
+    });
+    expect(queue[0].created_at).toBeTruthy();
+  });
+
+  it('still serves KP-SAFETY-01 after unconsented crisis then consent then crisis', async () => {
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ citation: { id: 'KP-SAFETY-01' }, reason: 'urgent' });
+
+    const consented = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'consent', agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Visitor', email: 'ok@example.test' }),
+    }));
+    expect(consented.status).toBe(200);
+
+    const second = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(second.status).toBe(200);
+    const body = await second.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.reason).toBe('urgent');
+    expect(body.text).toMatch(/NCMH Crisis Hotline at 1553/);
+    expect(body.error).toBeUndefined();
+    expect(body.handoff).toBeTruthy();
+    expect(body.handoff.consented === true || body.handoff.consented === 't').toBe(true);
+    expect(body.handoff.candidate_id).toBeTruthy();
+    expect(body.handoff.visitor_identity).toBeFalsy();
+
+    const rows = (await state.db.query("SELECT candidate_id,consented,visitor_identity,reason,state FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<Record<string, unknown>>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].candidate_id).toBeTruthy();
+    expect(rows[0].consented === true || rows[0].consented === 't').toBe(true);
+    expect(rows[0].visitor_identity).toBeNull();
+    expect(rows[0].state).toBe('open');
+  });
+
+  it('serves KP-SAFETY-01 on intern even without recruit topics', async () => {
+    state.cookies.gia_program = 'intern';
+    await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'consent', agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Intern', email: 'intern@example.test' }),
+    }));
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to kill myself' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.reason).toBe('urgent');
+    expect(body.text).toMatch(/NCMH Crisis Hotline at 1553/);
+    expect(body.handoff).toBeTruthy();
+  });
+
   it('does not serve recruit FEP FAQ on an intern cookie', async () => {
     state.cookies.gia_program = 'intern';
     const res = await POST(new Request('http://127.0.0.1/api/gia', {
