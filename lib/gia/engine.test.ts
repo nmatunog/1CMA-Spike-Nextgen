@@ -34,8 +34,8 @@ describe('approved knowledge and language boundaries', () => {
   it('honors STOP during booking and polite requests', () => { expect(respond('Book FEP, actually STOP please').intent).toBe('opt_out'); });
   it('does not treat stop-as-activity as opt-out when the ask is a refund', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
-    expect(respond('Is the fee refundable if I stop going?', 'en', knowledge, docsNow).reason).toBe('refund');
-    expect(respond('Is the fee refundable if I stop going?', 'en', knowledge, docsNow).intent).toBe('request_leader');
+    expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).reason).toBe('refund');
+    expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).intent).toBe('request_leader');
   });
   it('serves the translated approved answer after explicit request', () => { const lang = respond('Bisaya').language; expect(respond('FEP',lang,pack,now).text).toContain('Libre'); });
   const sample = pack[0];
