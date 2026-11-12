@@ -12,11 +12,14 @@ import { assertOtpDevNotProduction, hashClientKey } from '@/lib/gia/otp.mjs';
 import { storeableMessageText } from '@/lib/mvp01/engage';
 import {
   checkRequestRate,
+  cappedUrgentIdentity,
   checkUnconsentedUrgentCap,
-  clientIpFromRequest,
   hashRateKey,
   logSafetyHandoffFailed,
+  logUnconsentedUrgentCapped,
   rateLimitsFromEnv,
+  resolveClientIp,
+  warnIfProductionMissingProxy,
 } from '@/lib/gia/rate.mjs';
 export const runtime = 'nodejs';
 function secret() {
@@ -110,7 +113,9 @@ export async function POST(req: Request) {
     const language = jar.get('gia_language')?.value;
     const ipHash = clientHash(req);
     const limits = rateLimitsFromEnv();
-    const ipKey = hashRateKey(clientIpFromRequest(req));
+    warnIfProductionMissingProxy();
+    const resolvedIp = resolveClientIp(req);
+    const ipKey = resolvedIp.ip ? hashRateKey(resolvedIp.ip) : null;
     let rateLimited = false;
     try {
       rateLimited = (await checkRequestRate(ipKey, limits)).limited;
@@ -152,13 +157,19 @@ export async function POST(req: Request) {
       }
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
       const storeText = safetyUrgent ? null : storeableMessageText(body.text, response.intent, reason);
-      let skipHandoff = rateLimited;
+      let skipVisitorRow = rateLimited;
+      let urgentCapHits: number | null = null;
       if (safetyUrgent && !pre.consented && !rateLimited) {
         try {
-          skipHandoff = (await checkUnconsentedUrgentCap(ipKey, limits)).limited;
+          const cap = await checkUnconsentedUrgentCap(ipKey, limits);
+          skipVisitorRow = cap.limited;
+          urgentCapHits = cap.hits;
         } catch {
-          skipHandoff = true;
+          skipVisitorRow = true;
         }
+      }
+      if (safetyUrgent && skipVisitorRow) {
+        logUnconsentedUrgentCapped({ reason: rateLimited ? 'request_rate' : 'urgent_cap', hits: urgentCapHits });
       }
       let extra: unknown = null;
       try {
@@ -180,7 +191,10 @@ export async function POST(req: Request) {
           const handoffReason = (response.intent === 'refuse' && reason === 'documents')
             ? 'licensing_detail'
             : (reason || 'unapproved_or_unknown');
-          if (skipHandoff) return null;
+          if (skipVisitorRow && safetyUrgent && ipKey && !rateLimited) {
+            return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false, identity: cappedUrgentIdentity(ipKey) }) };
+          }
+          if (skipVisitorRow) return null;
           if (c?.consented && shouldHandoff) {
             return { handoff: await tx.handoff(c, handoffReason, {}, { program, consented: true }) };
           }

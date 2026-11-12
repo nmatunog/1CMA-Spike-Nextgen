@@ -463,9 +463,11 @@ describe('GIA API reject audit', () => {
   it('rate-limits non-crisis traffic and still serves crisis text without extra urgent rows', async () => {
     const prevIp = process.env.GIA_RATE_LIMIT_IP_MAX;
     const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_TRUSTED_PROXY = 'cloudflare';
     process.env.GIA_RATE_LIMIT_IP_MAX = '2';
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
-    const headers = { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9' };
+    const headers = { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' };
     const ping = () => POST(new Request('http://127.0.0.1/api/gia', {
       method: 'POST',
       headers,
@@ -491,25 +493,32 @@ describe('GIA API reject audit', () => {
     await state.db.exec('TRUNCATE gia_rate_windows');
     const first = await POST(new Request('http://127.0.0.1/api/gia', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.4' },
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '198.51.100.4' },
       body: JSON.stringify({ action: 'message', text: 'I want to die' }),
     }));
     expect(first.status).toBe(200);
     expect((await first.json()).handoff).toBeTruthy();
     const nextId = randomBytes(32).toString('hex');
     state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const second = await POST(new Request('http://127.0.0.1/api/gia', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.4' },
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '198.51.100.4' },
       body: JSON.stringify({ action: 'message', text: 'I want to die' }),
     }));
     expect(second.status).toBe(200);
     const secondBody = await second.json();
     expect(secondBody.citation).toMatchObject({ id: 'KP-SAFETY-01' });
-    expect(secondBody.handoff).toBeFalsy();
-    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(1);
+    expect(secondBody.handoff).toBeTruthy();
+    const urgent = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string }>;
+    expect(urgent.some(r => r.visitor_identity.startsWith('cap:'))).toBe(true);
+    expect(urgent.filter(r => !r.visitor_identity.startsWith('cap:'))).toHaveLength(1);
+    expect(spy.mock.calls.map(c => String(c[0])).join('\n')).toMatch(/gia_unconsented_urgent_capped/);
+    spy.mockRestore();
     process.env.GIA_RATE_LIMIT_IP_MAX = prevIp;
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
   });
 
   it('prunes gia_rate_windows older than the TTL when a window is bumped', async () => {
@@ -527,29 +536,85 @@ describe('GIA API reject audit', () => {
   it('does not let a spoofed X-Forwarded-For bypass the unconsented urgent cap', async () => {
     const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
     const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_TRUSTED_PROXY = 'cloudflare';
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
-    delete process.env.GIA_TRUSTED_PROXY;
-    delete process.env.GIA_TRUST_FORWARDED_FOR;
-    delete process.env.GIA_TRUST_CF_CONNECTING_IP;
     const first = await POST(new Request('http://127.0.0.1/api/gia', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.50' },
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.50', 'x-forwarded-for': '198.51.100.1' },
       body: JSON.stringify({ action: 'message', text: 'I want to die' }),
     }));
     expect(first.status).toBe(200);
     expect((await first.json()).handoff).toBeTruthy();
     const nextId = randomBytes(32).toString('hex');
     state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const spoofed = await POST(new Request('http://127.0.0.1/api/gia', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.77' },
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.50', 'x-forwarded-for': '198.51.100.77' },
       body: JSON.stringify({ action: 'message', text: 'I want to die' }),
     }));
     expect(spoofed.status).toBe(200);
     const body = await spoofed.json();
     expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
-    expect(body.handoff).toBeFalsy();
-    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(1);
+    expect(body.handoff).toBeTruthy();
+    const urgent = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string }>;
+    expect(urgent.filter(r => !r.visitor_identity.startsWith('cap:'))).toHaveLength(1);
+    expect(urgent.some(r => r.visitor_identity.startsWith('cap:'))).toBe(true);
+    expect(spy.mock.calls.map(c => String(c[0])).join('\n')).toMatch(/gia_unconsented_urgent_capped/);
+    spy.mockRestore();
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('does not share a constant IP bucket when no trusted proxy is set', async () => {
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUST_CF_CONNECTING_IP;
+    delete process.env.GIA_TRUST_FORWARDED_FOR;
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    for (let i = 0; i < 3; i += 1) {
+      const nextId = randomBytes(32).toString('hex');
+      state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.51.100.${i + 1}` },
+        body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+      }));
+      expect(res.status).toBe(200);
+      expect((await res.json()).handoff).toBeTruthy();
+    }
+    const visitors = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent' AND visitor_identity NOT LIKE 'cap:%'")).rows;
+    expect(visitors).toHaveLength(3);
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('gives distinct trusted client IPs their own unconsented urgent rows', async () => {
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_TRUSTED_PROXY = 'cloudflare';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.10' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect((await first.json()).handoff).toBeTruthy();
+    const nextId = randomBytes(32).toString('hex');
+    state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const other = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.11' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(other.status).toBe(200);
+    expect((await other.json()).handoff).toBeTruthy();
+    const visitors = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent' AND visitor_identity NOT LIKE 'cap:%'")).rows;
+    expect(visitors).toHaveLength(2);
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
     if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
     else process.env.GIA_TRUSTED_PROXY = prevTrust;

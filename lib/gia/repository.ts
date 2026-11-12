@@ -25,7 +25,7 @@ type Tx = {
   consent(c: Candidate, notice: string): Promise<void>;
   optOut(c: Candidate): Promise<void>;
   handoff(c: Candidate, reason: string, learning?: HandoffLearning, extras?: HandoffExtras): Promise<postgres.Row>;
-  handoffVisitor(input: { reason: string; program: string; consented: false }): Promise<postgres.Row>;
+  handoffVisitor(input: { reason: string; program: string; consented: false; identity?: string }): Promise<postgres.Row>;
   book(c: Candidate, sessionId: string): Promise<postgres.Row>;
   listSessions(): Promise<postgres.Row[]>;
   findOpenBooking(c: Candidate): Promise<{ id: string; session_id: string } | undefined>;
@@ -105,11 +105,12 @@ export const repository = {
           const [h] = inserted.length ? inserted : await t`SELECT id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity,resolution,gia_could_answer,general_answer FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${allowed} AND state IN ('open','acknowledged')`;
           return h;
         },
-        async handoffVisitor(input: { reason: string; program: string; consented: false }) {
+        async handoffVisitor(input: { reason: string; program: string; consented: false; identity?: string }) {
           const allowed = (HANDOFF_REASONS as readonly string[]).includes(input.reason) ? input.reason : 'urgent';
           const program = input.program || null;
-          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,resolution,gia_could_answer,general_answer,consented,program,visitor_identity) VALUES(${null},${allowed},'urgent',${null},${false},${null},${false},${program},${identity}) ON CONFLICT (visitor_identity, reason) WHERE state IN ('open','acknowledged') AND visitor_identity IS NOT NULL AND consented = false DO NOTHING RETURNING id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity`;
-          const [h] = inserted.length ? inserted : await t`SELECT id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity FROM candidate_handoffs WHERE visitor_identity=${identity} AND reason=${allowed} AND state IN ('open','acknowledged')`;
+          const visitor = input.identity || identity;
+          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,urgency,resolution,gia_could_answer,general_answer,consented,program,visitor_identity) VALUES(${null},${allowed},'urgent',${null},${false},${null},${false},${program},${visitor}) ON CONFLICT (visitor_identity, reason) WHERE state IN ('open','acknowledged') AND visitor_identity IS NOT NULL AND consented = false DO NOTHING RETURNING id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity`;
+          const [h] = inserted.length ? inserted : await t`SELECT id,candidate_id,due_at,created_at,reason,urgency,consented,program,visitor_identity FROM candidate_handoffs WHERE visitor_identity=${visitor} AND reason=${allowed} AND state IN ('open','acknowledged')`;
           return h;
         },
         async book(c: Candidate, sessionId: string) {

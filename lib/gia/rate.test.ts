@@ -28,11 +28,11 @@ describe('GIA rate key normalization', () => {
     delete process.env.GIA_TRUST_CF_CONNECTING_IP;
     delete process.env.GIA_TRUST_FORWARDED_FOR;
     const spoof = { headers: { get: (n: string) => n === 'x-forwarded-for' ? '198.51.100.8' : n === 'x-real-ip' ? '203.0.113.8' : null } };
-    expect(clientIpFromRequest(spoof)).toBe('direct');
+    expect(clientIpFromRequest(spoof)).toBe('');
     process.env.GIA_TRUSTED_PROXY = 'cloudflare';
     const cf = { headers: { get: (n: string) => n === 'cf-connecting-ip' ? '2001:db8:abcd:0012:ffff::1' : n === 'x-forwarded-for' ? '198.51.100.8' : null } };
     expect(clientIpFromRequest(cf)).toBe('2001:0db8:abcd:0012::');
-    process.env.GIA_TRUSTED_PROXY = 'forwarded';
+    process.env.GIA_TRUSTED_PROXY = 'vercel';
     expect(clientIpFromRequest(spoof)).toBe('198.51.100.8');
     if (prev == null) delete process.env.GIA_TRUSTED_PROXY;
     else process.env.GIA_TRUSTED_PROXY = prev;
