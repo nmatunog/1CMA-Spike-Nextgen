@@ -54,7 +54,7 @@ export function looksLikeContact(value: string) {
 }
 
 function codeTokens(normalized: string) {
-  return normalized.match(/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*/g) || [];
+  return normalized.match(/[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*/g) || [];
 }
 
 function isKnowledgeCitation(token: string) {
@@ -62,29 +62,63 @@ function isKnowledgeCitation(token: string) {
 }
 
 function compactAlnum(token: string) {
-  return token.replace(/-/g, '');
+  return token.replace(/[-_]/g, '');
 }
 
-/** Mixed letter+digit token of 6+ chars (dashes allowed). Citations like KP-LIT-01 stay allowed. */
+function looksLikeCodePayload(compact: string) {
+  if (compact.length < 6) return false;
+  if (/[A-Za-z]/.test(compact) && /\d/.test(compact)) return true;
+  if (/[A-Z]/.test(compact) && compact === compact.toUpperCase()) return true;
+  if (/^[0-9a-f]+$/i.test(compact)) return true;
+  if (!/[aeiou]/i.test(compact)) return true;
+  return false;
+}
+
+function joinSeparatedGroups(value: string) {
+  const groups = value.match(/[A-Za-z0-9]+/g) || [];
+  return groups.join('');
+}
+
+/** Mixed letter+digit token of 6+ chars (dashes/underscores allowed). Citations like KP-LIT-01 stay allowed. */
 function hasMixedCodeToken(normalized: string) {
-  return codeTokens(normalized).some(token => {
+  if (codeTokens(normalized).some(token => {
     if (isKnowledgeCitation(token)) return false;
     const compact = compactAlnum(token);
     return compact.length >= 6 && /[A-Za-z]/.test(compact) && /\d/.test(compact);
-  });
+  })) return true;
+  const split = normalized.match(/[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*\d[A-Za-z0-9]*(?:[\s\-_][A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*\d[A-Za-z0-9]*)+/);
+  if (!split) return false;
+  const compact = joinSeparatedGroups(split[0]);
+  return compact.length >= 6 && !isKnowledgeCitation(split[0].replace(/\s+/g, ''));
 }
 
-/** "code" / "kodigo" / "kode" near a 6+ alphanumeric token (all-caps or mixed). */
+function joinedGroupsAfterCue(rest: string) {
+  let s = rest.replace(/^[\s:_-]+/, '').replace(/^(?:is|kay)\s+/i, '');
+  const groups: string[] = [];
+  while (s.length) {
+    const group = s.match(/^[A-Za-z0-9]+/);
+    if (!group) break;
+    groups.push(group[0]);
+    s = s.slice(group[0].length);
+    const sep = s.match(/^[\s\-_]+/);
+    if (sep) s = s.slice(sep[0].length);
+    else break;
+  }
+  return groups.join('');
+}
+
+/** "code" / "kodigo" / "kode": join the alphanumeric groups that follow (spaces, dashes, underscores). */
 function codeWordNearToken(normalized: string) {
   const word = /\b(?:code|codes|kodigo|kode)\b/gi;
   let match: RegExpExecArray | null;
   while ((match = word.exec(normalized))) {
+    const compact = joinedGroupsAfterCue(normalized.slice(match.index + match[0].length));
+    if (looksLikeCodePayload(compact)) return true;
     const window = normalized.slice(Math.max(0, match.index - 32), Math.min(normalized.length, match.index + match[0].length + 40));
     for (const token of codeTokens(window)) {
       if (token.toLowerCase() === match[0].toLowerCase() || isKnowledgeCitation(token)) continue;
-      const compact = compactAlnum(token);
-      if (compact.length < 6) continue;
-      if (/\d/.test(compact) || compact === compact.toUpperCase()) return true;
+      const tokenCompact = compactAlnum(token);
+      if (looksLikeCodePayload(tokenCompact)) return true;
     }
   }
   return false;

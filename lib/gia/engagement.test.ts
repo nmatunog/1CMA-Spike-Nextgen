@@ -145,6 +145,30 @@ describe('GIA engagement adapter contract', () => {
     expect(looksLikeSecretToken('KP-LIT-01')).toBe(false);
   });
 
+  it('redacts spaced, lowercase, and underscore-grouped codes after a code cue', () => {
+    for (const probe of [
+      'my code is A3 F9 C1',
+      'A3F9 C1',
+      'code: KQXM ZPRT',
+      'code: kqxmzprt',
+      'code: deadbeef',
+      'K7QX_MZ2P_RT8W',
+    ]) {
+      expect(looksLikeSecretToken(probe)).toBe(true);
+      expect(storeableMessageText(probe, 'answer', null)).toBeNull();
+    }
+    expect(storeableMessageText('what is financial literacy', 'answer', null)).toBe('what is financial literacy');
+    expect(storeableMessageText('what is FEP', 'answer', null)).toBe('what is FEP');
+    expect(storeableMessageText('the SPIKE Method', 'answer', null)).toBe('the SPIKE Method');
+    expect(storeableMessageText('L2 is handled by a leader', 'answer', null)).toBe('L2 is handled by a leader');
+    expect(storeableMessageText('FEP dates in 2026', 'answer', null)).toBe('FEP dates in 2026');
+    expect(storeableMessageText('meet at GIYA Institute', 'answer', null)).toBe('meet at GIYA Institute');
+    expect(storeableMessageText('Nov 16-20', 'answer', null)).toBe('Nov 16-20');
+    expect(storeableMessageText('I have 2 questions', 'answer', null)).toBe('I have 2 questions');
+    expect(storeableMessageText('Talk to a 1CMA Leader', 'request_leader', null)).toBe('Talk to a 1CMA Leader');
+    expect(storeableMessageText('when is the next FEP', 'answer', null)).toBe('when is the next FEP');
+  });
+
   it('treats a mismatched candidateId as out of scope', () => {
     expect(callerOwnsCandidate('aaa', 'aaa')).toBe(true);
     expect(callerOwnsCandidate('aaa', undefined)).toBe(true);
