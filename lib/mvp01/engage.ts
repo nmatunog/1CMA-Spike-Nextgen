@@ -53,15 +53,88 @@ export function looksLikeContact(value: string) {
   return !!(phone && isValidPhone(phone));
 }
 
+function codeTokens(normalized: string) {
+  return normalized.match(/[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*/g) || [];
+}
+
+function isKnowledgeCitation(token: string) {
+  return /^KP-[A-Z]{2,5}-\d{1,3}$/i.test(token);
+}
+
+function compactAlnum(token: string) {
+  return token.replace(/[-_]/g, '');
+}
+
+function looksLikeCodePayload(compact: string) {
+  if (compact.length < 6) return false;
+  if (/[A-Za-z]/.test(compact) && /\d/.test(compact)) return true;
+  if (/[A-Z]/.test(compact) && compact === compact.toUpperCase()) return true;
+  if (/^[0-9a-f]+$/i.test(compact)) return true;
+  if (!/[aeiou]/i.test(compact)) return true;
+  return false;
+}
+
+function joinSeparatedGroups(value: string) {
+  const groups = value.match(/[A-Za-z0-9]+/g) || [];
+  return groups.join('');
+}
+
+/** Mixed letter+digit token of 6+ chars (dashes/underscores allowed). Citations like KP-LIT-01 stay allowed. */
+function hasMixedCodeToken(normalized: string) {
+  if (codeTokens(normalized).some(token => {
+    if (isKnowledgeCitation(token)) return false;
+    const compact = compactAlnum(token);
+    return compact.length >= 6 && /[A-Za-z]/.test(compact) && /\d/.test(compact);
+  })) return true;
+  const split = normalized.match(/[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*\d[A-Za-z0-9]*(?:[\s\-_][A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*\d[A-Za-z0-9]*)+/);
+  if (!split) return false;
+  const compact = joinSeparatedGroups(split[0]);
+  return compact.length >= 6 && !isKnowledgeCitation(split[0].replace(/\s+/g, ''));
+}
+
+function joinedGroupsAfterCue(rest: string) {
+  let s = rest.replace(/^[\s:_-]+/, '').replace(/^(?:is|kay)\s+/i, '');
+  const groups: string[] = [];
+  while (s.length) {
+    const group = s.match(/^[A-Za-z0-9]+/);
+    if (!group) break;
+    groups.push(group[0]);
+    s = s.slice(group[0].length);
+    const sep = s.match(/^[\s\-_]+/);
+    if (sep) s = s.slice(sep[0].length);
+    else break;
+  }
+  return groups.join('');
+}
+
+/** "code" / "kodigo" / "kode": join the alphanumeric groups that follow (spaces, dashes, underscores). */
+function codeWordNearToken(normalized: string) {
+  const word = /\b(?:code|codes|kodigo|kode)\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = word.exec(normalized))) {
+    const compact = joinedGroupsAfterCue(normalized.slice(match.index + match[0].length));
+    if (looksLikeCodePayload(compact)) return true;
+    const window = normalized.slice(Math.max(0, match.index - 32), Math.min(normalized.length, match.index + match[0].length + 40));
+    for (const token of codeTokens(window)) {
+      if (token.toLowerCase() === match[0].toLowerCase() || isKnowledgeCitation(token)) continue;
+      const tokenCompact = compactAlnum(token);
+      if (looksLikeCodePayload(tokenCompact)) return true;
+    }
+  }
+  return false;
+}
+
 /** OTP (4+ digit runs) and access-code shaped tokens. Citations like KP-LIT-01 stay allowed. */
 export function looksLikeSecretToken(value: string) {
   const normalized = normalizeForSecretCheck(value);
-  if (/\d{4,}/.test(normalized)) return true;
+  const withoutYears = normalized.replace(/\b(?:19|20)\d{2}\b/g, ' ');
+  if (/\d{4,}/.test(withoutYears)) return true;
   if (/\b(otp|passcode|one[ -]?time|access[_\s-]?code|activation[_\s-]?code)\b/i.test(normalized)) return true;
   if (/\b(?:FREE|PRO)[-_][A-Z0-9]{4,}\b/i.test(normalized)) return true;
-  if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(normalized)) return true;
+  if (/\b[A-Z]{1,3}[-_][A-Z0-9]*\d{4,}[A-Z0-9]*\b/i.test(withoutYears)) return true;
   // Spaced/dashed 6-digit OTPs: "12 34 56", "123 456", "1 2 3 4 5 6". Dates like "12 2026" stay allowed.
-  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(normalized) || /\b\d{3}[\s.-]\d{3}\b/.test(normalized) || /\b(?:\d[\s.-]){5}\d\b/.test(normalized)) return true;
+  if (/\b(?:\d{2}[\s.-]){2}\d{2}\b/.test(withoutYears) || /\b\d{3}[\s.-]\d{3}\b/.test(withoutYears) || /\b(?:\d[\s.-]){5}\d\b/.test(withoutYears)) return true;
+  if (hasMixedCodeToken(normalized) || codeWordNearToken(normalized)) return true;
   return false;
 }
 

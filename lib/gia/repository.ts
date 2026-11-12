@@ -2,7 +2,7 @@ import postgres from 'postgres';
 import { applyCandidateStop, identityIsSuppressed } from '@/lib/recruitment/suppression';
 import { g1MayEmit, sanitizeEngagementMetadata } from './engagement.mjs';
 import { HANDOFF_REASONS } from './workflow.mjs';
-import { recordGiaVisitorEngagementOn } from '@/lib/mvp01/engage';
+import { recordGiaVisitorEngagementOn, storeableMessageText } from '@/lib/mvp01/engage';
 import type { GiaEngagementKind } from '@/lib/mvp01/interfaces';
 import {
   generateOtpCode, hashClientKey, hashDestination, hashOtp, hashOtpThrottleKey, isOtpDev,
@@ -14,6 +14,7 @@ type Candidate = { id: string; stage: string; consented?: boolean; email?: strin
 type Citation = { id: string; version: string; source: string };
 type TurnMeta = { action: string; intent?: string | null; reason?: string | null; citation?: Citation | null; outcome: string };
 type OtpVerifyResult = { ok: boolean; locked: boolean };
+type HandoffLearning = { resolution?: string | null; giaCouldAnswer?: boolean; generalAnswer?: string | null };
 type Tx = {
   audit(c: Candidate, metadata: object): Promise<void>;
   suppressed(): Promise<boolean>;
@@ -22,7 +23,7 @@ type Tx = {
   createCandidate(input: { name: string; email: string }): Promise<Candidate>;
   consent(c: Candidate, notice: string): Promise<void>;
   optOut(c: Candidate): Promise<void>;
-  handoff(c: Candidate, reason: string): Promise<postgres.Row>;
+  handoff(c: Candidate, reason: string, learning?: HandoffLearning): Promise<postgres.Row>;
   book(c: Candidate, sessionId: string): Promise<postgres.Row>;
   listSessions(): Promise<postgres.Row[]>;
   findOpenBooking(c: Candidate): Promise<{ id: string; session_id: string } | undefined>;
@@ -80,11 +81,18 @@ export const repository = {
         async optOut(c: Candidate) {
           await applyCandidateStop(t, { candidateId: c.id, actor: 'gia', currentStage: c.stage, extraIdentities: [identity] });
         },
-        async handoff(c: Candidate, reason: string) {
+        async handoff(c: Candidate, reason: string, learning: HandoffLearning = {}) {
           const allowed = (HANDOFF_REASONS as readonly string[]).includes(reason) ? reason : 'unapproved_or_unknown';
-          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason) VALUES(${c.id},${allowed}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at`;
-          if (inserted.length) await event(c.id, 'handoff.created', { reason: allowed });
-          const [h] = inserted.length ? inserted : await t`SELECT id,due_at FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${allowed} AND state IN ('open','acknowledged')`;
+          const giaCouldAnswer = learning.giaCouldAnswer === true;
+          const generalAnswer = typeof learning.generalAnswer === 'string'
+            ? storeableMessageText(learning.generalAnswer, null, allowed)
+            : null;
+          const resolution = typeof learning.resolution === 'string'
+            ? (storeableMessageText(learning.resolution, null, allowed) ?? '')
+            : '';
+          const inserted = await t`INSERT INTO candidate_handoffs(candidate_id,reason,resolution,gia_could_answer,general_answer) VALUES(${c.id},${allowed},${resolution || null},${giaCouldAnswer},${generalAnswer}) ON CONFLICT (candidate_id,reason) WHERE state IN ('open','acknowledged') DO NOTHING RETURNING id,due_at,resolution,gia_could_answer,general_answer`;
+          if (inserted.length) await event(c.id, 'handoff.created', { reason: allowed, gia_could_answer: giaCouldAnswer });
+          const [h] = inserted.length ? inserted : await t`SELECT id,due_at,resolution,gia_could_answer,general_answer FROM candidate_handoffs WHERE candidate_id=${c.id} AND reason=${allowed} AND state IN ('open','acknowledged')`;
           return h;
         },
         async book(c: Candidate, sessionId: string) {

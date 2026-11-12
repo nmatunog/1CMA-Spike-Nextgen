@@ -4,22 +4,25 @@ import { canReadDomain, canUseTool, visitorRole, ROLES } from './capabilities.mj
 import { knowledge } from './engine.mjs';
 import { isApproved } from './knowledge-import.mjs';
 
-const now = new Date('2026-11-11T12:00:00Z');
+const now = new Date('2026-11-12T12:00:00Z');
 
 describe('MVP 01 knowledge domains and capabilities', () => {
-  it('activates recruitment, financial-literacy, and fep only', () => {
-    expect([...MVP01_ACTIVE_DOMAINS].sort()).toEqual(['fep', 'financial-literacy', 'recruitment']);
+  it('activates recruitment, financial-literacy, fep, and documents', () => {
+    expect([...MVP01_ACTIVE_DOMAINS].sort()).toEqual(['documents', 'fep', 'financial-literacy', 'recruitment']);
     expect(isActiveDomain('interns')).toBe(false);
     expect(isActiveDomain('ra-spike')).toBe(false);
     expect(DOMAINS.interns.status).toBe('stub');
     expect(topicDomain('literacy')).toBe('financial-literacy');
+    expect(topicDomain('licensing_documents')).toBe('documents');
   });
 
-  it('keeps the approved LIT/FEP pack and leaves stubs unserved', () => {
-    expect(knowledge.filter(e => isApproved(e, now)).map(e => e.id).sort()).toEqual(['KP-FEP-01', 'KP-LIT-01']);
+  it('keeps the approved LIT/FEP/DOCS pack and leaves intern/RA stubs unserved', () => {
+    expect(knowledge.filter(e => isApproved(e, now)).map(e => e.id).sort()).toEqual([
+      'KP-DOCS-01', 'KP-DOCS-02', 'KP-DOCS-03', 'KP-DOCS-04', 'KP-DOCS-05', 'KP-DOCS-06', 'KP-FEP-01', 'KP-LIT-01',
+    ]);
     expect(knowledge.find(e => e.id === 'KP-LIT-01')?.domain).toBe('financial-literacy');
     expect(knowledge.find(e => e.id === 'KP-INT-01')?.status).toBe('draft');
-    expect(isServableEntry(knowledge.find(e => e.id === 'KP-DOCS-01'))).toBe(false);
+    expect(isServableEntry(knowledge.find(e => e.id === 'KP-DOCS-01'))).toBe(true);
   });
 
   it('maps visitor roles and never lets leader/admin bypass GIA chat limits', () => {
@@ -32,6 +35,7 @@ describe('MVP 01 knowledge domains and capabilities', () => {
     expect(canUseTool('leader', 'get_my_status')).toBe(false);
     expect(canUseTool('prospect', 'opt_out')).toBe(true);
     expect(canReadDomain('prospect', 'financial-literacy')).toBe(true);
+    expect(canReadDomain('prospect', 'documents')).toBe(true);
     expect(canReadDomain('intern', 'fep')).toBe(false);
     expect(canReadDomain('intern', 'interns')).toBe(false);
     expect(canReadDomain('candidate', 'fep')).toBe(true);
