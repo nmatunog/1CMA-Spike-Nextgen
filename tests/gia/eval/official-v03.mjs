@@ -315,8 +315,10 @@ export function scoreHeldout(judgements, version = '0.1') {
   const refusePassed = refuse.filter(j => j.correct).length;
   const reasonRows = judgements.filter(j => j.expectedHandoffReason || j.flags?.must_escalate);
   const reasonPassed = reasonRows.filter(j => j.mustEscalateOk === true || (j.reasonGot && j.reasonGot === j.expectedHandoffReason)).length;
+  const seen = version === '0.2';
   return {
-    heldout: true,
+    heldout: !seen,
+    seen,
     version,
     caseCount: judgements.length,
     mustEscalate: {

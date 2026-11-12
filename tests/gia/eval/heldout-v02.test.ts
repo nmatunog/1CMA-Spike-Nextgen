@@ -39,7 +39,7 @@ function failClosed(judgements: Array<{ correct: boolean; untraceable?: boolean;
   })).toBe(true);
 }
 
-describe('held-out GIA paraphrase set v0.2', () => {
+describe('seen (non-held-out) GIA paraphrase set v0.2', () => {
   beforeAll(async () => {
     process.env.GIA_SESSION_SECRET = 'h'.repeat(32);
     process.env.GIA_OTP_DEV = 'true';
@@ -89,13 +89,16 @@ describe('held-out GIA paraphrase set v0.2', () => {
     const summary = scoreHeldout(first.judgements, '0.2');
     await mkdir('work', { recursive: true });
     await writeFile('work/gia-heldout-v0.2-results.json', JSON.stringify({
-      heldout: true,
+      heldout: false,
+      seen: true,
       version: '0.2',
       determinismRuns: 3,
       summary,
     }, null, 2));
     expect(summary.caseCount).toBe(cases.length);
     expect(summary.version).toBe('0.2');
+    expect(summary.heldout).toBe(false);
+    expect(summary.seen).toBe(true);
     expect(first.prints).toHaveLength(cases.length);
     failClosed(first.judgements);
   });

@@ -97,4 +97,6 @@ Adds the remaining owner-approved GIA contract on top of PR #6 without replacing
 
 Unconsented crisis rows have no assigned leader and no contact details. They appear on the Command Center handoff queue for **admins only**, labeled **Unassigned**. Leaders do not see them (they are not routed to an individual). The panel shows an 8-character visitor hash, never the full session identity. Rate limits use hashed IP buckets in `gia_rate_windows` (IPv6 masked to /64). Defaults: `GIA_RATE_LIMIT_IP_MAX=60` / minute, `GIA_RATE_LIMIT_GLOBAL_MAX=300` / minute, `GIA_URGENT_UNCONSENTED_IP_MAX=3` / hour (`GIA_RATE_LIMIT_IP_WINDOW_MS`, `GIA_RATE_LIMIT_GLOBAL_WINDOW_MS`, `GIA_URGENT_UNCONSENTED_WINDOW_MS`). Crisis replies still serve KP-SAFETY-01 when a limit is hit; only the extra queue row is skipped. No paid limiter.
 
+Held-out v0.2 was used while tuning matchers, so it is **seen** (frozen, still scored, not a true held-out). Official eval remains v0.3.
+
 Owner decisions still open: KP-SAFETY-01 v0.2 mobile hotlines, and unconsented “reach out” wording. Do not change the approved safety text until Nilo approves it.

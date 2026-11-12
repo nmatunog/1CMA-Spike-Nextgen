@@ -134,8 +134,8 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
     expect(respond('Is there a guaranteed paycheck?', 'en', knowledge, docsNow).reason).toBe('compensation');
     expect(respond('Which insurance plan should a family buy?', 'en', knowledge, docsNow).reason).toBe('product_inquiry');
     expect(respond('Help me choose a product for a relative', 'en', knowledge, docsNow).reason).toBe('product_inquiry');
-    expect(respond('What was my evaluation result?', 'en', knowledge, docsNow).reason).toBe('status_detail');
-    expect(respond('Did the evaluation pass or fail?', 'en', knowledge, docsNow).reason).toBe('status_detail');
+    expect(respond('Did I pass the evaluation?', 'en', knowledge, docsNow).reason).toBe('status_detail');
+    expect(respond('Tell me if I failed the evaluation', 'en', knowledge, docsNow).reason).toBe('status_detail');
   });
   it('serves approved KP-DOCS-01 for the iRecruit checklist after 2026-11-12', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
