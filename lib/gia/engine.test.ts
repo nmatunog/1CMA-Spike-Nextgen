@@ -41,6 +41,13 @@ describe('approved knowledge and language boundaries', () => {
     expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).reason).toBe('refund');
     expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).intent).toBe('request_leader');
   });
+  it('does not treat stop by / stop over as opt-out', () => {
+    expect(respond('Can I stop by the office tomorrow?').intent).not.toBe('opt_out');
+    expect(respond('I will stop by on Saturday').intent).not.toBe('opt_out');
+    expect(respond('Pwede ba ako mag stop by sa office?').intent).not.toBe('opt_out');
+    expect(respond('STOP').intent).toBe('opt_out');
+    expect(respond('stop messaging me').intent).toBe('opt_out');
+  });
   it('serves the translated approved answer after explicit request', () => { const lang = respond('Bisaya').language; expect(respond('FEP',lang,pack,now).text).toContain('Libre'); });
   const sample = pack[0];
   if (!sample) throw new Error('shipping pack is empty');
