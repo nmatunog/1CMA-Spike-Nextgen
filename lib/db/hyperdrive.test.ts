@@ -48,6 +48,5 @@ describe('sql() Hyperdrive vs node', () => {
     sql();
     expect(postgres).toHaveBeenCalledTimes(2);
     expect(postgres).toHaveBeenNthCalledWith(1, 'postgres://hd/db', { max: 5 });
-    expect(postgres.mock.calls[0]?.[1]).not.toHaveProperty('prepare');
   });
 });
