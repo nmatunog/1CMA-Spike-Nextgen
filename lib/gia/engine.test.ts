@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { respond, knowledge, approved, welcome, isCrisis } from './engine.mjs';
 import { staffRole, canAccess } from './access.mjs';
+import { visitorSafeHref } from './visitor-hrefs';
 const now = new Date('2026-11-04T12:00:00Z');
 // Exercise the real owner-approved pack at its effective date.
 const pack = knowledge;
@@ -186,6 +187,7 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
       expect(r.text, q).not.toMatch(/https?:\/\/\S*irecruit/i);
       expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best/i);
       expect(urlsIn(r.text)).toEqual([]);
+      expect(visitorSafeHref(r.citation?.source), q).toBeNull();
     }
     expect(respond('What happens after FEP?', 'en', knowledge, recNow).intent).not.toBe('answer');
   });

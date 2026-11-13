@@ -28,10 +28,7 @@ export function AboutAiaCareer() {
           <h3>{section.title}</h3>
           <p>{section.body}</p>
           <p className={styles.aboutSource}>
-            Source: AIA Philippines, as of {AIA_SOURCE_AS_OF}.{' '}
-            <a href={section.sourceUrl} rel="noopener noreferrer">
-              {section.sourceLabel}
-            </a>
+            Source: AIA Philippines, as of {AIA_SOURCE_AS_OF}. {section.sourceLabel}
           </p>
         </article>
       ))}

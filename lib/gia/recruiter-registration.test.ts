@@ -147,6 +147,7 @@ describe('AIA registration details card', () => {
     expect(about).toContain('Based on AIA Philippines');
     expect(about).not.toMatch(/awaiting Nilo|Not downloaded|no embed|no hotlink|70 vs 80|year count/);
     expect(about).toContain('section.sourceLabel');
+    expect(about).not.toMatch(/<a\b|sourceUrl/);
     expect(JSON.stringify(AIA_CAREER_SECTIONS)).not.toMatch(/70 vs 80|year count/);
   });
 });

@@ -13,6 +13,7 @@ import {
   recruiterWithYouLine,
   type RecruiterCta,
 } from '@/lib/gia/recruiter-registration';
+import { visitorSafeHref } from '@/lib/gia/visitor-hrefs';
 import styles from './register-with-recruiter.module.css';
 
 async function copyText(value: string) {
@@ -41,6 +42,7 @@ export function RegisterWithRecruiter({
   const rows = detailsForAiaRegistration(contact);
   const [copied, setCopied] = useState<string | null>(null);
   const withYou = cta.kind === 'cta' ? recruiterWithYouLine(cta.name) : null;
+  const ctaHref = cta.kind === 'cta' ? visitorSafeHref(cta.url) : null;
   if (cta.kind === 'hidden') return null;
 
   async function onCopy(id: string, value: string) {
@@ -51,14 +53,14 @@ export function RegisterWithRecruiter({
 
   return (
     <section className={styles.wrap} aria-label={RECRUITER_CTA_LABEL} data-does-not-complete-registration="true">
-      {cta.kind === 'waiting' ? (
-        <p className={styles.waiting}>{cta.label}</p>
+      {cta.kind === 'waiting' || !ctaHref ? (
+        <p className={styles.waiting}>{cta.kind === 'waiting' ? cta.label : RECRUITER_CTA_LABEL}</p>
       ) : (
         <div className={styles.ctaBlock}>
           {withYou ? <p className={styles.with}>{withYou}</p> : null}
           <a
             className={styles.cta}
-            href={cta.url}
+            href={ctaHref}
             target="_blank"
             rel="noopener noreferrer"
           >

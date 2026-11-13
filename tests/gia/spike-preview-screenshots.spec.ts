@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { AIA_JOIN_ASK } from '../../lib/gia/path-picker';
 import { SYNTHETIC_CONSENT_CONTACT } from '../../lib/gia/aia-registration-details';
@@ -6,6 +6,11 @@ import {
   RECRUITER_CTA_LABEL,
   SYNTHETIC_RECRUITER_DISPLAY_NAME,
 } from '../../lib/gia/recruiter-registration';
+import { blockedVisitorHrefs } from '../../lib/gia/visitor-hrefs';
+
+async function hrefsIn(scope: Page | Locator) {
+  return scope.locator('a[href]').evaluateAll((els) => els.map((el) => el.getAttribute('href') || ''));
+}
 
 const DIR = 'docs/screenshots/spike-preview';
 const AIA_TEXT =
@@ -29,6 +34,7 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     if (width === 1440) expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(height);
     else expect(box?.y ?? 0).toBeLessThan(height);
     await page.screenshot({ path: `${DIR}/landing-${width}.png` });
+    expect(blockedVisitorHrefs(await hrefsIn(page))).toEqual([]);
 
     await page.getByRole('button', { name: 'AIA advisor path' }).click();
     await expect(page.getByText(/Find your path · 2 of 3/)).toBeVisible();
@@ -46,6 +52,8 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await expect(page.getByText(/Based on AIA Philippines/)).toBeVisible();
     await expect(page.getByText('Photo coming soon').first()).toBeVisible();
     await expect(page.getByText(/AIA Philippines public overview \(reference\)/).first()).toBeVisible();
+    await expect(page.locator('#about-aia a[href]')).toHaveCount(0);
+    expect(blockedVisitorHrefs(await hrefsIn(page))).toEqual([]);
     await page.screenshot({ path: `${DIR}/about-aia-${width}.png` });
 
     await page.route('**/api/gia', async (route) => {
@@ -96,7 +104,11 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await dock.getByLabel('GIA is typing').scrollIntoViewIfNeeded();
     await dock.screenshot({ path: `${DIR}/gia-typing-${width}.png` });
     await expect(dock.getByText(/attributed link/)).toBeVisible({ timeout: 8_000 });
+    await expect(dock.getByText('KP-REC-01 · v0.3')).toBeVisible();
+    await expect(dock.getByRole('link', { name: /KP-REC-01/ })).toHaveCount(0);
     await expect(dock.getByText(/join-us-now|partner-with-the-best/)).toHaveCount(0);
+    expect(blockedVisitorHrefs(await hrefsIn(dock))).toEqual([]);
+    expect(blockedVisitorHrefs(await hrefsIn(page))).toEqual([]);
     const jump = dock.getByRole('button', { name: /New message/ });
     if (await jump.isVisible().catch(() => false)) await jump.click();
     await dock.getByText(/attributed link/).scrollIntoViewIfNeeded();
@@ -128,6 +140,7 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await page.getByRole('button', { name: 'Close GIA' }).click();
     await page.locator('#journey-block').evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await expect(page.getByRole('link', { name: RECRUITER_CTA_LABEL })).toBeVisible();
+    expect(blockedVisitorHrefs(await hrefsIn(page))).toEqual([]);
     await expect(page.getByText(`Your recruiter, ${SYNTHETIC_RECRUITER_DISPLAY_NAME}, will be with you on AIA's form`)).toBeVisible();
     await expect(page.getByText("This opens AIA's official registration with your recruiter.")).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Your details for AIA registration' })).toBeVisible();

@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { welcome, NOTICE } from '@/lib/gia/engine.mjs';
+import { GiaCitation } from '@/components/gia/GiaCitation';
 import { RegisterWithRecruiter } from '@/components/gia/RegisterWithRecruiter';
 import { AIA_CAREER_CHIPS, AIA_LEVELUP_ASK } from '@/lib/gia/path-picker';
 import type { ConsentedContact } from '@/lib/gia/aia-registration-details';
 import { resolveRecruiterCta, type RecruiterRegistration } from '@/lib/gia/recruiter-registration';
+import { visitorSafeHref } from '@/lib/gia/visitor-hrefs';
 import { prefersReducedMotion, typingDelayMs } from '@/lib/gia/typing';
 import {
   GIA_CONSENT_CHECKBOX,
@@ -284,9 +286,7 @@ export function GiaChat({
                     <GiaText text={t.text} />
                     {t.citation && (
                       <p>
-                        <a href={t.citation.source}>
-                          {t.citation.id} · v{t.citation.version}
-                        </a>
+                        <GiaCitation citation={t.citation} />
                       </p>
                     )}
                   </div>
@@ -471,15 +471,16 @@ function GiaText({ text }: { text: string }) {
   const parts = text.split(/(https:\/\/[^\s]+)/g);
   return (
     <p>
-      {parts.map((part, i) =>
-        part.startsWith('https://') ? (
-          <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+      {parts.map((part, i) => {
+        const href = part.startsWith('https://') ? visitorSafeHref(part.replace(/[.,)]+$/, '')) : null;
+        return href ? (
+          <a key={i} href={href} target="_blank" rel="noopener noreferrer">
             {part}
           </a>
         ) : (
           <span key={i}>{part}</span>
-        ),
-      )}
+        );
+      })}
     </p>
   );
 }

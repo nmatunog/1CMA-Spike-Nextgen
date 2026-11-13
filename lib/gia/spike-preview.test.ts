@@ -99,6 +99,8 @@ it('maps visitor-goal chips to approved GIA flows without new content claims', (
   expect(chat).toContain('visibleJtbd');
   expect(chat).toContain('AIA_CAREER_CHIPS');
   expect(chat).toContain('RegisterWithRecruiter');
+  expect(chat).toContain('GiaCitation');
+  expect(chat).not.toMatch(/href=\{t\.citation\.source\}/);
   expect(chat).toContain('GIA is typing');
   expect(chat).toContain('Skip wait');
 });
