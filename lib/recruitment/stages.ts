@@ -76,6 +76,10 @@ export const EVENT_KINDS = {
   csvExported: 'csv.exported',
   identityVerified: 'identity.verified',
   manualIntake: 'manual.intake',
+  aiaAttributionConfirmed: 'aia.attribution.confirmed',
+  aiaRegistrationPending: 'aia.registration.pending',
+  aiaRegistrationSubmitted: 'aia.registration.submitted',
+  aiaRegistrationVerified: 'aia.registration.verified',
 } as const;
 
 export const DASHBOARD_METRICS = [

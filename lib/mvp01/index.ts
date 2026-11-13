@@ -23,3 +23,13 @@ export { importVersaLead, giaAssistedIntake } from './stubs';
 export { ingestGiaEngagementEvent, recordGiaVisitorEngagement, recordGiaVisitorEngagementOn, canMessage, looksLikeSecretToken, sanitizeEngagementMetadata } from './engage';
 export { submitEvaluation, loadActiveEvaluationConfig } from './evaluate';
 export { provisionUserAccount, enrollAccount, assignProgramRole } from './accounts';
+export {
+  AIA_ADVISOR_PROGRAM_INTEREST,
+  AIA_EVENT_KINDS,
+  AIA_LEADER_TASK,
+  AIA_PUBLIC_LINKS,
+  applyAiaRegistration,
+  deriveAiaRegistration,
+  isAiaAdvisorPathway,
+  parseAiaRegistrationBody,
+} from './aia-registration';

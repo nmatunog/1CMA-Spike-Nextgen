@@ -1,4 +1,5 @@
 import { canAccess } from '@/lib/gia/access.mjs';
+import { deriveAiaRegistration } from '@/lib/mvp01/aia-model';
 import { applyCandidateStop, assertWritable, identityIsSuppressed, isStopped } from './suppression';
 import { EVENT_KINDS, isEngagementOutcome, isEvaluationNextStep, isLiteracyStatus, isWritableStage, STOP_STAGE } from './stages';
 import { manilaDayBounds, parseManilaDateTimeLocal } from './time';
@@ -404,6 +405,9 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
     channel_prefs[String(pref.channel)] = pref.allowed === true || pref.allowed === 't' || pref.allowed === 'true';
   }
   detail.channel_prefs = channel_prefs;
+  const aia = deriveAiaRegistration(events);
+  detail.aia_registration_status = aia.status;
+  detail.aia_attribution = aia.attribution;
   return { candidate: detail, events, identities };
 }
 

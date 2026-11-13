@@ -115,3 +115,13 @@ True only when not stopped, consent is `granted`, and that channel preference is
 ## Dates
 
 Follow-up due values are Asia/Manila `datetime-local` strings converted with `parseManilaDateTimeLocal` (`UTC+08`, no DST). Overdue = `due_at < now()` and stage not `opt_out` / `disqualified` / `activated`. Dashboard event windows use `manilaDayBounds`.
+
+## Official AIA registration
+
+See `docs/mvp01/aia-registration.md`. Additive `candidate_events` only. No migration.
+
+`POST /api/recruitment/command/aia-registration` with `{ id, action, referralSource?, source? }`.
+
+`action`: `confirm_attribution` | `pending` | `submitted` | `verified`.
+
+AIA advisor path (`program_interest = ra_spike`) after confirmed FEP attendance. Attribution (`assigned_leader` confirmed) must precede any registration handoff. Candidate self-report may only create `pending`. Submitted/verified are staff role-checked writes. Never grants Versa/SPIKE entitlements.
