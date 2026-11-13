@@ -124,4 +124,8 @@ See `docs/mvp01/aia-registration.md`. Additive `candidate_events` only. No migra
 
 `action`: `confirm_attribution` | `pending` | `submitted` | `verified`.
 
-AIA advisor path (`program_interest = ra_spike`) after confirmed FEP attendance. Attribution (`assigned_leader` confirmed) must precede any registration handoff. Candidate self-report may only create `pending`. Submitted/verified are staff role-checked writes. Never grants Versa/SPIKE entitlements.
+AIA advisor path (`program_interest = ra_spike`) after confirmed FEP attendance. Attribution (`assigned_leader` confirmed) must precede any registration handoff. If none is assigned, Command Center falls back to `AIA_DEFAULT_RECRUITER_STAFF_ID` and records `attributionSource = default_recruiter`. Candidate self-report may only create `pending`. Submitted/verified are staff role-checked writes. Never grants Versa/SPIKE entitlements.
+
+Handoff URL (staff env, never committed real values): https origin, host `www.aia.com.ph`, path `/en/financialadvisor/join-us-now`, non-empty `reference`. Bare join-us-now is rejected. Generic public AIA pages are staff reference only — do not send to recruits.
+
+Recruiter-assisted view: `open_assisted` / `copy_field`. Field order is `AIA_ASSISTED_REGISTRATION_FIELDS` in `lib/mvp01/aia-assisted-fields.ts` (G1 #19 must import this list). Consent granted required; STOP hides details; admin or assigned leader only. Read events on the timeline; copy does not change status.

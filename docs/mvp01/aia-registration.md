@@ -14,6 +14,8 @@ flowchart LR
   AIA --> VS[SPIKE Venture Studio]
 ```
 
+If no recruiter is assigned (early registrant), attribution falls back to the configured default recruiter and is recorded as `attributionSource = default_recruiter`. Staff can reassign later.
+
 AIA advisor path only (`program_interest = ra_spike`). Interns and free learners never enter this gate.
 
 States (derived from `candidate_events`, not new `candidates.stage` values):
@@ -25,13 +27,25 @@ States (derived from `candidate_events`, not new `candidates.stage` values):
 
 Leader task after attribution: **Help candidate register via your AIA account / iRecruit**.
 
-Do not auto-mark signup, acceptance, licensing, or agent coding. Do not advance `irecruit_started` / `licensing` / `coded` from this flow. A Versa lead or paid flag never implies AIA registration.
+Handoff uses the assigned recruiter’s attributed registration URL from env/config, or the default recruiter URL (`AIA_DEFAULT_RECRUITER_REGISTRATION_URL`). If neither is configured, the handoff is that leader task only — no link.
 
-## Public link inventory (docs only)
+Attributed URL shape (do not commit real `reference` values or agent codes):
 
-These pages are **not** Command Center handoff URLs. Sending a candidate through them would drop recruiter attribution.
+`https://www.aia.com.ph/en/financialadvisor/join-us-now?reference=<base64 JSON {code, name}>`
 
-- https://www.aia.com.ph/en/financialadvisor/partner-with-the-best
-- https://www.aia.com.ph/en/financialadvisor/join-us-now
+A bare `join-us-now` URL (no `reference`) drops recruiter credit and is rejected.
 
-No AIA credentials fields, no iRecruit form links, no scraping, no cloned AIA form, no invented deep links.
+Do not auto-mark signup, acceptance, licensing, or agent coding. Do not advance `irecruit_started` / `licensing` / `coded` from this flow. A Versa lead or paid flag never implies AIA registration. Never log or display the decoded agent code to candidates.
+
+## Staff reference pages (do not send to recruits)
+
+These public pages are **staff reference only**. Do not send them to recruits. They are not Command Center handoff URLs.
+
+- https://www.aia.com.ph/en/financialadvisor/partner-with-the-best — staff reference; do not send to recruits
+- https://www.aia.com.ph/en/financialadvisor/join-us-now — generic Join us; do not send to recruits (forbidden without a recruiter `reference`)
+
+No AIA credentials fields, no scraping, no cloned AIA form, no invented deep links.
+
+## Recruiter-assisted registration view
+
+On the leader task **Help candidate register via your AIA account / iRecruit**, admins and the assigned leader can open a copy-assist view of consented candidate details in AIA form field order (`lib/mvp01/aia-assisted-fields.ts`, shared with G1 #19). Per-field copy buttons are audit-logged as read events (`aia.assisted.opened` / `aia.assisted.copied`). Copying never changes registration status. Details are hidden when consent is withdrawn or STOP is set. Other leaders receive 403 (no IDOR). No automation into AIA.

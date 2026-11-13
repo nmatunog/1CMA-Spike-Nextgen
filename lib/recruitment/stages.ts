@@ -80,6 +80,8 @@ export const EVENT_KINDS = {
   aiaRegistrationPending: 'aia.registration.pending',
   aiaRegistrationSubmitted: 'aia.registration.submitted',
   aiaRegistrationVerified: 'aia.registration.verified',
+  aiaAssistedOpened: 'aia.assisted.opened',
+  aiaAssistedCopied: 'aia.assisted.copied',
 } as const;
 
 export const DASHBOARD_METRICS = [

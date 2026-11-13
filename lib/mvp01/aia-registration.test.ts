@@ -9,9 +9,14 @@ import {
   applyAiaRegistration,
   AIA_EVENT_KINDS,
   AIA_LEADER_TASK,
-  AIA_PUBLIC_LINKS,
+  AIA_STAFF_REFERENCE_PAGES,
+  candidateAiaHandoff,
   deriveAiaRegistration,
 } from './aia-registration';
+function syntheticAiaRegistrationUrl(code = '000000000', name = 'TEST/RECRUITER') {
+  const reference = Buffer.from(JSON.stringify({ code, name }), 'utf8').toString('base64');
+  return `https://www.aia.com.ph/en/financialadvisor/join-us-now?reference=${reference}`;
+}
 import { ingestGiaEngagementEvent, recordGiaVisitorEngagement } from './engage';
 import { enrollAccount, provisionUserAccount, submitEvaluation, loadActiveEvaluationConfig } from './index';
 import type { StaffActor } from '../recruitment/types';
@@ -20,6 +25,9 @@ const state = { db: null as unknown as PGlite };
 const admin: StaffActor = { email: 'admin@example.test', role: 'admin' };
 const leader: StaffActor = { email: 'leader@example.test', role: 'leader' };
 const otherLeader: StaffActor = { email: 'other-leader@example.test', role: 'leader' };
+const defaultRecruiter: StaffActor = { email: 'nilo-default@example.test', role: 'leader' };
+const SYNTHETIC_DEFAULT_URL = syntheticAiaRegistrationUrl('000000000', 'TEST/RECRUITER');
+const SYNTHETIC_LEADER_URL = syntheticAiaRegistrationUrl('000000001', 'TEST/LEADER');
 
 function tag(db: PGlite): Sql {
   const query = async (parts: TemplateStringsArray, ...args: unknown[]) => {
@@ -44,14 +52,43 @@ const BASE_ANSWERS = {
   recommended_next_action: 'leader_conversation',
 };
 
-async function seedAdvisor(name: string, email: string, interest = 'ra_spike') {
+async function seedAdvisor(name: string, email: string, interest = 'ra_spike', consent = false) {
   const sql = tag(state.db);
-  const captured = await captureProspect(sql, admin, { name, email, programInterest: interest });
+  const captured = await captureProspect(sql, admin, {
+    name,
+    email,
+    programInterest: interest,
+    ...(consent ? { consentGranted: true, noticeVersion: 'mvp01-notice-1' } : {}),
+  });
   await saveFollowUp(sql, admin, {
     id: captured.id,
     stage: 'fep_attended',
     assignedLeader: leader.email,
     nextAction: 'Post-FEP review',
+    dueAtProvided: false,
+    resolution: '',
+    generalAnswer: '',
+    giaCouldAnswer: false,
+    resolve: false,
+  });
+  const config = await loadActiveEvaluationConfig(sql);
+  await submitEvaluation(sql, admin, {
+    candidateId: captured.id,
+    configId: config.id,
+    configVersion: config.version,
+    answers: { ...BASE_ANSWERS, program_interest: interest },
+  });
+  return captured.id;
+}
+
+async function seedUnassigned(name: string, email: string, interest = 'ra_spike') {
+  const sql = tag(state.db);
+  const captured = await captureProspect(sql, admin, { name, email, programInterest: interest });
+  await saveFollowUp(sql, admin, {
+    id: captured.id,
+    stage: 'fep_attended',
+    assignedLeader: '',
+    nextAction: 'Unassigned after FEP',
     dueAtProvided: false,
     resolution: '',
     generalAnswer: '',
@@ -74,6 +111,12 @@ describe('Official AIA registration milestone', () => {
       'admin@example.test': 'admin',
       'leader@example.test': 'leader',
       'other-leader@example.test': 'leader',
+      'nilo-default@example.test': 'leader',
+    });
+    process.env.AIA_DEFAULT_RECRUITER_STAFF_ID = defaultRecruiter.email;
+    process.env.AIA_DEFAULT_RECRUITER_REGISTRATION_URL = SYNTHETIC_DEFAULT_URL;
+    process.env.AIA_RECRUITER_REGISTRATION_URLS = JSON.stringify({
+      [leader.email]: SYNTHETIC_LEADER_URL,
     });
     state.db = new PGlite();
     await state.db.exec('CREATE TABLE candidates(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),name text NOT NULL,email text NOT NULL,phone text NOT NULL,score integer NOT NULL,created_at timestamptz DEFAULT now());');
@@ -95,6 +138,8 @@ describe('Official AIA registration milestone', () => {
     });
     expect(confirmed.recruiterEmail).toBe(leader.email);
     expect(confirmed.leaderTask).toBe(AIA_LEADER_TASK);
+    expect(confirmed.attributionSource).toBe('assigned_recruiter');
+    expect(confirmed.registrationUrl).toBe(SYNTHETIC_LEADER_URL);
     const [row] = await q('SELECT assigned_leader, next_action, stage, spike_paid FROM candidates WHERE id=$1', [id]);
     expect(row.assigned_leader).toBe(leader.email);
     expect(row.next_action).toBe(AIA_LEADER_TASK);
@@ -265,20 +310,136 @@ describe('Official AIA registration milestone', () => {
     })).rejects.toThrow(/suppressed/);
   });
 
-  it('documents only the two public AIA pages and does not add a migration', () => {
-    expect([...AIA_PUBLIC_LINKS]).toEqual([
+  it('falls back to the configured default recruiter only on the AIA advisor path and records it', async () => {
+    const sql = tag(state.db);
+    const advisor = await seedUnassigned('Synthetic AIA Default', 'aia-default@example.test');
+    const intern = await seedUnassigned('Synthetic Intern Default', 'aia-intern-default@example.test', 'intern');
+    await expect(applyAiaRegistration(sql, admin, {
+      candidateId: intern, action: 'confirm_attribution', referralSource: 'Should not apply',
+    })).rejects.toThrow(/not_aia_pathway/);
+    expect((await q('SELECT assigned_leader FROM candidates WHERE id=$1', [intern]))[0].assigned_leader).toBeNull();
+    expect(await q("SELECT 1 FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.%'", [intern])).toHaveLength(0);
+    const confirmed = await applyAiaRegistration(sql, admin, {
+      candidateId: advisor, action: 'confirm_attribution',
+    });
+    expect(confirmed.attributionSource).toBe('default_recruiter');
+    expect(confirmed.recruiterEmail).toBe(defaultRecruiter.email);
+    expect(confirmed.registrationUrl).toBe(SYNTHETIC_DEFAULT_URL);
+    const [row] = await q('SELECT assigned_leader FROM candidates WHERE id=$1', [advisor]);
+    expect(row.assigned_leader).toBe(defaultRecruiter.email);
+    const [event] = await q("SELECT metadata::text AS m FROM candidate_events WHERE candidate_id=$1 AND kind=$2", [advisor, AIA_EVENT_KINDS.attributionConfirmed]);
+    expect(String(event.m)).toMatch(/"attributionSource"\s*:\s*"default_recruiter"/);
+    const detail = await getCandidate(sql, admin, advisor);
+    expect(detail?.candidate.aia_attribution?.attributionSource).toBe('default_recruiter');
+    expect(detail?.candidate.aia_registration_url).toBe(SYNTHETIC_DEFAULT_URL);
+  });
+
+  it('lets a candidate click on an unassigned advisor create pending only via default recruiter', async () => {
+    const sql = tag(state.db);
+    const id = await seedUnassigned('Synthetic AIA Click', 'aia-click@example.test');
+    const pending = await applyAiaRegistration(sql, admin, {
+      candidateId: id, action: 'pending', source: 'self_report',
+    });
+    expect(pending.status).toBe('aia_registration_pending');
+    expect(pending.attributionSource).toBe('default_recruiter');
+    expect(pending.registrationUrl).toBe(SYNTHETIC_DEFAULT_URL);
+    const kinds = (await q("SELECT kind FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.%' ORDER BY created_at", [id])).map((row) => row.kind);
+    expect(kinds).toEqual([AIA_EVENT_KINDS.attributionConfirmed, AIA_EVENT_KINDS.pending]);
+    expect(kinds).not.toContain(AIA_EVENT_KINDS.submitted);
+    expect(kinds).not.toContain(AIA_EVENT_KINDS.verified);
+    await expect(applyAiaRegistration(sql, admin, {
+      candidateId: id, action: 'submitted', source: 'self_report',
+    })).rejects.toThrow(/invalid/);
+  });
+
+  it('never emits a generic AIA URL in candidate-facing handoff output', async () => {
+    const sql = tag(state.db);
+    const id = await seedAdvisor('Synthetic AIA Generic', 'aia-generic@example.test');
+    const confirmed = await applyAiaRegistration(sql, admin, {
+      candidateId: id, action: 'confirm_attribution', referralSource: 'Leader intro',
+    });
+    const facing = candidateAiaHandoff({
+      attributed: true,
+      registrationUrl: confirmed.registrationUrl,
+    });
+    expect(facing.registrationUrl).toBe(SYNTHETIC_LEADER_URL);
+    expect(JSON.stringify(facing)).not.toContain('https://www.aia.com.ph/en/financialadvisor/join-us-now"');
+    expect(JSON.stringify(facing)).not.toMatch(/join-us-now(?!\?reference=)/);
+    expect(JSON.stringify(facing)).not.toMatch(/TEST\/LEADER/);
+    const other = await seedAdvisor('Synthetic AIA No URL', 'aia-nolink@example.test');
+    await saveFollowUp(sql, admin, {
+      id: other, stage: 'fep_attended', assignedLeader: otherLeader.email, nextAction: AIA_LEADER_TASK,
+      dueAtProvided: false, resolution: '', generalAnswer: '', giaCouldAnswer: false, resolve: false,
+    });
+    const taskOnly = await applyAiaRegistration(sql, admin, {
+      candidateId: other, action: 'confirm_attribution', referralSource: 'Other leader',
+    });
+    expect(taskOnly.registrationUrl).toBeNull();
+    expect(taskOnly.leaderTask).toBe(AIA_LEADER_TASK);
+  });
+
+  it('shows recruiter-assisted fields only to admin/assigned leader when consent is granted', async () => {
+    const sql = tag(state.db);
+    const unknown = await seedAdvisor('Synthetic AIA Assist Unknown', 'aia-assist-unknown@example.test');
+    await applyAiaRegistration(sql, admin, {
+      candidateId: unknown, action: 'confirm_attribution', referralSource: 'Leader intro',
+    });
+    await expect(applyAiaRegistration(sql, admin, {
+      candidateId: unknown, action: 'open_assisted',
+    })).rejects.toThrow(/consent_required/);
+    expect(await q("SELECT 1 FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.assisted.%'", [unknown])).toHaveLength(0);
+
+    const id = await seedAdvisor('Synthetic Ada Recruiter', 'aia-assist@example.test', 'ra_spike', true);
+    await applyAiaRegistration(sql, admin, {
+      candidateId: id, action: 'confirm_attribution', referralSource: 'Leader intro',
+    });
+    const opened = await applyAiaRegistration(sql, leader, { candidateId: id, action: 'open_assisted' }) as {
+      statusUnchanged: boolean;
+      fields: Array<{ id: string; value: string }>;
+    };
+    expect(opened.statusUnchanged).toBe(true);
+    expect(opened.fields.map((field) => field.id)).toEqual(['first_name', 'last_name', 'email', 'mobile', 'city']);
+    expect(opened.fields[0].value).toBe('Synthetic');
+    expect(JSON.stringify(opened.fields)).not.toMatch(/password|credential|agent code/i);
+    await expect(applyAiaRegistration(sql, otherLeader, {
+      candidateId: id, action: 'open_assisted',
+    })).rejects.toThrow(/forbidden/);
+    const copied = await applyAiaRegistration(sql, leader, {
+      candidateId: id, action: 'copy_field', fieldId: 'email',
+    });
+    expect(copied.statusUnchanged).toBe(true);
+    const [copyEvent] = await q("SELECT metadata::text AS m FROM candidate_events WHERE candidate_id=$1 AND kind=$2", [id, AIA_EVENT_KINDS.assistedCopied]);
+    expect(String(copyEvent.m)).toMatch(/"fieldId"\s*:\s*"email"/);
+    expect(String(copyEvent.m)).not.toMatch(/aia-assist@example.test/);
+    const kinds = (await q("SELECT kind FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.registration.%'", [id])).map((row) => row.kind);
+    expect(kinds).toEqual([]);
+    await sql.begin(async (tx: Sql) => {
+      await applyCandidateStop(tx, { candidateId: id, actor: admin.email, currentStage: 'fep_attended' });
+    });
+    await expect(applyAiaRegistration(sql, admin, {
+      candidateId: id, action: 'open_assisted',
+    })).rejects.toThrow(/suppressed/);
+  });
+
+  it('documents staff-reference AIA pages as do-not-send and does not add a migration', () => {
+    expect([...AIA_STAFF_REFERENCE_PAGES]).toEqual([
       'https://www.aia.com.ph/en/financialadvisor/partner-with-the-best',
       'https://www.aia.com.ph/en/financialadvisor/join-us-now',
     ]);
     const docs = readFileSync('docs/mvp01/aia-registration.md', 'utf8');
     expect(docs).toMatch(/Help candidate register via your AIA account \/ iRecruit/);
     expect(docs).toMatch(/mermaid/);
-    expect(docs).toContain(AIA_PUBLIC_LINKS[0]);
-    expect(docs).toContain(AIA_PUBLIC_LINKS[1]);
+    expect(docs).toMatch(/do not send to recruits/i);
+    expect(docs).toContain(AIA_STAFF_REFERENCE_PAGES[0]);
+    expect(docs).toContain(AIA_STAFF_REFERENCE_PAGES[1]);
     const migrations = readdirSync('migrations').filter((name) => /^\d+.*\.sql$/.test(name));
     expect(migrations.some((name) => name.startsWith('0012'))).toBe(false);
     const panel = readFileSync('app/recruitment/command/panel.tsx', 'utf8');
-    expect(panel).not.toContain('https://www.aia.com.ph');
+    expect(panel).not.toContain('https://www.aia.com.ph/en/financialadvisor/join-us-now');
+    expect(panel).not.toMatch(/atob|JSON\.parse\(.*reference/);
+    const cfg = readFileSync('lib/mvp01/aia-recruiter-config.ts', 'utf8');
+    expect(cfg).not.toMatch(/atob|Buffer\.from\(/);
+    expect(cfg).not.toMatch(/searchParams\.get\('reference'\)[\s\S]{0,120}JSON\.parse/);
     expect(deriveAiaRegistration([]).status).toBeNull();
   });
 });

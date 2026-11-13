@@ -106,4 +106,40 @@ describe('AIA registration staff HTTP', () => {
     const rows = await ctx.db.query("SELECT 1 FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.%'", [captured.id]);
     expect(rows.rows).toHaveLength(0);
   });
+
+  it('returns 403 and writes nothing when a leader opens assisted registration for another leader\'s candidate', async () => {
+    const sql = tag(ctx.db);
+    const captured = await captureProspect(sql, admin, {
+      name: 'Synthetic AIA Assist HTTP',
+      email: 'aia-assist-http@example.test',
+      programInterest: 'ra_spike',
+      consentGranted: true,
+      noticeVersion: 'mvp01-notice-1',
+    });
+    await saveFollowUp(sql, admin, {
+      id: captured.id, stage: 'fep_attended', assignedLeader: admin.email, nextAction: 'Admin owns',
+      dueAtProvided: false, resolution: '', generalAnswer: '', giaCouldAnswer: false, resolve: false,
+    });
+    const config = await loadActiveEvaluationConfig(sql);
+    await submitEvaluation(sql, admin, {
+      candidateId: captured.id,
+      configId: config.id,
+      configVersion: config.version,
+      answers: {
+        background: 'Synthetic',
+        education: 'Synthetic',
+        motivation: 'Advisor',
+        program_interest: 'ra_spike',
+        readiness: 'Evenings',
+        outcome: 'proceed',
+        recommended_next_action: 'leader_conversation',
+      },
+    });
+    ctx.actor = leader;
+    const res = await POST(aiaReq({ id: captured.id, action: 'open_assisted' }));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'forbidden' });
+    const rows = await ctx.db.query("SELECT 1 FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.assisted.%'", [captured.id]);
+    expect(rows.rows).toHaveLength(0);
+  });
 });

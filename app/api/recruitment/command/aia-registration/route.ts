@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    if (message === 'forbidden' || message === 'suppressed') {
+    if (message === 'forbidden' || message === 'suppressed' || message === 'consent_required') {
       return NextResponse.json({ error: message }, { status: 403 });
     }
     if (KNOWN.has(message)) return NextResponse.json({ error: message }, { status: 400 });

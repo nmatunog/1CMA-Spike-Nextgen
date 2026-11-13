@@ -25,11 +25,16 @@ export { submitEvaluation, loadActiveEvaluationConfig } from './evaluate';
 export { provisionUserAccount, enrollAccount, assignProgramRole } from './accounts';
 export {
   AIA_ADVISOR_PROGRAM_INTEREST,
+  AIA_ASSISTED_REGISTRATION_FIELDS,
   AIA_EVENT_KINDS,
   AIA_LEADER_TASK,
   AIA_PUBLIC_LINKS,
+  AIA_STAFF_REFERENCE_PAGES,
   applyAiaRegistration,
+  candidateAiaHandoff,
   deriveAiaRegistration,
   isAiaAdvisorPathway,
+  isAttributedAiaRegistrationUrl,
+  mapAssistedRegistrationFields,
   parseAiaRegistrationBody,
 } from './aia-registration';

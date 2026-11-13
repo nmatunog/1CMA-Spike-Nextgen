@@ -5,17 +5,25 @@ export const AIA_ADVISOR_PROGRAM_INTEREST = 'ra_spike';
 
 export const AIA_LEADER_TASK = 'Help candidate register via your AIA account / iRecruit';
 
-/** Docs-only public pages. Not Command Center handoff URLs. */
-export const AIA_PUBLIC_LINKS = [
+/**
+ * Staff-reference public AIA pages. Do not send to recruits.
+ * Candidate destinations must be an attributed join-us-now URL with `reference`.
+ */
+export const AIA_STAFF_REFERENCE_PAGES = [
   'https://www.aia.com.ph/en/financialadvisor/partner-with-the-best',
   'https://www.aia.com.ph/en/financialadvisor/join-us-now',
 ] as const;
+
+/** @deprecated Use AIA_STAFF_REFERENCE_PAGES. Generic join-us-now is not a candidate destination. */
+export const AIA_PUBLIC_LINKS = AIA_STAFF_REFERENCE_PAGES;
 
 export const AIA_EVENT_KINDS = {
   attributionConfirmed: EVENT_KINDS.aiaAttributionConfirmed,
   pending: EVENT_KINDS.aiaRegistrationPending,
   submitted: EVENT_KINDS.aiaRegistrationSubmitted,
   verified: EVENT_KINDS.aiaRegistrationVerified,
+  assistedOpened: EVENT_KINDS.aiaAssistedOpened,
+  assistedCopied: EVENT_KINDS.aiaAssistedCopied,
 } as const;
 
 export const AIA_REGISTRATION_STATES = [
@@ -25,14 +33,23 @@ export const AIA_REGISTRATION_STATES = [
 ] as const;
 
 export type AiaRegistrationStatus = (typeof AIA_REGISTRATION_STATES)[number];
-export type AiaRegistrationAction = 'confirm_attribution' | 'pending' | 'submitted' | 'verified';
+export type AiaRegistrationAction =
+  | 'confirm_attribution'
+  | 'pending'
+  | 'submitted'
+  | 'verified'
+  | 'open_assisted'
+  | 'copy_field';
 export type AiaRegistrationSource = 'self_report' | 'staff';
+
+export type AiaAttributionSource = 'assigned_recruiter' | 'default_recruiter';
 
 export type AiaAttribution = {
   recruiterEmail: string;
   referralSource: string;
   confirmedBy: string;
   confirmedAt: string;
+  attributionSource: AiaAttributionSource;
 };
 
 export type AiaTimelineEvent = {
@@ -82,11 +99,13 @@ export function deriveAiaRegistration(events: AiaTimelineEvent[]) {
   let status: AiaRegistrationStatus | null = null;
   for (const event of chronological) {
     if (event.kind === AIA_EVENT_KINDS.attributionConfirmed) {
+      const source = event.metadata.attributionSource === 'default_recruiter' ? 'default_recruiter' : 'assigned_recruiter';
       attribution = {
         recruiterEmail: String(event.metadata.recruiterEmail || ''),
         referralSource: String(event.metadata.referralSource || ''),
         confirmedBy: String(event.metadata.confirmedBy || event.actor),
         confirmedAt: String(event.metadata.confirmedAt || event.created_at),
+        attributionSource: source,
       };
     }
     const next = kindToAiaStatus(event.kind);
