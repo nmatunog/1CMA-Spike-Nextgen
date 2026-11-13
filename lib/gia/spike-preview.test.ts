@@ -53,6 +53,13 @@ it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture
   expect(landing).toMatch(/1CMA/);
 });
 
+it('mocks Inter for the offline Next.js build gate', () => {
+  const fontMock = readFileSync('tests/gia/font-mock.cjs', 'utf8');
+  expect(giaPage).toMatch(/from 'next\/font\/google'/);
+  expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toMatch(/from 'next\/font\/google'/);
+  expect(fontMock).toContain('family=Inter:wght@100..900');
+});
+
 it('embeds the same GIA chat on /gia and the landing panel', () => {
   expect(giaPage).toContain('GiaChat');
   expect(landing).toContain('GiaChat');
