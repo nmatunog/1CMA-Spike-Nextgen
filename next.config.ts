@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["postgres"],
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/icon" }];
   },
