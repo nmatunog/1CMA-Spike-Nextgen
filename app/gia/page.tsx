@@ -1,5 +1,8 @@
 import { Inter } from 'next/font/google';
 import { GiaChat } from '@/components/gia/GiaChat';
+import { readDefaultRecruiterRegistration } from '@/lib/gia/recruiter-registration';
+
+export const dynamic = 'force-dynamic';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -11,7 +14,7 @@ export const metadata = {
 export default function GiaPage() {
   return (
     <div className={inter.className}>
-      <GiaChat variant="page" />
+      <GiaChat variant="page" defaultRecruiter={readDefaultRecruiterRegistration()} />
     </div>
   );
 }

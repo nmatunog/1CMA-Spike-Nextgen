@@ -23,7 +23,8 @@ describe('MVP 01 knowledge domains and capabilities', () => {
     expect(knowledge.find(e => e.id === 'KP-LIT-01')?.domain).toBe('financial-literacy');
     expect(knowledge.find(e => e.id === 'KP-REC-01')?.status).toBe('approved');
     expect(isApproved(knowledge.find(e => e.id === 'KP-REC-01'), now)).toBe(false);
-    expect(isApproved(knowledge.find(e => e.id === 'KP-REC-01'), new Date('2026-11-13T12:00:00Z'))).toBe(true);
+    expect(isApproved(knowledge.find(e => e.id === 'KP-REC-01'), new Date('2026-11-13T12:00:00Z'))).toBe(false);
+    expect(isApproved(knowledge.find(e => e.id === 'KP-REC-01'), new Date('2026-11-14T12:00:00Z'))).toBe(true);
     expect(knowledge.find(e => e.id === 'KP-INT-01')?.status).toBe('draft');
     expect(isServableEntry(knowledge.find(e => e.id === 'KP-DOCS-01'))).toBe(true);
   });

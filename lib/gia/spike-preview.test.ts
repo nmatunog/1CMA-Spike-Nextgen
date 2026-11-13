@@ -42,6 +42,8 @@ it('keeps / as a temporary redirect to /gia', async () => {
 it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture', () => {
   expect(SPIKE_PREVIEW_PATH).toBe('/spike-preview');
   expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toContain('SpikePreviewLanding');
+  expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toContain("dynamic = 'force-dynamic'");
+  expect(readFileSync('app/gia/page.tsx', 'utf8')).toContain("dynamic = 'force-dynamic'");
   expect(landing).toMatch(/Free Financial Literacy/);
   expect(landing).toMatch(/Free Financial Entrepreneurship Preview/);
   expect(landing).toMatch(/Level-Up Financial Entrepreneurship/);
@@ -52,11 +54,14 @@ it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture
   expect(landing).toContain('askGia');
   expect(landing).toContain('Find your path');
   expect(landing).toContain('routePathPicker');
-  expect(landing).toContain('Register with your assigned AIA recruiter');
+  expect(landing).toContain('Register with your recruiter');
   expect(landing).toContain('SPIKE Venture Studio');
   expect(landing).toContain('AIA advisor path only');
+  expect(landing).toContain('AboutAiaCareer');
+  expect(landing).toContain('RegisterWithRecruiter');
   expect(landing).not.toMatch(/href=["'][^"']*irecruit/i);
-  expect(landing).toMatch(/never opens iRecruit/);
+  expect(landing).not.toMatch(/href=["']https:\/\/www\.aia\.com\.ph\/en\/financialadvisor\/join-us-now["']/);
+  expect(landing).toMatch(/never opens a generic AIA sign-up/);
   expect(landing).toContain('{GIA_DISCLAIMER}');
   expect(landing).toContain('/gia/privacy');
   expect(landing).toMatch(/STOP/);
@@ -91,7 +96,8 @@ it('maps visitor-goal chips to approved GIA flows without new content claims', (
   ]);
   expect(chat).toContain('resolveGiaPrompt');
   expect(chat).toContain('visibleJtbd');
-  expect(chat).toContain('AIA_JOIN_ASK');
+  expect(chat).toContain('AIA_CAREER_CHIPS');
+  expect(chat).toContain('RegisterWithRecruiter');
   expect(chat).toContain('GIA is typing');
   expect(chat).toContain('Skip wait');
 });

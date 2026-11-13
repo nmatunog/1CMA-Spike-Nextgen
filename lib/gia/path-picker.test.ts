@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  AIA_CAREER_CHIPS,
+  AIA_FAQ_ASK,
   AIA_JOIN_ASK,
   AIA_LEVELUP_ASK,
-  AIA_PUBLIC_PAGES,
   PATH_GOALS,
   PATH_SITUATIONS,
   PATH_TIMES,
@@ -48,13 +49,12 @@ describe('Find your path picker', () => {
     expect(src).not.toMatch(/localStorage|sessionStorage|indexedDB/);
   });
 
-  it('keeps AIA follow-up prompts on the public pages only', () => {
+  it('keeps AIA career chips without generic Join us URLs', () => {
     expect(AIA_JOIN_ASK).toBe('How do I join AIA / register?');
     expect(AIA_LEVELUP_ASK).toBe('Is AIA registration the same as paying for Level-Up?');
-    expect(AIA_PUBLIC_PAGES).toEqual([
-      'https://www.aia.com.ph/en/financialadvisor/partner-with-the-best',
-      'https://www.aia.com.ph/en/financialadvisor/join-us-now',
-    ]);
+    expect(AIA_FAQ_ASK).toBe('AIA advisor career FAQs');
+    expect(AIA_CAREER_CHIPS).toContain(AIA_JOIN_ASK);
+    expect(JSON.stringify(AIA_CAREER_CHIPS)).not.toMatch(/join-us-now|partner-with-the-best|irecruit/i);
   });
 });
 

@@ -164,33 +164,48 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
   });
 });
 
-describe('AIA advisor registration (KP-REC, 2026-11-13)', () => {
-  const recNow = new Date('2026-11-13T12:00:00Z');
-  const PUBLIC = [
-    'https://www.aia.com.ph/en/financialadvisor/partner-with-the-best',
-    'https://www.aia.com.ph/en/financialadvisor/join-us-now',
-  ];
+describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
+  const recNow = new Date('2026-11-14T12:00:00Z');
   function urlsIn(text: string) {
     return [...String(text).matchAll(/https:\/\/[^\s]+/g)].map((m) => m[0].replace(/[.,)]+$/, ''));
   }
 
-  it('serves the 4-step AIA advisor journey and only the two public AIA pages', () => {
+  it('serves the 4-step AIA advisor journey without generic Join us URLs', () => {
     for (const q of ['How do I join AIA / register?', 'How do I join AIA?', 'How do I register?', 'Join AIA']) {
       const r = respond(q, 'en', knowledge, recNow);
       expect(r.intent, q).toBe('answer');
-      expect(r.citation, q).toMatchObject({ id: 'KP-REC-01' });
+      expect(r.citation, q).toMatchObject({ id: 'KP-REC-01', version: '0.3' });
       expect(r.text, q).toMatch(/AIA advisor path only/i);
       expect(r.text, q).toMatch(/Free Financial Literacy/);
       expect(r.text, q).toMatch(/Free FEP/);
-      expect(r.text, q).toMatch(/Register with your assigned AIA recruiter/);
+      expect(r.text, q).toMatch(/attributed link/);
       expect(r.text, q).toMatch(/system of record/);
       expect(r.text, q).toMatch(/SPIKE Venture Studio/);
       expect(r.text, q).toMatch(/SPIKE does not submit or confirm AIA applications/);
+      expect(r.text, q).toMatch(/Source: AIA Philippines, as of 14 Nov 2026/);
       expect(r.text, q).not.toMatch(/https?:\/\/\S*irecruit/i);
-      expect(urlsIn(r.text)).toEqual(expect.arrayContaining(PUBLIC));
-      expect(urlsIn(r.text).every((u) => PUBLIC.includes(u))).toBe(true);
+      expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best/i);
+      expect(urlsIn(r.text)).toEqual([]);
     }
     expect(respond('What happens after FEP?', 'en', knowledge, recNow).intent).not.toBe('answer');
+  });
+
+  it('serves paraphrased AIA career KPs with source date and no generic signup URLs', () => {
+    const cases = [
+      ['What does an AIA advisor do?', 'KP-REC-03'],
+      ['What training and support do I get?', 'KP-REC-04'],
+      ['Who can apply to be an AIA advisor?', 'KP-REC-05'],
+      ['What does the AIA advisor path look like?', 'KP-REC-06'],
+      ['AIA advisor career FAQs', 'KP-REC-07'],
+    ] as const;
+    for (const [q, id] of cases) {
+      const r = respond(q, 'en', knowledge, recNow);
+      expect(r.intent, q).toBe('answer');
+      expect(r.citation, q).toMatchObject({ id });
+      expect(r.text, q).toMatch(/Source: AIA Philippines, as of 14 Nov 2026/);
+      expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best|unlimited income|₱/i);
+      expect(urlsIn(r.text)).toEqual([]);
+    }
   });
 
   it('refuses AIA login credentials and never asks for them', () => {

@@ -3,6 +3,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { GiaChat } from '@/components/gia/GiaChat';
+import { RegisterWithRecruiter } from '@/components/gia/RegisterWithRecruiter';
+import { AboutAiaCareer } from '@/components/spike-preview/AboutAiaCareer';
 import {
   PATH_GOALS,
   PATH_SITUATIONS,
@@ -18,6 +20,11 @@ import {
   GIA_JTBD,
   LITERACY_INVITE,
 } from '@/lib/gia/ui-copy';
+import type { ConsentedContact } from '@/lib/gia/aia-registration-details';
+import {
+  resolveRecruiterCta,
+  type RecruiterRegistration,
+} from '@/lib/gia/recruiter-registration';
 import styles from './spike-preview.module.css';
 
 const AUDIENCES = {
@@ -42,7 +49,13 @@ const PATH_STEPS = [
   { question: 'How much time do you have?', options: PATH_TIMES },
 ] as const;
 
-export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
+export function SpikePreviewLanding({
+  fontClass,
+  defaultRecruiter = null,
+}: {
+  fontClass?: string;
+  defaultRecruiter?: RecruiterRegistration | null;
+}) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [giaOpen, setGiaOpen] = useState(false);
   const [seed, setSeed] = useState<{ text: string; id: number } | undefined>();
@@ -54,7 +67,16 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
   const [pathSituation, setPathSituation] = useState<PathSituation | null>(null);
   const [highlight, setHighlight] = useState<'literacy' | 'fep' | 'advisor' | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [consented, setConsented] = useState(false);
+  const [contact, setContact] = useState<ConsentedContact | null>(null);
+  const [consentProgram, setConsentProgram] = useState<'recruit' | 'intern' | 'ra'>('recruit');
   const step = PATH_STEPS[pathStep] ?? PATH_STEPS[0];
+  const recruiterCta = resolveRecruiterCta({
+    consented,
+    program: consentProgram,
+    defaultUrl: defaultRecruiter?.url,
+    defaultName: defaultRecruiter?.name,
+  });
   useEffect(() => { setMounted(true); }, []);
 
   function openGia(next?: string) {
@@ -212,7 +234,7 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
                   <span>2</span> Free FEP <em>Free</em>
                 </li>
                 <li data-state="recruiter" data-active={highlight === 'advisor' ? 'true' : undefined}>
-                  <span>3</span> Register with your assigned AIA recruiter <em>With your recruiter</em>
+                  <span>3</span> Register with your recruiter <em>With your recruiter</em>
                 </li>
                 <li data-state="soon">
                   <span>4</span> SPIKE Venture Studio <em>Coming soon</em>
@@ -220,9 +242,11 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
               </ol>
               <p className={styles.journeyNote}>
                 AIA advisor path only — not for interns or free learners. AIA&apos;s official process is the system of record.
-                This preview never opens iRecruit or a generic AIA sign-up.
+                This preview never opens a generic AIA sign-up. After consent, Register with your recruiter uses an attributed link only. Opening it never marks registration as done.
               </p>
+              <RegisterWithRecruiter cta={recruiterCta} contact={contact} />
             </div>
+            <AboutAiaCareer />
           </div>
         </section>
 
@@ -396,7 +420,17 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
       {giaOpen && mounted && createPortal(
         <div className={styles.giaDock} role="dialog" aria-modal="true" aria-label="GIA guide">
           <div className={styles.giaDockInner}>
-            <GiaChat variant="panel" seed={seed} onClose={() => { setGiaOpen(false); setSeed(undefined); }} />
+            <GiaChat
+              variant="panel"
+              seed={seed}
+              defaultRecruiter={defaultRecruiter}
+              onConsentChange={(next) => {
+                setConsented(next.saved);
+                setContact(next.contact);
+                setConsentProgram(next.program);
+              }}
+              onClose={() => { setGiaOpen(false); setSeed(undefined); }}
+            />
           </div>
         </div>,
         document.body,

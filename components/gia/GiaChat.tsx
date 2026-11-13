@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { welcome, NOTICE } from '@/lib/gia/engine.mjs';
-import { AIA_JOIN_ASK, AIA_LEVELUP_ASK } from '@/lib/gia/path-picker';
+import { RegisterWithRecruiter } from '@/components/gia/RegisterWithRecruiter';
+import { AIA_CAREER_CHIPS, AIA_LEVELUP_ASK } from '@/lib/gia/path-picker';
+import type { ConsentedContact } from '@/lib/gia/aia-registration-details';
+import { resolveRecruiterCta, type RecruiterRegistration } from '@/lib/gia/recruiter-registration';
 import { prefersReducedMotion, typingDelayMs } from '@/lib/gia/typing';
 import {
   GIA_CONSENT_CHECKBOX,
@@ -41,11 +44,15 @@ export function GiaChat({
   variant = 'page',
   initialPrompt,
   seed,
+  defaultRecruiter = null,
+  onConsentChange,
   onClose,
 }: {
   variant?: 'page' | 'panel';
   initialPrompt?: string;
   seed?: Seed;
+  defaultRecruiter?: RecruiterRegistration | null;
+  onConsentChange?: (next: { saved: boolean; contact: ConsentedContact | null; program: Program }) => void;
   onClose?: () => void;
 }) {
   const [dark, setDark] = useState(false);
@@ -68,7 +75,7 @@ export function GiaChat({
 
   const chips = [
     ...visibleJtbd(program).map((item) => item.label),
-    ...(program === 'recruit' ? [AIA_JOIN_ASK, AIA_LEVELUP_ASK, NEXT_STEP_INVITE] : []),
+    ...(program === 'recruit' ? [...AIA_CAREER_CHIPS, AIA_LEVELUP_ASK, NEXT_STEP_INVITE] : []),
   ];
   const nearBottom = () => {
     const el = threadRef.current;
@@ -149,8 +156,10 @@ export function GiaChat({
       if (data.text) add('gia', data.text, data.citation);
       if (data.message) add('gia', data.message);
       if (action === 'consent') {
+        const nextContact = { name: contact.name.trim(), email: contact.email.trim() };
         setSaved(true);
         setShowConsent(false);
+        onConsentChange?.({ saved: true, contact: nextContact, program });
         add(
           'gia',
           program === 'recruit'
@@ -172,6 +181,7 @@ export function GiaChat({
       if (action === 'opt_out' || data.message?.includes('opted out')) {
         setStopped(true);
         setSaved(false);
+        onConsentChange?.({ saved: false, contact: null, program });
         setNeedOtp(false);
         setShowConsent(false);
       }
@@ -368,6 +378,17 @@ export function GiaChat({
                 {!consent && <span className={styles.hint}>Tick consent to save</span>}
               </div>
             </form>
+          )}
+          {saved && !stopped && (
+            <RegisterWithRecruiter
+              cta={resolveRecruiterCta({
+                consented: true,
+                program,
+                defaultUrl: defaultRecruiter?.url,
+                defaultName: defaultRecruiter?.name,
+              })}
+              contact={contact}
+            />
           )}
           {needOtp && saved && !stopped && (
             <form

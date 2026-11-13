@@ -2,9 +2,12 @@ import { FEP_INVITE, INTERN_INVITE, LITERACY_INVITE, type GiaProgram } from './u
 
 export const AIA_JOIN_ASK = 'How do I join AIA / register?';
 export const AIA_LEVELUP_ASK = 'Is AIA registration the same as paying for Level-Up?';
-export const AIA_PUBLIC_PARTNER = 'https://www.aia.com.ph/en/financialadvisor/partner-with-the-best';
-export const AIA_PUBLIC_JOIN = 'https://www.aia.com.ph/en/financialadvisor/join-us-now';
-export const AIA_PUBLIC_PAGES = Object.freeze([AIA_PUBLIC_PARTNER, AIA_PUBLIC_JOIN] as const);
+export const AIA_ADVISOR_ASK = 'What does an AIA advisor do?';
+export const AIA_TRAINING_ASK = 'What training and support do I get?';
+export const AIA_WHO_ASK = 'Who can apply to be an AIA advisor?';
+export const AIA_STEPS_ASK = 'What does the AIA advisor path look like?';
+export const AIA_FAQ_ASK = 'AIA advisor career FAQs';
+export const AIA_CAREER_CHIPS = [AIA_ADVISOR_ASK, AIA_TRAINING_ASK, AIA_WHO_ASK, AIA_STEPS_ASK, AIA_FAQ_ASK, AIA_JOIN_ASK] as const;
 
 export const PATH_GOALS = [
   { id: 'literacy', label: 'Learn money basics' },

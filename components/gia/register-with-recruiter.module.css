@@ -1,0 +1,120 @@
+.wrap {
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.ctaBlock,
+.card,
+.waiting {
+  border: 1px solid #e8c4ca;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fbedef;
+  color: #17171c;
+}
+
+.with {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6f0f1e;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  background: #a6192e;
+  color: #fff !important;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+
+.note,
+.waiting,
+.card p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: #5c5e66;
+}
+
+.waiting {
+  margin: 0;
+}
+
+.card {
+  display: grid;
+  gap: 8px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.card li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #ead0d4;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6f0f1e;
+}
+
+.value {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  word-break: break-word;
+}
+
+.card button,
+.copyAll {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid #a6192e;
+  border-radius: 9999px;
+  background: #fff;
+  color: #a6192e;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.copyAll {
+  justify-self: start;
+  min-height: 36px;
+  background: #a6192e;
+  color: #fff;
+}

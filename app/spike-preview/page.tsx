@@ -1,5 +1,8 @@
 import { Inter } from 'next/font/google';
 import { SpikePreviewLanding } from '@/components/spike-preview/SpikePreviewLanding';
+import { readDefaultRecruiterRegistration } from '@/lib/gia/recruiter-registration';
+
+export const dynamic = 'force-dynamic';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -10,5 +13,10 @@ export const metadata = {
 };
 
 export default function SpikePreviewPage() {
-  return <SpikePreviewLanding fontClass={inter.className} />;
+  return (
+    <SpikePreviewLanding
+      fontClass={inter.className}
+      defaultRecruiter={readDefaultRecruiterRegistration()}
+    />
+  );
 }
