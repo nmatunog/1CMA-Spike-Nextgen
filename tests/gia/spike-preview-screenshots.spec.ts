@@ -115,8 +115,12 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await expect(dock.getByText('Date of Birth')).toBeVisible();
     await expect(dock.getByText(SYNTHETIC_CONSENT_CONTACT.email)).toBeVisible();
     await expect(dock.getByText("I'm Applying To Be")).toBeVisible();
-    await expect(dock.getByText('Preferred Location (City)')).toBeVisible();
+    await expect(dock.getByText('Preferred Location')).toBeVisible();
     await expect(dock.getByText("You'll fill this in on AIA's form").first()).toBeVisible();
+    await expect(dock.getByText('639XXXXXXXXX')).toBeVisible();
+    await expect(dock.getByText('Mr / Miss / Mrs')).toBeVisible();
+    await expect(dock.getByText('Full Time / Part Time')).toBeVisible();
+    await expect(dock.getByText(/ask the candidate/i)).toHaveCount(0);
     await expect(dock.getByRole('button', { name: 'Copy', exact: true })).toHaveCount(3);
     await expect(dock.getByRole('button', { name: 'Copy all' })).toBeVisible();
     await expect(dock.locator('input[type="date"]')).toHaveCount(0);

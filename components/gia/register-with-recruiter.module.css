@@ -92,6 +92,14 @@
   word-break: break-word;
 }
 
+.hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #5c5e66;
+}
+
 .card button,
 .copyAll {
   flex-shrink: 0;

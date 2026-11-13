@@ -5,7 +5,11 @@ import {
   AIA_REF_PARTNER,
   AIA_CAREER_SECTIONS,
 } from './aia-career-copy';
-import { AIA_ASSISTED_REGISTRATION_FIELDS } from '@/lib/mvp01/aia-assisted-fields';
+import {
+  AIA_ASK_ON_FORM,
+  AIA_ASSISTED_REGISTRATION_FIELDS,
+  AIA_MOBILE_FORMAT_HINT,
+} from '@/lib/mvp01/aia-assisted-fields';
 import {
   AIA_FORM_FILL_HINT,
   SYNTHETIC_CONSENT_CONTACT,
@@ -93,17 +97,20 @@ describe('AIA registration details card', () => {
     expect(JSON.stringify(AIA_ASSISTED_REGISTRATION_FIELDS)).not.toMatch(/password|credential|secret|pin|otp|agent.?code/i);
     const details = readFileSync('lib/gia/aia-registration-details.ts', 'utf8');
     expect(details).toContain("from '@/lib/mvp01/aia-assisted-fields'");
+    expect(details).not.toMatch(/dateOfBirth|phone:/);
     const rows = detailsForAiaRegistration(SYNTHETIC_CONSENT_CONTACT);
     expect(rows.map((r) => r.id)).toEqual(AIA_ASSISTED_REGISTRATION_FIELDS.map((f) => f.id));
     const captured = rows.filter((row) => row.captured);
     expect(captured.map((row) => row.value)).toEqual(expect.arrayContaining(['Alex', 'Rivera', 'alex.rivera@example.test']));
-    expect(captured.every((row) => !/dob|birth|honorific|city|applying/i.test(row.id))).toBe(true);
+    expect(captured.every((row) => !/dob|birth|honorific|city|applying|preferred|mobile/i.test(row.id))).toBe(true);
     for (const row of rows.filter((item) => !item.captured)) {
       expect(aiaDetailDisplay(row)).toEqual({ text: AIA_FORM_FILL_HINT, copyable: false });
+      expect(aiaDetailDisplay(row).text).not.toBe(AIA_ASK_ON_FORM);
     }
+    expect(rows.find((row) => row.id === 'mobile')?.formatHint).toBe(AIA_MOBILE_FORMAT_HINT);
     expect(copyAllAiaDetails(rows)).toContain('Alex');
     expect(copyAllAiaDetails(rows)).toContain('alex.rivera@example.test');
-    expect(copyAllAiaDetails(rows)).not.toMatch(/You'll fill this in/);
+    expect(copyAllAiaDetails(rows)).not.toMatch(/You'll fill this in|ask the candidate/);
     expect(detailsForAiaRegistration(null)).toEqual([]);
     expect(readFileSync('components/spike-preview/SpikePreviewLanding.tsx', 'utf8')).not.toMatch(
       /type="date"|dateOfBirth|date of birth/i,
@@ -124,7 +131,9 @@ describe('AIA registration details card', () => {
     expect(card).toContain('aiaDetailDisplay');
     expect(card).toContain('recruiterWithYouLine');
     expect(card).toContain('RECRUITER_CTA_OPEN_NOTE');
-    expect(card).not.toMatch(/Client-side copy only|Not collected here|awaiting Nilo/);
+    expect(card).not.toMatch(/Client-side copy only|Not collected here|awaiting Nilo|ask the candidate/);
+    expect(card).toContain('row.formatHint');
+    expect(card).toContain('row.options');
     expect(card).not.toMatch(/fetch\(|XMLHttpRequest/);
     expect(recruiterWithYouLine(SYNTHETIC_RECRUITER_DISPLAY_NAME)).toBe(
       "Your recruiter, TEST/RECRUITER, will be with you on AIA's form",

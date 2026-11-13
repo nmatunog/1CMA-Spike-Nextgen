@@ -22,7 +22,7 @@ Notes:
 - Some lower modules did not fully serialize in this fetch (JS-rendered accolades, further benefit tiles). Re-fetch if Nilo supplies an approved dump.
 - Tenure claim here (“70 years”) disagrees with the join-us-now FAQ (“80 years”). Treat as **date-sensitive**. Visitor UI must not mention a year count.
 - Visitor About copy is paraphrased and sourced. Do not surface engineering notes (generic Join us, hotlink/embed bans, “system of record”) on the landing.
-- AIA join-us-now form order (confirmed for copy-ready card): Honorifics, First Name, Last Name, Date of Birth, Email Address, Mobile Number, I'm Applying To Be, Preferred Location (City). Consent checkbox and captcha stay on AIA's form. URL prefill is not supported. Shared list: `lib/mvp01/aia-assisted-fields.ts` (mirror C1 #20).
+- AIA join-us-now form order (C1 #20 @ `b895e1d`, blob `fcfc4aa`): Honorifics, First Name, Last Name, Date of Birth, Email Address, Mobile Number, I'm Applying To Be, Preferred Location. Consent and reCAPTCHA stay on AIA's form. URL prefill is not supported. Shared list: `lib/mvp01/aia-assisted-fields.ts` (mirror C1 byte-for-byte). Visitor card says “You'll fill this in on AIA's form”, not C1's staff “ask the candidate” prompt.
 
 ## https://www.aia.com.ph/en/financialadvisor/join-us-now
 

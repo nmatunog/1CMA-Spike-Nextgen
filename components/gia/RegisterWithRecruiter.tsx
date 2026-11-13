@@ -79,6 +79,12 @@ export function RegisterWithRecruiter({
                 <div>
                   <span className={styles.label}>{row.label}</span>
                   <span className={styles.value}>{display.text}</span>
+                  {!display.copyable && row.formatHint ? (
+                    <span className={styles.hint}>{row.formatHint}</span>
+                  ) : null}
+                  {!display.copyable && row.options ? (
+                    <span className={styles.hint}>{row.options.join(' / ')}</span>
+                  ) : null}
                 </div>
                 {display.copyable ? (
                   <button type="button" onClick={() => onCopy(row.id, row.value)}>
