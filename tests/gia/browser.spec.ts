@@ -89,7 +89,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading',{name:'Dashboard'})).toBeVisible();
   await expect(staffPage.getByRole('heading',{name:'Synthetic Pilot Visitor'}).first()).toBeVisible({timeout:15000});
   await staffPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -110,7 +110,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await staffPage.screenshot({path:'docs/cc02a/screenshots/command-mobile.png',fullPage:true});
   const leaderContext=await browser.newContext();const leaderPage=await leaderContext.newPage();
   await leaderPage.goto('/login');await leaderPage.getByLabel('Email',{exact:true}).fill(access.leaderEmail);await leaderPage.getByLabel('Password',{exact:true}).fill(access.leaderPassword);
-  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/');await leaderPage.goto('/recruitment/command');
+  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Pilot Visitor'}).first()).toBeVisible();
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Unassigned Alpha'})).toHaveCount(0);
   await leaderPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -142,7 +142,7 @@ test('admin CSV import flags unverified duplicates and exports consent-aware CSV
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading',{name:'CSV import'})).toBeVisible();
   await staffPage.getByLabel('Synthetic CSV').setInputFiles('tests/gia/fixtures/cc02b-10-prospects.csv');
   await staffPage.getByRole('button',{name:'Dry run'}).click();
@@ -166,7 +166,7 @@ test('admin CSV import flags unverified duplicates and exports consent-aware CSV
   await staffPage.screenshot({path:'docs/cc02b/screenshots/import-mobile.png',fullPage:true});
   const leaderContext=await browser.newContext();const leaderPage=await leaderContext.newPage();
   await leaderPage.goto('/login');await leaderPage.getByLabel('Email',{exact:true}).fill(access.leaderEmail);await leaderPage.getByLabel('Password',{exact:true}).fill(access.leaderPassword);
-  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/');await leaderPage.goto('/recruitment/command');
+  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading',{name:'CSV import'})).toHaveCount(0);
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Prospect 01'})).toHaveCount(0);
   await staffContext.close();
@@ -180,7 +180,7 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Unassigned Alpha'}).click();
   await expect(staffPage.getByRole('heading',{name:'Preliminary evaluation'})).toBeVisible();
   const evalForm=staffPage.locator('form').filter({has:staffPage.getByRole('button',{name:'Record evaluation'})});
