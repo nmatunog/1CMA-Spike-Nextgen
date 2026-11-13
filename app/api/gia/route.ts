@@ -157,18 +157,21 @@ export async function POST(req: Request) {
       }
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
       const storeText = safetyUrgent ? null : storeableMessageText(body.text, response.intent, reason);
-      let skipVisitorRow = rateLimited;
+      let skipUnconsentedVisitorRow = false;
       let urgentCapHits: number | null = null;
-      if (safetyUrgent && !pre.consented && !rateLimited) {
-        try {
-          const cap = await checkUnconsentedUrgentCap(ipKey, limits);
-          skipVisitorRow = cap.limited;
-          urgentCapHits = cap.hits;
-        } catch {
-          skipVisitorRow = true;
+      if (safetyUrgent && !pre.consented) {
+        if (rateLimited) skipUnconsentedVisitorRow = true;
+        else {
+          try {
+            const cap = await checkUnconsentedUrgentCap(ipKey, limits);
+            skipUnconsentedVisitorRow = cap.limited;
+            urgentCapHits = cap.hits;
+          } catch {
+            skipUnconsentedVisitorRow = true;
+          }
         }
       }
-      if (safetyUrgent && skipVisitorRow) {
+      if (safetyUrgent && skipUnconsentedVisitorRow) {
         logUnconsentedUrgentCapped({ reason: rateLimited ? 'request_rate' : 'urgent_cap', hits: urgentCapHits });
       }
       let extra: unknown = null;
@@ -191,14 +194,13 @@ export async function POST(req: Request) {
           const handoffReason = (response.intent === 'refuse' && reason === 'documents')
             ? 'licensing_detail'
             : (reason || 'unapproved_or_unknown');
-          if (skipVisitorRow && safetyUrgent && ipKey && !rateLimited) {
-            return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false, identity: cappedUrgentIdentity(ipKey) }) };
-          }
-          if (skipVisitorRow) return null;
           if (c?.consented && shouldHandoff) {
             return { handoff: await tx.handoff(c, handoffReason, {}, { program, consented: true }) };
           }
           if (safetyUrgent) {
+            if (skipUnconsentedVisitorRow) {
+              return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false, identity: cappedUrgentIdentity(ipKey || 'global') }) };
+            }
             return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false }) };
           }
           return null;

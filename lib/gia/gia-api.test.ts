@@ -485,8 +485,11 @@ describe('GIA API reject audit', () => {
       body: JSON.stringify({ action: 'message', text: 'I want to die' }),
     }));
     expect(crisis.status).toBe(200);
-    expect(await crisis.json()).toMatchObject({ citation: { id: 'KP-SAFETY-01' } });
-    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(0);
+    const limitedCrisis = await crisis.json();
+    expect(limitedCrisis.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    const limitedRows = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string }>;
+    expect(limitedRows.every(r => r.visitor_identity.startsWith('cap:'))).toBe(true);
+    expect(limitedRows).toHaveLength(1);
 
     process.env.GIA_RATE_LIMIT_IP_MAX = '10000';
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
@@ -616,6 +619,67 @@ describe('GIA API reject audit', () => {
     const visitors = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent' AND visitor_identity NOT LIKE 'cap:%'")).rows;
     expect(visitors).toHaveLength(2);
     process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('still writes a consented crisis handoff when the global request limit is hit', async () => {
+    const prevGlobal = process.env.GIA_RATE_LIMIT_GLOBAL_MAX;
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = '1';
+    const consented = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'consent', agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Visitor', email: 'ok@example.test' }),
+    }));
+    expect(consented.status).toBe(200);
+    await state.db.exec('TRUNCATE gia_rate_windows');
+    expect((await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }))).status).toBe(200);
+    const crisis = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(crisis.status).toBe(200);
+    const body = await crisis.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.handoff).toBeTruthy();
+    expect(body.handoff.consented === true || body.handoff.consented === 't').toBe(true);
+    expect(body.handoff.candidate_id).toBeTruthy();
+    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(1);
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = prevGlobal;
+  });
+
+  it('keeps an unconsented crisis visible to admins when the global request limit is hit', async () => {
+    const prevGlobal = process.env.GIA_RATE_LIMIT_GLOBAL_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = '1';
+    expect((await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }))).status).toBe(200);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const crisis = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(crisis.status).toBe(200);
+    const body = await crisis.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.handoff).toBeTruthy();
+    const rows = (await state.db.query("SELECT visitor_identity, candidate_id FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string; candidate_id: string | null }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].candidate_id).toBeNull();
+    expect(rows[0].visitor_identity).toBe('cap:global');
+    expect(spy.mock.calls.map(c => String(c[0])).join('\n')).toMatch(/gia_unconsented_urgent_capped/);
+    spy.mockRestore();
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = prevGlobal;
     if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
     else process.env.GIA_TRUSTED_PROXY = prevTrust;
   });
