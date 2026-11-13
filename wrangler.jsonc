@@ -9,13 +9,14 @@
     "binding": "ASSETS"
   },
   // Placeholder only. Do not create Hyperdrive or any other Cloudflare resource from this PR.
-  // Replace the id off-repo before a real deploy. localConnectionString is the synthetic
-  // PGlite demo socket (tests/gia/demo-server.mjs) for wrangler preview, not production.
+  // Replace the id off-repo before a real deploy. localConnectionString is a local real
+  // Postgres (not PGlite) for `wrangler dev` Hyperdrive smoke — default
+  // postgres://postgres:postgres@127.0.0.1:5432/nextgen_staging.
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
       "id": "00000000-0000-0000-0000-000000000000",
-      "localConnectionString": "postgres://postgres:postgres@127.0.0.1:55432/postgres"
+      "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/nextgen_staging"
     }
   ],
   // Non-secret staging flags. Secrets stay out of the repo (use wrangler secrets / .dev.vars).

@@ -1,8 +1,8 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-import { workersHyperdriveConnectionString } from "./hyperdrive";
-import { HYPERDRIVE_POSTGRES_OPTIONS, NODE_POSTGRES_OPTIONS } from "./postgres-options";
+import { workersPostgres } from "./hyperdrive";
+import { NODE_POSTGRES_OPTIONS } from "./postgres-options";
 
 const globalForDb = globalThis as unknown as {
   pg: ReturnType<typeof postgres> | undefined;
@@ -22,10 +22,8 @@ function getPostgres() {
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 export function getDb() {
-  const hyperdrive = workersHyperdriveConnectionString();
-  if (hyperdrive) {
-    return drizzle(postgres(hyperdrive, HYPERDRIVE_POSTGRES_OPTIONS), { schema });
-  }
+  const workers = workersPostgres();
+  if (workers) return drizzle(workers, { schema });
   if (_db) return _db;
   _db = drizzle(getPostgres(), { schema });
   return _db;

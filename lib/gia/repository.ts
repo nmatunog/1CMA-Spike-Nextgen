@@ -9,8 +9,8 @@ import {
   otpSecret, OTP_MAX_ATTEMPTS, OTP_TTL_MS, planOtpIssue, planOtpVerify, rememberDevOtp,
   verifiedStillValid,
 } from './otp.mjs';
-import { workersHyperdriveConnectionString } from '@/lib/db/hyperdrive';
-import { HYPERDRIVE_POSTGRES_OPTIONS, NODE_POSTGRES_OPTIONS } from '@/lib/db/postgres-options';
+import { workersPostgres } from '@/lib/db/hyperdrive';
+import { NODE_POSTGRES_OPTIONS } from '@/lib/db/postgres-options';
 let client: ReturnType<typeof postgres> | undefined;
 type Candidate = { id: string; stage: string; consented?: boolean; email?: string };
 type Citation = { id: string; version: string; source: string };
@@ -39,8 +39,8 @@ type Tx = {
   ownStatus(c: Candidate): Promise<{ stage: string; bookingId: string | null; sessionId: string | null; handoffId: string | null }>;
 };
 export function sql() {
-  const hyperdrive = workersHyperdriveConnectionString();
-  if (hyperdrive) return postgres(hyperdrive, HYPERDRIVE_POSTGRES_OPTIONS);
+  const workers = workersPostgres();
+  if (workers) return workers;
   if (!process.env.DATABASE_URL) throw new Error('database_unavailable');
   return client ||= postgres(process.env.DATABASE_URL, NODE_POSTGRES_OPTIONS);
 }

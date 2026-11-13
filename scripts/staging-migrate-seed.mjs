@@ -27,6 +27,33 @@ export function assertStagingConfirm(env = process.env) {
   }
 }
 
+/**
+ * DATABASE_URL host (and optional /dbname) must match STAGING_DATABASE_HOST.
+ * Comma-separated allowlist. Examples: `127.0.0.1`, `127.0.0.1/nextgen_staging`.
+ * @param {{ STAGING_DATABASE_HOST?: string, DATABASE_URL?: string }} [env]
+ */
+export function assertStagingDatabase(env = process.env) {
+  const allow = String(env.STAGING_DATABASE_HOST || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!allow.length) {
+    throw new Error('refused: set STAGING_DATABASE_HOST to the allowed host or host/dbname');
+  }
+  const url = env.DATABASE_URL?.trim();
+  if (!url) throw new Error('DATABASE_URL is required');
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('refused: DATABASE_URL is not a valid URL');
+  }
+  const host = parsed.hostname;
+  const dbname = decodeURIComponent(parsed.pathname.replace(/^\//, '')).split('/')[0] || '';
+  const hostDb = dbname ? `${host}/${dbname}` : host;
+  const ok = allow.some((entry) => entry === host || entry === hostDb);
+  if (!ok) {
+    throw new Error('refused: DATABASE_URL host does not match STAGING_DATABASE_HOST');
+  }
+}
+
 export function filterStagingMigrations(names) {
   return names.filter((name) => {
     const match = name.match(/^(\d+)/);
@@ -51,6 +78,7 @@ export async function applyStagingMigrationsAndSeed({ exec, query, leaderEmail =
 
 export async function runStagingMigrateSeed(env = process.env) {
   assertStagingConfirm(env);
+  assertStagingDatabase(env);
   const url = env.DATABASE_URL?.trim();
   if (!url) throw new Error('DATABASE_URL is required');
   const sql = postgres(url, { max: 1, prepare: false });

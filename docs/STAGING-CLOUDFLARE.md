@@ -44,11 +44,12 @@ Local Node and tests keep `DATABASE_URL` (and PGlite) unchanged.
 
 ## Off-platform migrate / seed
 
-`scripts/staging-migrate-seed.mjs` runs on Node against `DATABASE_URL`. It refuses unless `STAGING_CONFIRM=nextgen-staging`. It applies `migrations/0001`–`0011` in order, then `seedFutureFep` and `seedSyntheticQueue` (synthetic queue only).
+`scripts/staging-migrate-seed.mjs` runs on Node against `DATABASE_URL`. It refuses unless `STAGING_CONFIRM=nextgen-staging` **and** the URL host (or `host/dbname`) matches `STAGING_DATABASE_HOST`. It applies `migrations/0001`–`0011` in order, then `seedFutureFep` and `seedSyntheticQueue` (synthetic queue only).
 
 Names:
 
 - `STAGING_CONFIRM`
+- `STAGING_DATABASE_HOST` (allowlist, comma-separated; e.g. `127.0.0.1` or `127.0.0.1/nextgen_staging`)
 - `DATABASE_URL`
 - `STAGING_LEADER_EMAIL` (optional; seed assignment)
 
@@ -66,6 +67,6 @@ Do not run `apply-migrations.mjs` in the Worker.
 - `npm run staging:migrate-seed`
 - `npm run staff:hash`
 
-Local `next dev` / PGlite demo (`npm run demo:gia`) is unchanged. Wrangler preview can serve HTML against the OpenNext worker; Hyperdrive query smoke needs a real Postgres (`localConnectionString`). A PGlite socket is enough for migrate/seed tests and for `next` locally, but Hyperdrive's local proxy is not a PGlite protocol adapter.
+Local `next dev` / PGlite demo (`npm run demo:gia`) is unchanged. Wrangler Hyperdrive `localConnectionString` points at a **local real Postgres** (`postgres://postgres:postgres@127.0.0.1:5432/nextgen_staging`), not PGlite. PGlite remains for unit tests and `next` locally; Hyperdrive’s local proxy is not a PGlite protocol adapter. On Workers, `sql()` / `getDb()` / `rate.mjs` / `listSessions` share one memoized postgres.js client per request.
 
 `app/icon.tsx` uses the Node runtime so OpenNext can bundle it (edge metadata routes are not split out). `esbuild` is pinned at 0.28.x so the OpenNext server bundle can resolve packages.

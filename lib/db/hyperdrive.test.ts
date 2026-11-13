@@ -35,18 +35,68 @@ describe('workersHyperdriveConnectionString', () => {
   });
 });
 
-describe('sql() Hyperdrive vs node', () => {
-  it('creates a request-scoped client from Hyperdrive without prepare: false', async () => {
+describe('sql() / getDb() Hyperdrive vs node', () => {
+  it('memoizes one postgres.js client per OpenNext request and registers waitUntil end', async () => {
+    const ended: Array<{ timeout?: number }> = [];
+    const postgres = vi.fn(() => ({
+      begin: vi.fn(),
+      options: { parsers: {}, serializers: {} },
+      end: vi.fn((opts?: { timeout?: number }) => {
+        ended.push(opts || {});
+        return Promise.resolve();
+      }),
+    }));
+    vi.doMock('postgres', () => ({ default: postgres }));
+    vi.resetModules();
+    const waitUntil = vi.fn();
+    const store = {
+      env: { HYPERDRIVE: { connectionString: 'postgres://hd/db' } },
+      ctx: { waitUntil },
+    };
+    (globalThis as unknown as Record<symbol, unknown>)[SLOT] = store;
+    const { sql } = await import('@/lib/gia/repository');
+    const { workersPostgres } = await import('@/lib/db/hyperdrive');
+    const { getDb } = await import('@/lib/db/client');
+    const first = sql();
+    const second = sql();
+    getDb();
+    expect(first).toBe(second);
+    expect(workersPostgres()).toBe(first);
+    expect(postgres).toHaveBeenCalledTimes(1);
+    expect(postgres).toHaveBeenNthCalledWith(1, 'postgres://hd/db', { max: 5 });
+    expect(waitUntil).toHaveBeenCalledTimes(1);
+    expect(ended).toEqual([{ timeout: 5 }]);
+  });
+
+  it('uses a different client for a different request context', async () => {
+    const postgres = vi.fn(() => ({ begin: vi.fn(), end: vi.fn(() => Promise.resolve()) }));
+    vi.doMock('postgres', () => ({ default: postgres }));
+    vi.resetModules();
+    const storeA = {
+      env: { HYPERDRIVE: { connectionString: 'postgres://hd/a' } },
+      ctx: { waitUntil: vi.fn() },
+    };
+    const storeB = {
+      env: { HYPERDRIVE: { connectionString: 'postgres://hd/b' } },
+      ctx: { waitUntil: vi.fn() },
+    };
+    (globalThis as unknown as Record<symbol, unknown>)[SLOT] = storeA;
+    const { sql } = await import('@/lib/gia/repository');
+    sql();
+    (globalThis as unknown as Record<symbol, unknown>)[SLOT] = storeB;
+    sql();
+    expect(postgres).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the Node DATABASE_URL singleton when OpenNext context is absent', async () => {
     const postgres = vi.fn(() => ({ begin: vi.fn() }));
     vi.doMock('postgres', () => ({ default: postgres }));
     vi.resetModules();
-    (globalThis as unknown as Record<symbol, unknown>)[SLOT] = {
-      env: { HYPERDRIVE: { connectionString: 'postgres://hd/db' } },
-    };
+    process.env.DATABASE_URL = 'postgres://synthetic-node';
     const { sql } = await import('@/lib/gia/repository');
     sql();
     sql();
-    expect(postgres).toHaveBeenCalledTimes(2);
-    expect(postgres).toHaveBeenNthCalledWith(1, 'postgres://hd/db', { max: 5 });
+    expect(postgres).toHaveBeenCalledTimes(1);
+    expect(postgres).toHaveBeenNthCalledWith(1, 'postgres://synthetic-node', { max: 1, prepare: false });
   });
 });

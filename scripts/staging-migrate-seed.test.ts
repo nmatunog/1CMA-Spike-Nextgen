@@ -5,6 +5,7 @@ import {
   STAGING_CONFIRM_VALUE,
   applyStagingMigrationsAndSeed,
   assertStagingConfirm,
+  assertStagingDatabase,
   filterStagingMigrations,
   listStagingMigrationFiles,
 } from './staging-migrate-seed.mjs';
@@ -14,6 +15,25 @@ describe('staging migrate/seed gate', () => {
     expect(() => assertStagingConfirm({})).toThrow(/STAGING_CONFIRM=nextgen-staging/);
     expect(() => assertStagingConfirm({ STAGING_CONFIRM: 'yes' })).toThrow(/refused/);
     expect(() => assertStagingConfirm({ STAGING_CONFIRM: STAGING_CONFIRM_VALUE })).not.toThrow();
+  });
+
+  it('refuses unless DATABASE_URL host matches STAGING_DATABASE_HOST', () => {
+    const ok = {
+      STAGING_DATABASE_HOST: '127.0.0.1/nextgen_staging',
+      DATABASE_URL: 'postgres://postgres:postgres@127.0.0.1:5432/nextgen_staging',
+    };
+    expect(() => assertStagingDatabase(ok)).not.toThrow();
+    expect(() => assertStagingDatabase({
+      STAGING_DATABASE_HOST: '127.0.0.1',
+      DATABASE_URL: ok.DATABASE_URL,
+    })).not.toThrow();
+    expect(() => assertStagingDatabase({
+      DATABASE_URL: ok.DATABASE_URL,
+    })).toThrow(/STAGING_DATABASE_HOST/);
+    expect(() => assertStagingDatabase({
+      STAGING_DATABASE_HOST: '127.0.0.1/nextgen_staging',
+      DATABASE_URL: 'postgres://postgres:postgres@evil.example/prod',
+    })).toThrow(/does not match STAGING_DATABASE_HOST/);
   });
 
   it('exits non-zero when the CLI gate is missing', () => {
