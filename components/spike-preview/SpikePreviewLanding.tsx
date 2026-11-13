@@ -22,6 +22,7 @@ import {
 } from '@/lib/gia/ui-copy';
 import type { ConsentedContact } from '@/lib/gia/aia-registration-details';
 import {
+  JOURNEY_STEP3_NOTE,
   resolveRecruiterCta,
   type RecruiterRegistration,
 } from '@/lib/gia/recruiter-registration';
@@ -240,10 +241,7 @@ export function SpikePreviewLanding({
                   <span>4</span> SPIKE Venture Studio <em>Coming soon</em>
                 </li>
               </ol>
-              <p className={styles.journeyNote}>
-                AIA advisor path only — not for interns or free learners. AIA&apos;s official process is the system of record.
-                This preview never opens a generic AIA sign-up. After consent, Register with your recruiter uses an attributed link only. Opening it never marks registration as done.
-              </p>
+              <p className={styles.journeyNote}>{JOURNEY_STEP3_NOTE}</p>
               <RegisterWithRecruiter cta={recruiterCta} contact={contact} />
             </div>
             <AboutAiaCareer />

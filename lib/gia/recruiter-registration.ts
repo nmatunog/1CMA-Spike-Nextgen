@@ -9,6 +9,15 @@ export const AIA_JOIN_PATH = '/en/financialadvisor/join-us-now';
 export const AIA_JOIN_HOST = 'www.aia.com.ph';
 export const RECRUITER_CTA_LABEL = 'Register with your recruiter';
 export const RECRUITER_WAITING_LABEL = 'Your recruiter will contact you';
+export const RECRUITER_CTA_OPEN_NOTE = "This opens AIA's official registration with your recruiter.";
+export const JOURNEY_STEP3_NOTE =
+  "Step 3 is for the AIA advisor path. You'll register through AIA's official process with your own recruiter, so your mentor stays with you from day one.";
+
+export function recruiterWithYouLine(name: string | null | undefined) {
+  const display = String(name || '').trim();
+  if (!display) return null;
+  return `Your recruiter, ${display}, will be with you on AIA's form`;
+}
 
 /** Tests and screenshots only. Never a live recruiter. base64 of {"code":"000000000","name":"TEST/RECRUITER"}. */
 export const SYNTHETIC_RECRUITER_REFERENCE = 'eyJjb2RlIjoiMDAwMDAwMDAwIiwibmFtZSI6IlRFU1QvUkVDUlVJVEVSIn0=';

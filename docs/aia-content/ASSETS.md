@@ -11,4 +11,4 @@ Do not download or hotlink. Status stays `awaiting Nilo/AIA approval` until Nilo
 | Story/video | Any AIA Life Planner video on those pages | https://www.aia.com.ph/en/financialadvisor/join-us-now | awaiting Nilo/AIA approval |
 | Accolades | Partner-with-the-best award marks | https://www.aia.com.ph/en/financialadvisor/partner-with-the-best | awaiting Nilo/AIA approval |
 
-Product slots: labelled placeholders on `/spike-preview` under **About the AIA advisor career**. No iframe, no hotlink, no iRecruit embed.
+Product slots on `/spike-preview` under **About the AIA advisor career**: visitors see a neutral “Photo coming soon” / “Video coming soon” placeholder only. Do not show approval status, “not downloaded”, or “no embed / no hotlink” in the UI. No iframe, no hotlink, no iRecruit embed.

@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import {
+  aiaDetailDisplay,
   copyAllAiaDetails,
   detailsForAiaRegistration,
   type ConsentedContact,
 } from '@/lib/gia/aia-registration-details';
-import { RECRUITER_CTA_LABEL, type RecruiterCta } from '@/lib/gia/recruiter-registration';
+import {
+  RECRUITER_CTA_LABEL,
+  RECRUITER_CTA_OPEN_NOTE,
+  recruiterWithYouLine,
+  type RecruiterCta,
+} from '@/lib/gia/recruiter-registration';
 import styles from './register-with-recruiter.module.css';
 
 async function copyText(value: string) {
@@ -34,6 +40,7 @@ export function RegisterWithRecruiter({
 }) {
   const rows = detailsForAiaRegistration(contact);
   const [copied, setCopied] = useState<string | null>(null);
+  const withYou = cta.kind === 'cta' ? recruiterWithYouLine(cta.name) : null;
   if (cta.kind === 'hidden') return null;
 
   async function onCopy(id: string, value: string) {
@@ -48,7 +55,7 @@ export function RegisterWithRecruiter({
         <p className={styles.waiting}>{cta.label}</p>
       ) : (
         <div className={styles.ctaBlock}>
-          {cta.name ? <p className={styles.with}>With {cta.name}</p> : null}
+          {withYou ? <p className={styles.with}>{withYou}</p> : null}
           <a
             className={styles.cta}
             href={cta.url}
@@ -57,25 +64,30 @@ export function RegisterWithRecruiter({
           >
             {cta.label}
           </a>
-          <p className={styles.note}>Opening this link never marks registration as done. SPIKE does not submit or confirm AIA applications.</p>
+          <p className={styles.note}>{RECRUITER_CTA_OPEN_NOTE}</p>
         </div>
       )}
       {rows.length > 0 ? (
         <div className={styles.card} data-testid="aia-registration-details">
           <h2>Your details for AIA registration</h2>
-          <p>Copy these into AIA’s form with your recruiter. Nothing is sent to AIA from here. Client-side copy only.</p>
+          <p>Copy these into AIA’s form with your recruiter. You copy them yourself — we don’t send them to AIA.</p>
           <ul>
-            {rows.map((row) => (
+            {rows.map((row) => {
+              const display = aiaDetailDisplay(row);
+              return (
               <li key={row.id}>
                 <div>
                   <span className={styles.label}>{row.label}</span>
-                  <span className={styles.value}>{row.captured ? row.value : 'Not collected here'}</span>
+                  <span className={styles.value}>{display.text}</span>
                 </div>
-                <button type="button" disabled={!row.captured} onClick={() => onCopy(row.id, row.value)}>
-                  {copied === row.id ? 'Copied' : 'Copy'}
-                </button>
+                {display.copyable ? (
+                  <button type="button" onClick={() => onCopy(row.id, row.value)}>
+                    {copied === row.id ? 'Copied' : 'Copy'}
+                  </button>
+                ) : null}
               </li>
-            ))}
+              );
+            })}
           </ul>
           <button
             type="button"

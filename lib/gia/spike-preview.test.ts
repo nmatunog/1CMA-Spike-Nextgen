@@ -56,12 +56,13 @@ it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture
   expect(landing).toContain('routePathPicker');
   expect(landing).toContain('Register with your recruiter');
   expect(landing).toContain('SPIKE Venture Studio');
-  expect(landing).toContain('AIA advisor path only');
+  expect(landing).toContain('JOURNEY_STEP3_NOTE');
+  expect(landing).toContain('Nothing is stored. No account.');
   expect(landing).toContain('AboutAiaCareer');
   expect(landing).toContain('RegisterWithRecruiter');
   expect(landing).not.toMatch(/href=["'][^"']*irecruit/i);
   expect(landing).not.toMatch(/href=["']https:\/\/www\.aia\.com\.ph\/en\/financialadvisor\/join-us-now["']/);
-  expect(landing).toMatch(/never opens a generic AIA sign-up/);
+  expect(landing).not.toMatch(/never opens a generic AIA sign-up|awaiting Nilo|Not downloaded|no embed, no hotlink/);
   expect(landing).toContain('{GIA_DISCLAIMER}');
   expect(landing).toContain('/gia/privacy');
   expect(landing).toMatch(/STOP/);

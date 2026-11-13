@@ -7,18 +7,23 @@ import {
 } from './aia-career-copy';
 import { AIA_ASSISTED_REGISTRATION_FIELDS } from '@/lib/mvp01/aia-assisted-fields';
 import {
+  AIA_FORM_FILL_HINT,
   SYNTHETIC_CONSENT_CONTACT,
+  aiaDetailDisplay,
   copyAllAiaDetails,
   detailsForAiaRegistration,
 } from './aia-registration-details';
 import {
+  JOURNEY_STEP3_NOTE,
   RECRUITER_CTA_LABEL,
+  RECRUITER_CTA_OPEN_NOTE,
   RECRUITER_WAITING_LABEL,
   SYNTHETIC_RECRUITER_DISPLAY_NAME,
   SYNTHETIC_RECRUITER_REFERENCE,
   SYNTHETIC_RECRUITER_REGISTRATION_URL,
   readDefaultRecruiterRegistration,
   recruiterDisplayName,
+  recruiterWithYouLine,
   resolveRecruiterCta,
   sanitizeAttributedRecruiterUrl,
 } from './recruiter-registration';
@@ -85,27 +90,24 @@ describe('attributed recruiter registration URL', () => {
 
 describe('AIA registration details card', () => {
   it('uses C1 shared field-order and only consented name/email on the landing', () => {
-    expect(AIA_ASSISTED_REGISTRATION_FIELDS.map((f) => f.id)).toEqual([
-      'first_name',
-      'last_name',
-      'email',
-      'mobile',
-      'city',
-    ]);
-    expect(JSON.stringify(AIA_ASSISTED_REGISTRATION_FIELDS)).not.toMatch(/dob|date of birth|passport|id number/i);
+    expect(JSON.stringify(AIA_ASSISTED_REGISTRATION_FIELDS)).not.toMatch(/password|credential|secret|pin|otp|agent.?code/i);
     const details = readFileSync('lib/gia/aia-registration-details.ts', 'utf8');
     expect(details).toContain("from '@/lib/mvp01/aia-assisted-fields'");
     const rows = detailsForAiaRegistration(SYNTHETIC_CONSENT_CONTACT);
     expect(rows.map((r) => r.id)).toEqual(AIA_ASSISTED_REGISTRATION_FIELDS.map((f) => f.id));
-    expect(rows[0]).toMatchObject({ id: 'first_name', label: 'First name', value: 'Alex', captured: true });
-    expect(rows[1]).toMatchObject({ id: 'last_name', label: 'Last name', value: 'Rivera', captured: true });
-    expect(rows[2]).toMatchObject({ id: 'email', label: 'Email address', value: 'alex.rivera@example.test', captured: true });
-    expect(rows[3]).toMatchObject({ id: 'mobile', value: '', captured: false });
-    expect(rows[4]).toMatchObject({ id: 'city', value: '', captured: false });
-    expect(copyAllAiaDetails(rows)).toBe(
-      'First name: Alex\nLast name: Rivera\nEmail address: alex.rivera@example.test',
-    );
+    const captured = rows.filter((row) => row.captured);
+    expect(captured.map((row) => row.value)).toEqual(expect.arrayContaining(['Alex', 'Rivera', 'alex.rivera@example.test']));
+    expect(captured.every((row) => !/dob|birth|honorific|city|applying/i.test(row.id))).toBe(true);
+    for (const row of rows.filter((item) => !item.captured)) {
+      expect(aiaDetailDisplay(row)).toEqual({ text: AIA_FORM_FILL_HINT, copyable: false });
+    }
+    expect(copyAllAiaDetails(rows)).toContain('Alex');
+    expect(copyAllAiaDetails(rows)).toContain('alex.rivera@example.test');
+    expect(copyAllAiaDetails(rows)).not.toMatch(/You'll fill this in/);
     expect(detailsForAiaRegistration(null)).toEqual([]);
+    expect(readFileSync('components/spike-preview/SpikePreviewLanding.tsx', 'utf8')).not.toMatch(
+      /type="date"|dateOfBirth|date of birth/i,
+    );
   });
 
   it('keeps career source links as reference, not as the CTA', () => {
@@ -119,12 +121,23 @@ describe('AIA registration details card', () => {
     expect(card).toContain('Your details for AIA registration');
     expect(card).toContain('Copy all');
     expect(card).toContain('data-does-not-complete-registration');
-    expect(card).toContain('Nothing is sent to AIA from here');
-    expect(card).not.toMatch(/date of birth|dateOfBirth|address|passport|national id/i);
+    expect(card).toContain('aiaDetailDisplay');
+    expect(card).toContain('recruiterWithYouLine');
+    expect(card).toContain('RECRUITER_CTA_OPEN_NOTE');
+    expect(card).not.toMatch(/Client-side copy only|Not collected here|awaiting Nilo/);
     expect(card).not.toMatch(/fetch\(|XMLHttpRequest/);
+    expect(recruiterWithYouLine(SYNTHETIC_RECRUITER_DISPLAY_NAME)).toBe(
+      "Your recruiter, TEST/RECRUITER, will be with you on AIA's form",
+    );
+    expect(RECRUITER_CTA_OPEN_NOTE).toBe("This opens AIA's official registration with your recruiter.");
+    expect(JOURNEY_STEP3_NOTE).toMatch(/mentor stays with you from day one/);
     const about = readFileSync('components/spike-preview/AboutAiaCareer.tsx', 'utf8');
     expect(about).toContain('About the AIA advisor career');
-    expect(about).toContain('awaiting Nilo/AIA approval');
+    expect(about).toContain('Photo coming soon');
+    expect(about).toContain('Video coming soon');
+    expect(about).toContain('Based on AIA Philippines');
+    expect(about).not.toMatch(/awaiting Nilo|Not downloaded|no embed|no hotlink|70 vs 80|year count/);
     expect(about).toContain('section.sourceLabel');
+    expect(JSON.stringify(AIA_CAREER_SECTIONS)).not.toMatch(/70 vs 80|year count/);
   });
 });

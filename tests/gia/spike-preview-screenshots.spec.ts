@@ -37,14 +37,15 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await page.locator('#journey-block').evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await expect(page.getByText('Register with your recruiter').first()).toBeVisible();
     await expect(page.getByText('With your recruiter').first()).toBeVisible();
-    await expect(page.getByText(/not for interns or free learners/)).toBeVisible();
+    await expect(page.getByText(/Step 3 is for the AIA advisor path/)).toBeVisible();
     await expect(page.getByText('SPIKE Venture Studio').first()).toBeVisible();
     await page.screenshot({ path: `${DIR}/journey-${width}.png` });
 
     await page.locator('#about-aia').evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await expect(page.getByRole('heading', { name: 'About the AIA advisor career' })).toBeVisible();
+    await expect(page.getByText(/Based on AIA Philippines/)).toBeVisible();
+    await expect(page.getByText('Photo coming soon').first()).toBeVisible();
     await expect(page.getByText(/AIA Philippines public overview \(reference\)/).first()).toBeVisible();
-    await expect(page.getByText(/awaiting Nilo\/AIA approval/).first()).toBeVisible();
     await page.screenshot({ path: `${DIR}/about-aia-${width}.png` });
 
     await page.route('**/api/gia', async (route) => {
@@ -106,21 +107,31 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await dock.getByRole('checkbox').check();
     await dock.getByRole('button', { name: 'Save consent and contact' }).click();
     await expect(dock.getByRole('heading', { name: 'Your details for AIA registration' })).toBeVisible();
-    await expect(dock.getByText('First name')).toBeVisible();
+    await expect(dock.getByText('Honorifics')).toBeVisible();
+    await expect(dock.getByText(/first name/i)).toBeVisible();
     await expect(dock.getByText('Alex', { exact: true })).toBeVisible();
-    await expect(dock.getByText('Last name')).toBeVisible();
+    await expect(dock.getByText(/last name/i)).toBeVisible();
     await expect(dock.getByText('Rivera', { exact: true })).toBeVisible();
+    await expect(dock.getByText('Date of Birth')).toBeVisible();
     await expect(dock.getByText(SYNTHETIC_CONSENT_CONTACT.email)).toBeVisible();
-    await expect(dock.getByText('Not collected here').first()).toBeVisible();
+    await expect(dock.getByText("I'm Applying To Be")).toBeVisible();
+    await expect(dock.getByText('Preferred Location (City)')).toBeVisible();
+    await expect(dock.getByText("You'll fill this in on AIA's form").first()).toBeVisible();
+    await expect(dock.getByRole('button', { name: 'Copy', exact: true })).toHaveCount(3);
     await expect(dock.getByRole('button', { name: 'Copy all' })).toBeVisible();
-    await dock.getByTestId('aia-registration-details').scrollIntoViewIfNeeded();
-    await dock.screenshot({ path: `${DIR}/copy-details-${width}.png` });
+    await expect(dock.locator('input[type="date"]')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Close GIA' }).click();
     await page.locator('#journey-block').evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await expect(page.getByRole('link', { name: RECRUITER_CTA_LABEL })).toBeVisible();
-    await expect(page.getByText(`With ${SYNTHETIC_RECRUITER_DISPLAY_NAME}`)).toBeVisible();
+    await expect(page.getByText(`Your recruiter, ${SYNTHETIC_RECRUITER_DISPLAY_NAME}, will be with you on AIA's form`)).toBeVisible();
+    await expect(page.getByText("This opens AIA's official registration with your recruiter.")).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Your details for AIA registration' })).toBeVisible();
+    const detailsCard = page.getByTestId('aia-registration-details');
+    await page.setViewportSize({ width, height: width === 390 ? 1600 : 1400 });
+    await detailsCard.screenshot({ path: `${DIR}/copy-details-${width}.png` });
+    await page.setViewportSize({ width, height });
+    await page.locator('#journey-block').evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await page.screenshot({ path: `${DIR}/recruiter-cta-${width}.png` });
 
     await page.getByRole('button', { name: 'Ask GIA', exact: true }).last().click();

@@ -11,10 +11,17 @@ export const SYNTHETIC_CONSENT_CONTACT: ConsentedContact = {
   email: 'alex.rivera@example.test',
 };
 
+export const AIA_FORM_FILL_HINT = "You'll fill this in on AIA's form";
+
 /** Landing card uses C1's shared AIA field-order list. No extra PII is collected here. */
 export function detailsForAiaRegistration(contact: ConsentedContact | null | undefined): AiaAssistedField[] {
   if (!contact) return [];
   return mapAssistedRegistrationFields({ name: contact.name, email: contact.email });
+}
+
+export function aiaDetailDisplay(row: AiaAssistedField) {
+  if (row.captured) return { text: row.value, copyable: true };
+  return { text: AIA_FORM_FILL_HINT, copyable: false };
 }
 
 export function copyAllAiaDetails(rows: AiaAssistedField[]) {
