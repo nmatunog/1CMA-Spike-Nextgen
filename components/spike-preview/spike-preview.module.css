@@ -2081,6 +2081,95 @@ textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--err
   border-color: #738098;
   color: #f8fafc;
 }
+.picker {
+  width: min(720px, 100%);
+  margin: 0 auto 12px;
+  text-align: center;
+}
+.pickerLegend {
+  margin: 0 0 8px;
+  font-size: .78rem;
+  color: #bac6d8;
+  font-weight: 650;
+}
+.pickerChoices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.pickerChoices button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: .8rem;
+  font-weight: 500;
+  background: #121726;
+  border-color: #738098;
+  color: #f8fafc;
+}
+.pickerHint {
+  margin: 8px 0 0;
+  font-size: .7rem;
+  color: #8ea0b8;
+}
+.inviteCard[data-highlight="true"] {
+  outline: 2px solid #d8e994;
+  outline-offset: 2px;
+}
+.journeyBlock {
+  scroll-margin-top: 12px;
+  scroll-margin-bottom: 96px;
+}
+.journey {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px auto 8px;
+  padding: 0;
+  max-width: 720px;
+  text-align: left;
+}
+.journey li {
+  border: 1px solid #455169;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #121726;
+  font-size: .72rem;
+  line-height: 1.35;
+  color: #f8fafc;
+}
+.journey li[data-active="true"] {
+  outline: 2px solid #d8e994;
+}
+.journey span {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #a6192e;
+  font-size: .65rem;
+  font-weight: 700;
+}
+.journey em {
+  display: block;
+  margin-top: 4px;
+  color: #f5d77f;
+  font-style: normal;
+  font-size: .65rem;
+  letter-spacing: .02em;
+}
+.journeyNote {
+  max-width: 720px;
+  margin: 0 auto;
+  font-size: .72rem;
+  line-height: 1.4;
+  color: #bac6d8;
+}
 .inviteGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2233,6 +2322,16 @@ footer {
   .jtbd button {
     font-size: .72rem;
     padding: 6px 10px;
+  }
+  .pickerChoices button {
+    font-size: .72rem;
+    padding: 6px 10px;
+  }
+  .firstScreen.hero {
+    padding-bottom: 96px;
+  }
+  .journey {
+    grid-template-columns: 1fr 1fr;
   }
   .inviteGrid {
     grid-template-columns: 1fr;

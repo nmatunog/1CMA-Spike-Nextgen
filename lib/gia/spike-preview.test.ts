@@ -50,7 +50,13 @@ it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture
   expect(landing).toContain('Ask GIA');
   expect(landing).toContain('<GiaChat');
   expect(landing).toContain('askGia');
-  expect(landing).toContain('{GIA_JTBD.map');
+  expect(landing).toContain('Find your path');
+  expect(landing).toContain('routePathPicker');
+  expect(landing).toContain('Register with your assigned AIA recruiter');
+  expect(landing).toContain('SPIKE Venture Studio');
+  expect(landing).toContain('AIA advisor path only');
+  expect(landing).not.toMatch(/href=["'][^"']*irecruit/i);
+  expect(landing).toMatch(/never opens iRecruit/);
   expect(landing).toContain('{GIA_DISCLAIMER}');
   expect(landing).toContain('/gia/privacy');
   expect(landing).toMatch(/STOP/);
@@ -85,6 +91,9 @@ it('maps visitor-goal chips to approved GIA flows without new content claims', (
   ]);
   expect(chat).toContain('resolveGiaPrompt');
   expect(chat).toContain('visibleJtbd');
+  expect(chat).toContain('AIA_JOIN_ASK');
+  expect(chat).toContain('GIA is typing');
+  expect(chat).toContain('Skip wait');
 });
 
 it('mocks Inter for the offline Next.js build gate', () => {

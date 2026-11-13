@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { welcome, NOTICE } from '@/lib/gia/engine.mjs';
+import { AIA_JOIN_ASK, AIA_LEVELUP_ASK } from '@/lib/gia/path-picker';
+import { prefersReducedMotion, typingDelayMs } from '@/lib/gia/typing';
 import {
   GIA_CONSENT_CHECKBOX,
   GIA_CONSENT_FINE,
@@ -62,10 +64,11 @@ export function GiaChat({
   const [stuck, setStuck] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const lastSeed = useRef<number | null>(null);
+  const skipTyping = useRef<(() => void) | null>(null);
 
   const chips = [
     ...visibleJtbd(program).map((item) => item.label),
-    ...(program === 'recruit' ? [NEXT_STEP_INVITE] : []),
+    ...(program === 'recruit' ? [AIA_JOIN_ASK, AIA_LEVELUP_ASK, NEXT_STEP_INVITE] : []),
   ];
   const nearBottom = () => {
     const el = threadRef.current;
@@ -113,8 +116,17 @@ export function GiaChat({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, program, ...extra }),
       });
-      const wait = 400 - (Date.now() - started);
-      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      const wait = typingDelayMs(prefersReducedMotion()) - (Date.now() - started);
+      if (wait > 0) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, wait);
+          skipTyping.current = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
+        skipTyping.current = null;
+      }
       const data = await res.json();
       if (data.discarded) {
         add('gia', data.text);
@@ -259,7 +271,7 @@ export function GiaChat({
                 <div className={styles.col}>
                   <span className={styles.who}>GIA</span>
                   <div className={styles.bubbleGia}>
-                    <p>{t.text}</p>
+                    <GiaText text={t.text} />
                     {t.citation && (
                       <p>
                         <a href={t.citation.source}>
@@ -308,13 +320,18 @@ export function GiaChat({
               <span className={`${styles.mark} ${styles.markSm}`} aria-hidden="true">G</span>
               <div className={styles.col}>
                 <span className={styles.who}>GIA</span>
-                <div className={styles.bubbleGia}>
+                <button
+                  type="button"
+                  className={`${styles.bubbleGia} ${styles.typingSkip}`}
+                  onClick={() => skipTyping.current?.()}
+                >
                   <div className={styles.dotWrap}>
                     <span className={styles.dot} />
                     <span className={styles.dot} />
                     <span className={styles.dot} />
                   </div>
-                </div>
+                  <span className={styles.skipHint}>Skip wait</span>
+                </button>
               </div>
             </div>
           )}
@@ -426,6 +443,23 @@ export function GiaChat({
         </p>
       </footer>
     </div>
+  );
+}
+
+function GiaText({ text }: { text: string }) {
+  const parts = text.split(/(https:\/\/[^\s]+)/g);
+  return (
+    <p>
+      {parts.map((part, i) =>
+        part.startsWith('https://') ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </p>
   );
 }
 

@@ -4,6 +4,15 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { GiaChat } from '@/components/gia/GiaChat';
 import {
+  PATH_GOALS,
+  PATH_SITUATIONS,
+  PATH_TIMES,
+  routePathPicker,
+  type PathGoal,
+  type PathSituation,
+  type PathTime,
+} from '@/lib/gia/path-picker';
+import {
   FEP_INVITE,
   GIA_DISCLAIMER,
   GIA_JTBD,
@@ -27,11 +36,11 @@ const AUDIENCES = {
   },
 } as const;
 
-const REFLECT_COPY = {
-  preview: 'A short free Financial Entrepreneurship Preview is a fit to start. GIA can show FEP sessions after you consent.',
-  literacy: 'Free Financial Literacy is a fit to start. GIA can walk you through the invitation after you ask.',
-  pathway: 'Level-Up Financial Entrepreneurship is not live yet. Start with literacy or the free FEP preview, then talk to a 1CMA leader.',
-} as const;
+const PATH_STEPS = [
+  { question: 'What do you want?', options: PATH_GOALS },
+  { question: 'What is your situation?', options: PATH_SITUATIONS },
+  { question: 'How much time do you have?', options: PATH_TIMES },
+] as const;
 
 export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -40,13 +49,12 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
   const [draft, setDraft] = useState('');
   const [introOpen, setIntroOpen] = useState(false);
   const [audience, setAudience] = useState<keyof typeof AUDIENCES>('professional');
-  const [reflect, setReflect] = useState<{ goal: string; interest: string; pace: string }>({
-    goal: '',
-    interest: '',
-    pace: '',
-  });
-  const [reflectResult, setReflectResult] = useState<string | null>(null);
+  const [pathStep, setPathStep] = useState(0);
+  const [pathGoal, setPathGoal] = useState<PathGoal | null>(null);
+  const [pathSituation, setPathSituation] = useState<PathSituation | null>(null);
+  const [highlight, setHighlight] = useState<'literacy' | 'fep' | 'advisor' | null>(null);
   const [mounted, setMounted] = useState(false);
+  const step = PATH_STEPS[pathStep] ?? PATH_STEPS[0];
   useEffect(() => { setMounted(true); }, []);
 
   function openGia(next?: string) {
@@ -61,16 +69,21 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
     openGia(value || undefined);
   }
 
-  function onReflect(e: FormEvent) {
-    e.preventDefault();
-    const answers = [reflect.goal, reflect.interest, reflect.pace];
-    if (answers.some((a) => !['preview', 'literacy', 'pathway'].includes(a))) return;
-    const counts = { preview: 0, literacy: 0, pathway: 0 };
-    for (const a of answers) counts[a as keyof typeof counts]++;
-    const maximum = Math.max(...Object.values(counts));
-    const winners = (Object.keys(counts) as Array<keyof typeof counts>).filter((k) => counts[k] === maximum);
-    const invitation = winners.length === 1 ? winners[0] : 'preview';
-    setReflectResult(REFLECT_COPY[invitation]);
+  function onPathTap(id: string) {
+    if (pathStep === 0) {
+      setPathGoal(id as PathGoal);
+      setPathStep(1);
+      return;
+    }
+    if (pathStep === 1) {
+      setPathSituation(id as PathSituation);
+      setPathStep(2);
+      return;
+    }
+    if (!pathGoal || !pathSituation) return;
+    const route = routePathPicker({ goal: pathGoal, situation: pathSituation, time: id as PathTime });
+    setHighlight(route.highlight);
+    openGia(route.prompt);
   }
 
   return (
@@ -113,7 +126,8 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
           </span>
         </div>
         <nav aria-label="Main navigation">
-          <a href="#invitations">Start here</a>
+          <a href="#path">Find your path</a>
+          <a href="#journey">Journey</a>
           <a href="#more">More</a>
           <button
             type="button"
@@ -150,15 +164,21 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
                 ↗
               </button>
             </form>
-            <div className={styles.jtbd} aria-label="What do you want to do?">
-              {GIA_JTBD.map((item) => (
-                <button type="button" key={item.label} onClick={() => openGia(item.label)}>
-                  {item.label}
-                </button>
-              ))}
+            <div id="path" className={styles.picker} aria-label="Find your path">
+              <p className={styles.pickerLegend}>
+                Find your path · {pathStep + 1} of 3 · {step.question}
+              </p>
+              <div className={styles.pickerChoices} role="group" aria-label={step.question}>
+                {step.options.map((option) => (
+                  <button type="button" key={option.id} onClick={() => onPathTap(option.id)}>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className={styles.pickerHint}>Three taps. Nothing is stored. No account.</p>
             </div>
             <div id="invitations" className={styles.inviteGrid}>
-              <article className={styles.inviteCard}>
+              <article className={styles.inviteCard} data-highlight={highlight === 'literacy' ? 'true' : undefined}>
                 <p className={styles.tag}>Free</p>
                 <h2>Free Financial Literacy</h2>
                 <p>Everyday money conversations. Ask GIA to start.</p>
@@ -166,7 +186,7 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
                   Ask GIA about literacy
                 </button>
               </article>
-              <article className={styles.inviteCard}>
+              <article className={styles.inviteCard} data-highlight={highlight === 'fep' ? 'true' : undefined}>
                 <p className={styles.tag}>Free · Direct entry allowed</p>
                 <h2>Free Financial Entrepreneurship Preview</h2>
                 <p>A first look at the path. You do not need literacy first.</p>
@@ -182,6 +202,26 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
                   Coming soon · not live
                 </button>
               </article>
+            </div>
+            <div id="journey-block" className={styles.journeyBlock}>
+              <ol id="journey" className={styles.journey} aria-label="AIA advisor path">
+                <li data-state="free" data-active={highlight === 'literacy' ? 'true' : undefined}>
+                  <span>1</span> Free Financial Literacy <em>Free</em>
+                </li>
+                <li data-state="free" data-active={highlight === 'fep' ? 'true' : undefined}>
+                  <span>2</span> Free FEP <em>Free</em>
+                </li>
+                <li data-state="recruiter" data-active={highlight === 'advisor' ? 'true' : undefined}>
+                  <span>3</span> Register with your assigned AIA recruiter <em>With your recruiter</em>
+                </li>
+                <li data-state="soon">
+                  <span>4</span> SPIKE Venture Studio <em>Coming soon</em>
+                </li>
+              </ol>
+              <p className={styles.journeyNote}>
+                AIA advisor path only — not for interns or free learners. AIA&apos;s official process is the system of record.
+                This preview never opens iRecruit or a generic AIA sign-up.
+              </p>
             </div>
           </div>
         </section>
@@ -217,59 +257,6 @@ export function SpikePreviewLanding({ fontClass }: { fontClass?: string }) {
             <p className={styles.safeguard}>
               <strong>Student regulatory safeguard:</strong> Education and simulation do not authorize insurance advisory activity. Regulated advisory activity requires applicable Insurance Commission licensing and accreditation.
             </p>
-          </details>
-          <details>
-            <summary>Optional starting-point questions</summary>
-            <p>Choose your preferences to explore a starting invitation. This is not a career assessment, and no contact details are collected.</p>
-            <form onSubmit={onReflect}>
-              <fieldset>
-                <legend>1. What would help you most right now?</legend>
-                <label>
-                  <input required type="radio" name="goal" value="preview" onChange={(e) => setReflect({ ...reflect, goal: e.target.value })} /> Understand a new career direction
-                </label>
-                <label>
-                  <input type="radio" name="goal" value="literacy" onChange={(e) => setReflect({ ...reflect, goal: e.target.value })} /> Grow my financial knowledge
-                </label>
-                <label>
-                  <input type="radio" name="goal" value="pathway" onChange={(e) => setReflect({ ...reflect, goal: e.target.value })} /> Develop through structured learning
-                </label>
-              </fieldset>
-              <fieldset>
-                <legend>2. What would you like to explore first?</legend>
-                <label>
-                  <input required type="radio" name="interest" value="preview" onChange={(e) => setReflect({ ...reflect, interest: e.target.value })} /> The financial entrepreneur role
-                </label>
-                <label>
-                  <input type="radio" name="interest" value="literacy" onChange={(e) => setReflect({ ...reflect, interest: e.target.value })} /> Everyday money decisions
-                </label>
-                <label>
-                  <input type="radio" name="interest" value="pathway" onChange={(e) => setReflect({ ...reflect, interest: e.target.value })} /> An integrated development program
-                </label>
-              </fieldset>
-              <fieldset>
-                <legend>3. What kind of next step suits you?</legend>
-                <label>
-                  <input required type="radio" name="pace" value="preview" onChange={(e) => setReflect({ ...reflect, pace: e.target.value })} /> A short introduction
-                </label>
-                <label>
-                  <input type="radio" name="pace" value="literacy" onChange={(e) => setReflect({ ...reflect, pace: e.target.value })} /> A focused literacy session
-                </label>
-                <label>
-                  <input type="radio" name="pace" value="pathway" onChange={(e) => setReflect({ ...reflect, pace: e.target.value })} /> A conversation about ongoing learning
-                </label>
-              </fieldset>
-              <button className={styles.primary} type="submit">
-                See my starting point
-              </button>
-              <div className={styles.result} role="status">
-                {reflectResult}
-              </div>
-              {reflectResult && !reflectResult.includes('not live') && (
-                <button type="button" className={styles.primary} onClick={() => openGia(reflectResult.includes('Literacy') ? LITERACY_INVITE : FEP_INVITE)}>
-                  Continue with GIA
-                </button>
-              )}
-            </form>
           </details>
           <details id="pathway">
             <summary>The SPIKE pathway</summary>
