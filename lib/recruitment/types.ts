@@ -87,6 +87,15 @@ export type CandidateDetail = QueueCandidate & {
   capture_channel?: string | null;
   registered_at?: string | null;
   channel_prefs?: Record<string, boolean>;
+  aia_registration_status?: 'aia_registration_pending' | 'aia_registration_submitted' | 'aia_registration_verified' | null;
+  aia_registration_url?: string | null;
+  aia_attribution?: {
+    recruiterEmail: string;
+    referralSource: string;
+    confirmedBy: string;
+    confirmedAt: string;
+    attributionSource?: 'assigned_recruiter' | 'default_recruiter';
+  } | null;
 };
 
 export type DuplicateFlag = {

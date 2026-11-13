@@ -36,4 +36,24 @@ describe('command panel contract', () => {
     expect(src).toMatch(/Follow-up outcome/);
     expect(src).toMatch(/Awaiting evaluation \(current\)/);
   });
+  it('gates Official AIA registration behind attributed recruiter and excludes intern/free-learner paths', () => {
+    expect(src).toMatch(/Official AIA registration/);
+    expect(src).toContain('AIA_LEADER_TASK');
+    expect(src).toMatch(/Confirm recruiter attribution/);
+    expect(src).toMatch(/Record candidate self-report \(pending\)/);
+    expect(src).toMatch(/Mark submitted \(staff\)/);
+    expect(src).toMatch(/Mark verified \(staff\)/);
+    expect(src).toMatch(/intern and free-learner paths are excluded/);
+    expect(src).toMatch(/Does not grant Versa\/SPIKE entitlements or paid L2/);
+    expect(src).toMatch(/generic Join us URL/);
+    expect(src).toMatch(/falls back to the configured default recruiter/);
+    expect(src).toMatch(/Recruiter-assisted registration/);
+    expect(src).toMatch(/Open assisted registration/);
+    expect(src).toMatch(/Copying does not mark registration submitted or verified/);
+    expect(src).toMatch(/Consent and reCAPTCHA are completed by the candidate on AIA/);
+    expect(src).not.toMatch(/join-us-now/);
+    expect(src).not.toMatch(/type=["']password["']/);
+    expect(src).not.toMatch(/iRecruit form/i);
+    expect(src).toMatch(/No AIA login fields/);
+  });
 });

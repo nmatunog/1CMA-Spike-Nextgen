@@ -4,6 +4,8 @@ import { WRITABLE_STAGES, LITERACY_STATUSES, STOP_STAGE, ENGAGEMENT_OUTCOMES } f
 import { formatManilaStamp, manilaDaysAgo, manilaToday, toManilaDateTimeLocal } from '@/lib/recruitment/time';
 import type { AuditEvent, CandidateDetail, DashboardCounts, DuplicateFlag, HandoffQueueItem, ImportReport, QueueCandidate } from '@/lib/recruitment/types';
 import { COMM_CHANNELS, GIA_ENGAGEMENT_KINDS } from '@/lib/mvp01/interfaces';
+import { AIA_LEADER_TASK, isAiaAdvisorPathway } from '@/lib/mvp01/aia-model';
+import { AIA_ASK_ON_FORM } from '@/lib/mvp01/aia-assisted-fields';
 import type { EvaluationFormConfig } from '@/lib/mvp01/evaluation-config';
 import styles from './command.module.css';
 
@@ -51,6 +53,7 @@ export default function Command() {
   const [stage, setStage] = useState('');
   const [confirmStop, setConfirmStop] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const [assisted, setAssisted] = useState<{ candidateId: string; fields: { id: string; label: string; value: string; captured: boolean; prompt?: string; formatHint?: string | null; options?: readonly string[] | null }[] } | null>(null);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ from, to, source, leader, q, stage });
@@ -82,6 +85,7 @@ export default function Command() {
 
   useEffect(() => { load().catch(() => setMessage('Service unavailable')); }, [load]);
   useEffect(() => {
+    setAssisted(null);
     if (!selected) {
       setDetail(null);
       setConfirmStop(false);
@@ -175,6 +179,85 @@ export default function Command() {
         await load({ keepMessage: true });
         await loadDetail(row.id);
         setMessage('Evaluation saved');
+      }
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordAia(e: React.FormEvent<HTMLFormElement>, row: CandidateDetail) {
+    e.preventDefault();
+    setBusy(true);
+    const f = new FormData(e.currentTarget);
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const action = submitter?.value || String(f.get('aiaAction') || '');
+    try {
+      const { ok, d } = await postJson('/api/recruitment/command/aia-registration', {
+        id: row.id,
+        action,
+        referralSource: String(f.get('referralSource') || row.aia_attribution?.referralSource || ''),
+        source: action === 'pending' ? 'self_report' : 'staff',
+      });
+      if (!ok) {
+        const errors: Record<string, string> = {
+          attribution_missing: 'Confirm assigned recruiter/introducer before any AIA registration handoff',
+          attribution_stale: 'Recruiter assignment changed; confirm attribution again',
+          not_aia_pathway: 'AIA registration applies only to the AIA advisor path',
+          fep_attendance_required: 'Confirmed FEP attendance is required first',
+          forbidden: 'Not assigned to you',
+          suppressed: 'STOP is in effect',
+        };
+        setMessage(errors[String(d.error)] || 'AIA registration update failed');
+      } else {
+        await load({ keepMessage: true });
+        await loadDetail(row.id);
+        setMessage(action === 'confirm_attribution' ? 'Recruiter attribution confirmed' : `AIA registration ${action}`);
+      }
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openAssisted(row: CandidateDetail) {
+    setBusy(true);
+    try {
+      const { ok, d } = await postJson('/api/recruitment/command/aia-registration', {
+        id: row.id,
+        action: 'open_assisted',
+      });
+      if (!ok) {
+        setMessage(d.error === 'consent_required' ? 'Assisted registration details require granted consent' : d.error === 'forbidden' ? 'Not assigned to you' : d.error === 'suppressed' ? 'STOP is in effect' : 'Unable to open assisted registration');
+        setAssisted(null);
+      } else {
+        setAssisted({ candidateId: row.id, fields: Array.isArray(d.fields) ? d.fields : [] });
+        await loadDetail(row.id);
+        setMessage('Assisted registration opened');
+      }
+    } catch {
+      setMessage('Service unavailable');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyAssistedField(row: CandidateDetail, field: { id: string; label: string; value: string }) {
+    setBusy(true);
+    try {
+      if (field.value && navigator.clipboard?.writeText) await navigator.clipboard.writeText(field.value);
+      const { ok, d } = await postJson('/api/recruitment/command/aia-registration', {
+        id: row.id,
+        action: 'copy_field',
+        fieldId: field.id,
+      });
+      if (!ok) {
+        setMessage(d.error === 'forbidden' ? 'Not assigned to you' : d.error === 'consent_required' ? 'Assisted registration details require granted consent' : d.error === 'suppressed' ? 'STOP is in effect' : 'Copy audit failed');
+      } else {
+        await loadDetail(row.id);
+        setMessage(`Copied ${field.label}`);
       }
     } catch {
       setMessage('Service unavailable');
@@ -597,6 +680,52 @@ export default function Command() {
                   <button type="submit" disabled={busy || stopped}>Record GIA event</button>
                 </div>
               </form>
+              {isAiaAdvisorPathway(row.program_interest) ? (
+                <form onSubmit={(e) => recordAia(e, row)}>
+                  <h2>Official AIA registration</h2>
+                  <p className={styles.meta}>AIA advisor path only. Assigned recruiter/introducer must be selected and confirmed before any registration handoff. If none is assigned, attribution falls back to the configured default recruiter. Candidate self-report can only create pending. Submitted and verified are staff actions. Does not grant Versa/SPIKE entitlements or paid L2. Official AIA iRecruit remains the system of record — {AIA_LEADER_TASK}. Do not send a generic Join us URL; only an attributed recruiter registration link is allowed.</p>
+                  <p className={styles.meta}>Leader task: {AIA_LEADER_TASK}</p>
+                  <p className={styles.meta}>Status {row.aia_registration_status || 'not started'} · recruiter {row.assigned_leader || 'missing'}{row.aia_attribution ? ` · referral ${row.aia_attribution.referralSource} · source ${row.aia_attribution.attributionSource || 'assigned_recruiter'} · confirmed by ${row.aia_attribution.confirmedBy}` : ' · attribution not confirmed'}</p>
+                  {row.aia_attribution && row.aia_registration_url && (
+                    <p className={styles.meta}>Attributed recruiter registration link (staff copy; reference stays encoded): {row.aia_registration_url}</p>
+                  )}
+                  {row.aia_attribution && !row.aia_registration_url && (
+                    <p className={styles.meta}>Handoff is a leader task only — no attributed registration link is configured for this recruiter.</p>
+                  )}
+                  <label className={styles.field}>Referral source
+                    <input name="referralSource" maxLength={120} defaultValue={row.aia_attribution?.referralSource || ''} disabled={stopped} />
+                  </label>
+                  <div className={styles.actions}>
+                    <button type="submit" name="aiaAction" value="confirm_attribution" disabled={busy || stopped || (data?.role !== 'admin' && !row.assigned_leader)}>Confirm recruiter attribution</button>
+                    <button type="submit" name="aiaAction" value="pending" disabled={busy || stopped || (!row.aia_attribution && !(data?.role === 'admin' && !row.assigned_leader))}>Record candidate self-report (pending)</button>
+                    <button type="submit" name="aiaAction" value="submitted" disabled={busy || stopped || !row.aia_attribution}>Mark submitted (staff)</button>
+                    <button type="submit" name="aiaAction" value="verified" disabled={busy || stopped || !row.aia_attribution}>Mark verified (staff)</button>
+                  </div>
+                  <h2>Recruiter-assisted registration</h2>
+                  <p className={styles.meta}>Leader task: {AIA_LEADER_TASK}. Shows consented details in AIA form field order for the assigned recruiter to complete iRecruit with the recruit. Opening and copying are audit-logged. Copying does not mark registration submitted or verified. Consent and reCAPTCHA are completed by the candidate on AIA&apos;s form. No AIA login fields and no automation into AIA.</p>
+                  {stopped || row.consent_status !== 'granted' ? (
+                    <p className={styles.meta}>Assisted registration details are hidden when consent is not granted or STOP is set.</p>
+                  ) : (
+                    <div>
+                      <div className={styles.actions}>
+                        <button type="button" disabled={busy} onClick={() => openAssisted(row)}>Open assisted registration</button>
+                      </div>
+                      {assisted?.candidateId === row.id && assisted.fields.map((field) => (
+                        <div className={styles.copyRow} key={field.id}>
+                          <label className={styles.field}>{field.label}
+                            <input readOnly value={field.captured ? field.value : (field.prompt || AIA_ASK_ON_FORM)} aria-label={field.label} />
+                          </label>
+                          {field.formatHint && <p className={styles.meta}>AIA mobile format {field.formatHint}</p>}
+                          {field.options && field.options.length > 0 && <p className={styles.meta}>{field.options.join(' / ')}</p>}
+                          <button type="button" disabled={busy || !field.captured} onClick={() => copyAssistedField(row, field)}>Copy {field.label}</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </form>
+              ) : (
+                <p className={styles.meta}>Official AIA registration does not apply ({row.program_interest || 'no program interest'} — intern and free-learner paths are excluded).</p>
+              )}
             <form key={row.id + row.stage + (row.due_at || '')} onSubmit={(e) => update(e, row)}>
               {data?.role === 'admin' && !stopped && (
                 <div className={styles.actions}>
