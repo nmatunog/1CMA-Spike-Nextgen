@@ -15,7 +15,7 @@ test('MVP 01 capture → register → evaluate → engage persists in Command Ce
   await page.getByLabel('Email').fill(access.email);
   await page.getByLabel('Password').fill(access.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL('/');
+  await page.waitForURL('/recruitment/command');
 
   await page.goto('/recruitment/capture');
   await expect(page.getByRole('heading', { name: 'Capture prospect' })).toBeVisible();
@@ -86,8 +86,7 @@ test('MVP 01 capture → register → evaluate → engage persists in Command Ce
   await leaderPage.getByLabel('Email').fill(access.leaderEmail);
   await leaderPage.getByLabel('Password').fill(access.leaderPassword);
   await leaderPage.getByRole('button', { name: 'Sign in' }).click();
-  await leaderPage.waitForURL('/');
-  await leaderPage.goto('/recruitment/command');
+  await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading', { name: NAME }).first()).toBeVisible();
   await expect(leaderPage.getByRole('link', { name: 'Capture prospect' })).toHaveCount(0);
 
@@ -106,7 +105,7 @@ test('GIA visitor conversation and handoff appear on the candidate timeline', as
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Save consent and contact' }).click();
   await expect(page.getByText(/consent and contact have been saved/)).toBeVisible();
-  await page.getByRole('button', { name: 'Join Free Financial Literacy' }).click();
+  await page.getByRole('button', { name: 'I want to learn money basics' }).click();
   await expect(page.getByRole('link', { name: 'KP-LIT-01 · v0.2' })).toBeVisible();
   await page.getByRole('button', { name: 'Talk to a 1CMA Leader' }).click();
   await expect(page.getByText(/1CMA leader/i).last()).toBeVisible();
@@ -121,8 +120,7 @@ test('GIA visitor conversation and handoff appear on the candidate timeline', as
   await staffPage.getByLabel('Email').fill(access.email);
   await staffPage.getByLabel('Password').fill(access.password);
   await staffPage.getByRole('button', { name: 'Sign in' }).click();
-  await staffPage.waitForURL('/');
-  await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading', { name: visitor }).first()).toBeVisible({ timeout: 15000 });
   await staffPage.getByRole('button', { name: visitor, exact: true }).first().click();
   await expect(staffPage.getByRole('listitem').filter({ hasText: 'gia.conversation' }).first()).toContainText('not a decision');

@@ -80,6 +80,8 @@ describe('program adapters', () => {
     expect(adapterAllows('ra', 'opt_out')).toBe(true);
     expect(adapterAllows('intern', 'consent')).toBe(true);
     expect(adapterAllowsTopic('recruit', 'fep')).toBe(true);
+    expect(adapterAllowsTopic('recruit', 'recruitment')).toBe(true);
+    expect(adapterAllowsTopic('intern', 'recruitment')).toBe(false);
     expect(adapterAllowsTopic('intern', 'fep')).toBe(false);
     expect(adapterAllowsTopic('intern', 'literacy')).toBe(false);
     expect(adapterAllowsTopic('intern', 'safety')).toBe(true);

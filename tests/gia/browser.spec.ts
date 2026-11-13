@@ -15,11 +15,12 @@ for (const viewport of [{width:390,height:844},{width:1440,height:1000}]) {
     await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
     await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
     await expect(page.getByRole('button',{name:'What should I do next?'})).toBeVisible();
+    await expect(page.getByRole('button',{name:'I want to learn money basics'})).toBeVisible();
     if (viewport.width === 1440) await page.screenshot({path:'work/gia-welcome.png',fullPage:true});
     await page.getByRole('radio',{name:'Intern'}).click();
     await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'Join Free Financial Literacy'})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'I want to explore a business path'})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'I want to learn money basics'})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'What should I do next?'})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Talk to a 1CMA Leader'})).toBeVisible();
     await page.getByRole('radio',{name:'Recruit'}).click();
@@ -46,7 +47,7 @@ test('intern guide hides FEP and denies FEP listing', async ({page}) => {
   await page.goto('/gia');
   await page.getByRole('radio',{name:'Intern'}).click();
   await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'I want to explore a business path'})).toHaveCount(0);
   await page.getByRole('textbox',{name:'Message GIA'}).fill('Show FEP sessions');
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await expect(page.getByText(/FEP session booking is part of the recruitment guide/)).toBeVisible();
@@ -67,13 +68,13 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await expect(page.locator('input[type=file]')).toHaveCount(0);
   await page.getByRole('button',{name:'Check my status'}).click();
   await expect(page.getByText(/mock OTP adapter/i)).toBeVisible();
-  await page.getByRole('button',{name:'Join Free Financial Literacy'}).click();
+  await page.getByRole('button',{name:'I want to learn money basics'}).click();
   await expect(page.getByText('Financial Literacy is free. You may start with learning or explore the free Financial Entrepreneurship Preview directly.')).toBeVisible();
   await expect(page.getByRole('link',{name:'KP-LIT-01 · v0.2'})).toBeVisible();
   await page.getByRole('textbox',{name:'Message GIA'}).fill('Bisaya');
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await expect(page.getByText('Sige, mag-Bisaya ta. Unsa akong ikatabang?')).toBeVisible();
-  await page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'}).click();
+  await page.getByRole('button',{name:'I want to explore a business path'}).click();
   await expect(page.getByText(/Libre ang Financial Entrepreneurship Preview/)).toBeVisible();
   await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toBeVisible();
   await page.getByRole('button',{name:'Show FEP sessions'}).click();
@@ -89,7 +90,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading',{name:'Dashboard'})).toBeVisible();
   await expect(staffPage.getByRole('heading',{name:'Synthetic Pilot Visitor'}).first()).toBeVisible({timeout:15000});
   await staffPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -110,7 +111,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await staffPage.screenshot({path:'docs/cc02a/screenshots/command-mobile.png',fullPage:true});
   const leaderContext=await browser.newContext();const leaderPage=await leaderContext.newPage();
   await leaderPage.goto('/login');await leaderPage.getByLabel('Email',{exact:true}).fill(access.leaderEmail);await leaderPage.getByLabel('Password',{exact:true}).fill(access.leaderPassword);
-  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/');await leaderPage.goto('/recruitment/command');
+  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Pilot Visitor'}).first()).toBeVisible();
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Unassigned Alpha'})).toHaveCount(0);
   await leaderPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -142,7 +143,7 @@ test('admin CSV import flags unverified duplicates and exports consent-aware CSV
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading',{name:'CSV import'})).toBeVisible();
   await staffPage.getByLabel('Synthetic CSV').setInputFiles('tests/gia/fixtures/cc02b-10-prospects.csv');
   await staffPage.getByRole('button',{name:'Dry run'}).click();
@@ -166,7 +167,7 @@ test('admin CSV import flags unverified duplicates and exports consent-aware CSV
   await staffPage.screenshot({path:'docs/cc02b/screenshots/import-mobile.png',fullPage:true});
   const leaderContext=await browser.newContext();const leaderPage=await leaderContext.newPage();
   await leaderPage.goto('/login');await leaderPage.getByLabel('Email',{exact:true}).fill(access.leaderEmail);await leaderPage.getByLabel('Password',{exact:true}).fill(access.leaderPassword);
-  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/');await leaderPage.goto('/recruitment/command');
+  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading',{name:'CSV import'})).toHaveCount(0);
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Prospect 01'})).toHaveCount(0);
   await staffContext.close();
@@ -180,7 +181,7 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Unassigned Alpha'}).click();
   await expect(staffPage.getByRole('heading',{name:'Preliminary evaluation'})).toBeVisible();
   const evalForm=staffPage.locator('form').filter({has:staffPage.getByRole('button',{name:'Record evaluation'})});

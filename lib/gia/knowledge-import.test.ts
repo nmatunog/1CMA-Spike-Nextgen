@@ -40,11 +40,24 @@ describe('knowledge pack import', () => {
     expect(isApproved({ ...lit, audience: 'staff_only' }, now)).toBe(false);
     expect(validateEntry({ ...lit, audience: 'staff_only' })).toContain('staff_only_cannot_be_approved_for_serving');
   });
-  it('refuses to import non LIT/FEP/DOCS/SAFETY entries as approved', () => {
-    const rec = { ...lit, id: 'KP-REC-01', version: '9.9' };
-    expect(validateEntry(rec)).toContain('only_lit_fep_docs_may_be_approved');
-    expect(isApproved(rec, now)).toBe(false);
+  it('refuses to import unknown prefixes as approved and keeps REC on recruitment', () => {
+    const fake = { ...lit, id: 'KP-FOO-01', version: '9.9' };
+    expect(validateEntry(fake)).toContain('only_lit_fep_docs_may_be_approved');
+    expect(isApproved(fake, now)).toBe(false);
+    const recWrongTopic = { ...lit, id: 'KP-REC-01', version: '9.9', topic: 'literacy' };
+    expect(validateEntry(recWrongTopic)).toContain('rec_topic_must_be_recruitment');
     const safety = entries.find(e => e.id === 'KP-SAFETY-01');
     expect(validateEntry({ ...safety, topic: 'literacy' })).toContain('safety_topic_must_be_safety');
+  });
+  it('serves approved KP-REC answers from their effective dates', () => {
+    const rec13 = new Date('2026-11-13T12:00:00Z');
+    const rec14 = new Date('2026-11-14T12:00:00Z');
+    expect(knowledge.filter(e => isApproved(e, rec13)).map(e => e.id).sort()).toEqual([
+      'KP-DOCS-01','KP-DOCS-02','KP-DOCS-03','KP-DOCS-04','KP-DOCS-05','KP-DOCS-06','KP-FEP-01','KP-LIT-01','KP-REC-02','KP-SAFETY-01',
+    ]);
+    expect(knowledge.filter(e => isApproved(e, rec14)).map(e => e.id).sort()).toEqual([
+      'KP-DOCS-01','KP-DOCS-02','KP-DOCS-03','KP-DOCS-04','KP-DOCS-05','KP-DOCS-06','KP-FEP-01','KP-LIT-01','KP-REC-01','KP-REC-02','KP-REC-03','KP-REC-04','KP-REC-05','KP-REC-06','KP-REC-07','KP-SAFETY-01',
+    ]);
+    expect(isApproved(knowledge.find(e => e.id === 'KP-REC-01'), now)).toBe(false);
   });
 });
