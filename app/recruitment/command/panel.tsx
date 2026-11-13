@@ -5,6 +5,7 @@ import { formatManilaStamp, manilaDaysAgo, manilaToday, toManilaDateTimeLocal } 
 import type { AuditEvent, CandidateDetail, DashboardCounts, DuplicateFlag, HandoffQueueItem, ImportReport, QueueCandidate } from '@/lib/recruitment/types';
 import { COMM_CHANNELS, GIA_ENGAGEMENT_KINDS } from '@/lib/mvp01/interfaces';
 import { AIA_LEADER_TASK, isAiaAdvisorPathway } from '@/lib/mvp01/aia-model';
+import { AIA_ASK_ON_FORM } from '@/lib/mvp01/aia-assisted-fields';
 import type { EvaluationFormConfig } from '@/lib/mvp01/evaluation-config';
 import styles from './command.module.css';
 
@@ -52,7 +53,7 @@ export default function Command() {
   const [stage, setStage] = useState('');
   const [confirmStop, setConfirmStop] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
-  const [assisted, setAssisted] = useState<{ candidateId: string; fields: { id: string; label: string; value: string; captured: boolean }[] } | null>(null);
+  const [assisted, setAssisted] = useState<{ candidateId: string; fields: { id: string; label: string; value: string; captured: boolean; prompt?: string; formatHint?: string | null; options?: readonly string[] | null }[] } | null>(null);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ from, to, source, leader, q, stage });
@@ -701,7 +702,7 @@ export default function Command() {
                     <button type="submit" name="aiaAction" value="verified" disabled={busy || stopped || !row.aia_attribution}>Mark verified (staff)</button>
                   </div>
                   <h2>Recruiter-assisted registration</h2>
-                  <p className={styles.meta}>Leader task: {AIA_LEADER_TASK}. Shows consented details in AIA form field order for the assigned recruiter to complete iRecruit with the recruit. Opening and copying are audit-logged. Copying does not mark registration submitted or verified. No AIA login fields and no automation into AIA.</p>
+                  <p className={styles.meta}>Leader task: {AIA_LEADER_TASK}. Shows consented details in AIA form field order for the assigned recruiter to complete iRecruit with the recruit. Opening and copying are audit-logged. Copying does not mark registration submitted or verified. Consent and reCAPTCHA are completed by the candidate on AIA&apos;s form. No AIA login fields and no automation into AIA.</p>
                   {stopped || row.consent_status !== 'granted' ? (
                     <p className={styles.meta}>Assisted registration details are hidden when consent is not granted or STOP is set.</p>
                   ) : (
@@ -712,8 +713,10 @@ export default function Command() {
                       {assisted?.candidateId === row.id && assisted.fields.map((field) => (
                         <div className={styles.copyRow} key={field.id}>
                           <label className={styles.field}>{field.label}
-                            <input readOnly value={field.value} aria-label={field.label} />
+                            <input readOnly value={field.captured ? field.value : (field.prompt || AIA_ASK_ON_FORM)} aria-label={field.label} />
                           </label>
+                          {field.formatHint && <p className={styles.meta}>AIA mobile format {field.formatHint}</p>}
+                          {field.options && field.options.length > 0 && <p className={styles.meta}>{field.options.join(' / ')}</p>}
                           <button type="button" disabled={busy || !field.captured} onClick={() => copyAssistedField(row, field)}>Copy {field.label}</button>
                         </div>
                       ))}

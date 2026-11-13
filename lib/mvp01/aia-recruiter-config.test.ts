@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  appendAiaFormScroll,
   candidateAiaHandoff,
   isAttributedAiaRegistrationUrl,
   isGenericAiaJoinUrl,
@@ -62,5 +63,22 @@ describe('AIA attributed registration URLs', () => {
     expect(JSON.stringify(ok)).not.toMatch(/"code":/);
     expect(JSON.stringify(ok)).not.toMatch(/TEST\/RECRUITER/);
     expect(JSON.stringify(ok)).not.toMatch(/join-us-now(?!\?reference=)/);
+  });
+
+  it('optionally appends scroll=1 only when reference stays intact', () => {
+    expect(isAttributedAiaRegistrationUrl(`${SYNTHETIC}&scroll=1`)).toBe(true);
+    expect(appendAiaFormScroll(SYNTHETIC)).toBe(`${SYNTHETIC}&scroll=1`);
+    expect(appendAiaFormScroll(`${SYNTHETIC}&scroll=1`)).toBe(`${SYNTHETIC}&scroll=1`);
+    expect(appendAiaFormScroll('https://www.aia.com.ph/en/financialadvisor/join-us-now')).toBeNull();
+    const scrolled = candidateAiaHandoff({ attributed: true, registrationUrl: SYNTHETIC, scrollToForm: true });
+    expect(scrolled.registrationUrl).toBe(`${SYNTHETIC}&scroll=1`);
+    expect(new URL(scrolled.registrationUrl || '').searchParams.get('reference')).toBe(new URL(SYNTHETIC).searchParams.get('reference'));
+    expect(JSON.stringify(scrolled)).not.toMatch(/"code":/);
+    expect(JSON.stringify(scrolled)).not.toMatch(/TEST\/RECRUITER/);
+    expect(candidateAiaHandoff({
+      attributed: true,
+      registrationUrl: 'https://www.aia.com.ph/en/financialadvisor/join-us-now',
+      scrollToForm: true,
+    }).registrationUrl).toBeNull();
   });
 });

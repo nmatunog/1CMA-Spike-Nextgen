@@ -50,6 +50,7 @@ describe('command panel contract', () => {
     expect(src).toMatch(/Recruiter-assisted registration/);
     expect(src).toMatch(/Open assisted registration/);
     expect(src).toMatch(/Copying does not mark registration submitted or verified/);
+    expect(src).toMatch(/Consent and reCAPTCHA are completed by the candidate on AIA/);
     expect(src).not.toMatch(/join-us-now/);
     expect(src).not.toMatch(/type=["']password["']/);
     expect(src).not.toMatch(/iRecruit form/i);

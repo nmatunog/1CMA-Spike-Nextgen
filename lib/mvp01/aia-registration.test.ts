@@ -139,7 +139,7 @@ describe('Official AIA registration milestone', () => {
     expect(confirmed.recruiterEmail).toBe(leader.email);
     expect(confirmed.leaderTask).toBe(AIA_LEADER_TASK);
     expect(confirmed.attributionSource).toBe('assigned_recruiter');
-    expect(confirmed.registrationUrl).toBe(SYNTHETIC_LEADER_URL);
+    expect(confirmed.registrationUrl).toBe(`${SYNTHETIC_LEADER_URL}&scroll=1`);
     const [row] = await q('SELECT assigned_leader, next_action, stage, spike_paid FROM candidates WHERE id=$1', [id]);
     expect(row.assigned_leader).toBe(leader.email);
     expect(row.next_action).toBe(AIA_LEADER_TASK);
@@ -324,14 +324,14 @@ describe('Official AIA registration milestone', () => {
     });
     expect(confirmed.attributionSource).toBe('default_recruiter');
     expect(confirmed.recruiterEmail).toBe(defaultRecruiter.email);
-    expect(confirmed.registrationUrl).toBe(SYNTHETIC_DEFAULT_URL);
+    expect(confirmed.registrationUrl).toBe(`${SYNTHETIC_DEFAULT_URL}&scroll=1`);
     const [row] = await q('SELECT assigned_leader FROM candidates WHERE id=$1', [advisor]);
     expect(row.assigned_leader).toBe(defaultRecruiter.email);
     const [event] = await q("SELECT metadata::text AS m FROM candidate_events WHERE candidate_id=$1 AND kind=$2", [advisor, AIA_EVENT_KINDS.attributionConfirmed]);
     expect(String(event.m)).toMatch(/"attributionSource"\s*:\s*"default_recruiter"/);
     const detail = await getCandidate(sql, admin, advisor);
     expect(detail?.candidate.aia_attribution?.attributionSource).toBe('default_recruiter');
-    expect(detail?.candidate.aia_registration_url).toBe(SYNTHETIC_DEFAULT_URL);
+    expect(detail?.candidate.aia_registration_url).toBe(`${SYNTHETIC_DEFAULT_URL}&scroll=1`);
   });
 
   it('lets a candidate click on an unassigned advisor create pending only via default recruiter', async () => {
@@ -342,7 +342,7 @@ describe('Official AIA registration milestone', () => {
     });
     expect(pending.status).toBe('aia_registration_pending');
     expect(pending.attributionSource).toBe('default_recruiter');
-    expect(pending.registrationUrl).toBe(SYNTHETIC_DEFAULT_URL);
+    expect(pending.registrationUrl).toBe(`${SYNTHETIC_DEFAULT_URL}&scroll=1`);
     const kinds = (await q("SELECT kind FROM candidate_events WHERE candidate_id=$1 AND kind LIKE 'aia.%' ORDER BY created_at", [id])).map((row) => row.kind);
     expect(kinds).toEqual([AIA_EVENT_KINDS.attributionConfirmed, AIA_EVENT_KINDS.pending]);
     expect(kinds).not.toContain(AIA_EVENT_KINDS.submitted);
@@ -362,7 +362,7 @@ describe('Official AIA registration milestone', () => {
       attributed: true,
       registrationUrl: confirmed.registrationUrl,
     });
-    expect(facing.registrationUrl).toBe(SYNTHETIC_LEADER_URL);
+    expect(facing.registrationUrl).toBe(`${SYNTHETIC_LEADER_URL}&scroll=1`);
     expect(JSON.stringify(facing)).not.toContain('https://www.aia.com.ph/en/financialadvisor/join-us-now"');
     expect(JSON.stringify(facing)).not.toMatch(/join-us-now(?!\?reference=)/);
     expect(JSON.stringify(facing)).not.toMatch(/TEST\/LEADER/);
@@ -395,11 +395,15 @@ describe('Official AIA registration milestone', () => {
     });
     const opened = await applyAiaRegistration(sql, leader, { candidateId: id, action: 'open_assisted' }) as {
       statusUnchanged: boolean;
-      fields: Array<{ id: string; value: string }>;
+      fields: Array<{ id: string; value: string; captured: boolean }>;
     };
     expect(opened.statusUnchanged).toBe(true);
-    expect(opened.fields.map((field) => field.id)).toEqual(['first_name', 'last_name', 'email', 'mobile', 'city']);
-    expect(opened.fields[0].value).toBe('Synthetic');
+    expect(opened.fields.map((field) => field.id)).toEqual([
+      'honorifics', 'first_name', 'last_name', 'date_of_birth', 'email', 'mobile', 'applying_to_be', 'preferred_location',
+    ]);
+    expect(opened.fields[1].value).toBe('Synthetic');
+    expect(opened.fields[0].captured).toBe(false);
+    expect(opened.fields[3].captured).toBe(false);
     expect(JSON.stringify(opened.fields)).not.toMatch(/password|credential|agent code/i);
     await expect(applyAiaRegistration(sql, otherLeader, {
       candidateId: id, action: 'open_assisted',

@@ -412,6 +412,7 @@ export async function getCandidate(sql: Sql, actor: StaffActor, id: string) {
   const handoff = candidateAiaHandoff({
     attributed: Boolean(aia.attribution),
     registrationUrl: resolveAiaHandoffUrl(detail.assigned_leader || aia.attribution?.recruiterEmail),
+    scrollToForm: true,
   });
   detail.aia_registration_url = handoff.registrationUrl;
   return { candidate: detail, events, identities };

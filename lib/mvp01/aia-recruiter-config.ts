@@ -93,9 +93,34 @@ export function resolveDefaultAiaRecruiter() {
   return { staffId: defaultStaffId, registrationUrl: defaultRegistrationUrl };
 }
 
+/**
+ * Optional `scroll=1` so AIA jumps to the form. Appends only when the URL already
+ * validates and `reference` is unchanged. Never used on a generic join-us-now.
+ */
+export function appendAiaFormScroll(value: unknown): string | null {
+  if (!isAttributedAiaRegistrationUrl(value)) return null;
+  const original = String(value).trim();
+  const parsed = parseUrl(original);
+  if (!parsed) return null;
+  const reference = parsed.searchParams.get('reference');
+  if (!reference) return null;
+  if (parsed.searchParams.get('scroll') === '1') return original;
+  const next = original.includes('?') ? `${original}&scroll=1` : `${original}?scroll=1`;
+  if (!isAttributedAiaRegistrationUrl(next)) return null;
+  const nextParsed = parseUrl(next);
+  if (!nextParsed || nextParsed.searchParams.get('reference') !== reference) return null;
+  return next;
+}
+
 /** Candidate-facing handoff: attributed URL or leader task only. Never a generic join-us-now. */
-export function candidateAiaHandoff(input: { attributed?: boolean; registrationUrl?: string | null } = {}): AiaCandidateHandoff {
+export function candidateAiaHandoff(input: {
+  attributed?: boolean;
+  registrationUrl?: string | null;
+  scrollToForm?: boolean;
+} = {}): AiaCandidateHandoff {
   if (!input.attributed) return { leaderTask: AIA_LEADER_TASK, registrationUrl: null };
   const url = sanitizedRegistrationUrl(input.registrationUrl || '');
-  return { leaderTask: AIA_LEADER_TASK, registrationUrl: url };
+  if (!url) return { leaderTask: AIA_LEADER_TASK, registrationUrl: null };
+  if (!input.scrollToForm) return { leaderTask: AIA_LEADER_TASK, registrationUrl: url };
+  return { leaderTask: AIA_LEADER_TASK, registrationUrl: appendAiaFormScroll(url) || url };
 }

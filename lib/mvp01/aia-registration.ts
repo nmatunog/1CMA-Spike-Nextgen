@@ -33,8 +33,15 @@ export {
   deriveAiaRegistration,
   isAiaAdvisorPathway,
 } from './aia-model';
-export { AIA_ASSISTED_REGISTRATION_FIELDS, mapAssistedRegistrationFields } from './aia-assisted-fields';
 export {
+  AIA_ASK_ON_FORM,
+  AIA_ASSISTED_CANDIDATE_ON_FORM,
+  AIA_ASSISTED_REGISTRATION_FIELDS,
+  AIA_MOBILE_FORMAT_HINT,
+  mapAssistedRegistrationFields,
+} from './aia-assisted-fields';
+export {
+  appendAiaFormScroll,
   candidateAiaHandoff,
   isAttributedAiaRegistrationUrl,
   isGenericAiaJoinUrl,
@@ -131,6 +138,7 @@ function handoffFor(staffId: string, attributed: boolean) {
   return candidateAiaHandoff({
     attributed,
     registrationUrl: resolveAiaHandoffUrl(staffId),
+    scrollToForm: true,
   });
 }
 
@@ -231,6 +239,7 @@ async function writeAssistedRead(
       registrationUrl: candidateAiaHandoff({
         attributed: Boolean(assignedNow),
         registrationUrl: resolveAiaHandoffUrl(assignedNow),
+        scrollToForm: true,
       }).registrationUrl,
     };
   }
@@ -250,6 +259,7 @@ async function writeAssistedRead(
   const handoff = candidateAiaHandoff({
     attributed: Boolean(assignedNow),
     registrationUrl: resolveAiaHandoffUrl(assignedNow),
+    scrollToForm: true,
   });
   return {
     ok: true as const,
