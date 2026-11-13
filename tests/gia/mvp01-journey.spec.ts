@@ -105,7 +105,7 @@ test('GIA visitor conversation and handoff appear on the candidate timeline', as
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Save consent and contact' }).click();
   await expect(page.getByText(/consent and contact have been saved/)).toBeVisible();
-  await page.getByRole('button', { name: 'Join Free Financial Literacy' }).click();
+  await page.getByRole('button', { name: 'I want to learn money basics' }).click();
   await expect(page.getByRole('link', { name: 'KP-LIT-01 · v0.2' })).toBeVisible();
   await page.getByRole('button', { name: 'Talk to a 1CMA Leader' }).click();
   await expect(page.getByText(/1CMA leader/i).last()).toBeVisible();

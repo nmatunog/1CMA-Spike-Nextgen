@@ -12,18 +12,21 @@ import {
   GIA_FOOTER_LINE2_PREFIX,
   GIA_NOTICE_PRIVACY,
   GIA_PILOT_BADGE,
-  GIA_QUICK_REPLIES_OTHER,
-  GIA_QUICK_REPLIES_RECRUIT,
   GIA_SUBTITLE,
   GIA_SYSTEM_NOTE,
   GIA_TITLE,
   LEADER_INVITE,
+  NEXT_STEP_INVITE,
+  resolveGiaPrompt,
+  visibleJtbd,
+  type GiaProgram,
 } from '@/lib/gia/ui-copy';
 import styles from './gia-chat.module.css';
 
 type Turn = { kind: 'gia' | 'user'; text: string; citation?: { id: string; version: string; source: string } };
-type Program = 'recruit' | 'intern' | 'ra';
+type Program = GiaProgram;
 type Session = { id: string; starts_at: string; seats_left: number };
+type Seed = { text: string; id: number };
 
 const CONSENT_INTENTS = new Set([
   LEADER_INVITE,
@@ -35,10 +38,12 @@ const CONSENT_INTENTS = new Set([
 export function GiaChat({
   variant = 'page',
   initialPrompt,
+  seed,
   onClose,
 }: {
   variant?: 'page' | 'panel';
   initialPrompt?: string;
+  seed?: Seed;
   onClose?: () => void;
 }) {
   const [dark, setDark] = useState(false);
@@ -56,9 +61,12 @@ export function GiaChat({
   const [program, setProgram] = useState<Program>('recruit');
   const [stuck, setStuck] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
-  const seeded = useRef(false);
+  const lastSeed = useRef<number | null>(null);
 
-  const chips = program === 'recruit' ? GIA_QUICK_REPLIES_RECRUIT : GIA_QUICK_REPLIES_OTHER;
+  const chips = [
+    ...visibleJtbd(program).map((item) => item.label),
+    ...(program === 'recruit' ? [NEXT_STEP_INVITE] : []),
+  ];
   const nearBottom = () => {
     const el = threadRef.current;
     if (!el) return true;
@@ -76,6 +84,18 @@ export function GiaChat({
       if (follow) scrollToEnd();
       else setStuck(true);
     });
+  }
+
+  function sendMapped(label: string) {
+    if (/^\s*stop\s*$/i.test(label)) {
+      add('user', 'STOP');
+      void call('opt_out');
+      return;
+    }
+    const resolved = resolveGiaPrompt(label);
+    if (resolved.program && resolved.program !== program) setProgram(resolved.program);
+    add('user', label);
+    void call('message', { text: resolved.text, ...(resolved.program ? { program: resolved.program } : {}) });
   }
 
   async function call(action: string, extra: Record<string, unknown> = {}) {
@@ -151,16 +171,17 @@ export function GiaChat({
   }
 
   useEffect(() => {
-    if (!initialPrompt || seeded.current) return;
-    seeded.current = true;
-    add('user', initialPrompt);
-    void call('message', { text: initialPrompt });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once from the landing invitation
-  }, [initialPrompt]);
+    const incoming = seed?.text ?? initialPrompt;
+    const incomingId = seed?.id ?? (initialPrompt ? 0 : null);
+    if (!incoming || incomingId == null) return;
+    if (lastSeed.current === incomingId) return;
+    lastSeed.current = incomingId;
+    sendMapped(incoming);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- continue from the landing composer or chips
+  }, [seed?.id, seed?.text, initialPrompt]);
 
   function sendChip(label: string) {
-    add('user', label);
-    void call('message', { text: label });
+    sendMapped(label);
   }
 
   function onComposerKey(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -169,8 +190,7 @@ export function GiaChat({
       if (text.trim() && !busy && !stopped) {
         const value = text.trim();
         setText('');
-        add('user', value);
-        void call('message', { text: value });
+        sendMapped(value);
       }
     }
   }
@@ -381,8 +401,7 @@ export function GiaChat({
             if (!text.trim() || busy || stopped) return;
             const value = text.trim();
             setText('');
-            add('user', value);
-            void call('message', { text: value });
+            sendMapped(value);
           }}
         >
           <textarea

@@ -72,6 +72,7 @@
   top: 0;
   z-index: 3;
   min-height: 64px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -645,6 +646,14 @@
   }
   .mobilePicker {
     display: none;
+  }
+  .panel .desktopPicker,
+  .panel .privacyHeader,
+  .panel .badge {
+    display: none;
+  }
+  .panel .mobilePicker {
+    display: flex;
   }
   .card {
     padding: 20px;

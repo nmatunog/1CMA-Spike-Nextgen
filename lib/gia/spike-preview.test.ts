@@ -6,11 +6,16 @@ import {
   FEP_INVITE,
   GIA_CONSENT_SAVE,
   GIA_DISCLAIMER,
+  GIA_JTBD,
   GIA_QUICK_REPLIES_RECRUIT,
   GIA_TITLE,
+  INTERN_INVITE,
+  LEADER_INVITE,
   LITERACY_INVITE,
   SPIKE_PREVIEW_PATH,
   STAFF_POST_LOGIN_PATH,
+  resolveGiaPrompt,
+  visibleJtbd,
 } from '@/lib/gia/ui-copy';
 
 const landing = readFileSync('components/spike-preview/SpikePreviewLanding.tsx', 'utf8');
@@ -44,13 +49,42 @@ it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture
   expect(landing).toMatch(/Direct entry allowed/);
   expect(landing).toContain('Ask GIA');
   expect(landing).toContain('<GiaChat');
+  expect(landing).toContain('askGia');
+  expect(landing).toContain('{GIA_JTBD.map');
+  expect(landing).toContain('{GIA_DISCLAIMER}');
+  expect(landing).toContain('/gia/privacy');
+  expect(landing).toMatch(/STOP/);
+  expect(landing).toMatch(/loading="lazy"/);
   expect(landing).not.toMatch(/VC-style safety net/);
   expect(landing).not.toMatch(/date-of-birth|dateOfBirth|type="date"/);
   expect(landing).not.toMatch(/Residence address|type="file"/);
   expect(landing).not.toMatch(/Submit demo enrollment|Sign up & explore/);
+  expect(landing).not.toMatch(/Premium|priceless|₱0/i);
   expect(landing).toMatch(/Synthetic details only/);
   expect(landing).toMatch(/Versa/);
   expect(landing).toMatch(/1CMA/);
+});
+
+it('maps visitor-goal chips to approved GIA flows without new content claims', () => {
+  expect(GIA_JTBD.map((item) => item.text)).toEqual([
+    LITERACY_INVITE,
+    FEP_INVITE,
+    INTERN_INVITE,
+    LEADER_INVITE,
+  ]);
+  expect(resolveGiaPrompt('I want to learn money basics')).toEqual({ text: LITERACY_INVITE, program: 'recruit' });
+  expect(resolveGiaPrompt('I want to explore a business path')).toEqual({ text: FEP_INVITE, program: 'recruit' });
+  expect(resolveGiaPrompt("I'm a student / intern")).toEqual({ text: INTERN_INVITE, program: 'intern' });
+  expect(resolveGiaPrompt('Talk to a 1CMA leader')).toEqual({ text: LEADER_INVITE });
+  expect(visibleJtbd('intern').map((item) => item.label)).not.toContain('I want to learn money basics');
+  expect(GIA_QUICK_REPLIES_RECRUIT).toEqual([
+    LITERACY_INVITE,
+    FEP_INVITE,
+    'What should I do next?',
+    LEADER_INVITE,
+  ]);
+  expect(chat).toContain('resolveGiaPrompt');
+  expect(chat).toContain('visibleJtbd');
 });
 
 it('mocks Inter for the offline Next.js build gate', () => {
@@ -72,12 +106,6 @@ it('embeds the same GIA chat on /gia and the landing panel', () => {
   expect(GIA_TITLE).toBe('GIA — Your 1CMA AI Guide');
   expect(GIA_DISCLAIMER).toBe('Learning does not authorize you to sell insurance or give insurance advice.');
   expect(GIA_CONSENT_SAVE).toBe('Save consent and contact');
-  expect(GIA_QUICK_REPLIES_RECRUIT).toEqual([
-    LITERACY_INVITE,
-    FEP_INVITE,
-    'What should I do next?',
-    'Talk to a 1CMA Leader',
-  ]);
   expect(chat).not.toMatch(/Grok|xAI|attach|model picker|regenerate/i);
   expect(chat).toMatch(/STOP \/ opt out/);
   expect(chat).toMatch(/Privacy notice/);

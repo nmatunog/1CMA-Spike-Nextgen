@@ -1994,10 +1994,204 @@ textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--err
   .header-cma { padding-left: 8px; margin-right: 0; }
 }
 
+.firstScreen {
+  min-height: 0;
+  padding: 20px 0 16px;
+  text-align: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.firstScreen.hero {
+  min-height: 0;
+  padding: 16px 0 12px;
+}
+.firstScreen .hero-badge {
+  margin-bottom: 10px;
+  font-size: .68rem;
+}
+.firstScreen h1 {
+  font-size: clamp(1.85rem, 4.2vw, 3.4rem);
+  line-height: 1.12;
+  letter-spacing: -1.5px;
+  margin: 0 0 8px;
+  font-weight: 800;
+}
+.firstScreen .lede {
+  max-width: 640px;
+  margin: 0 auto 16px;
+  font-size: 1rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.askGia {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(640px, 100%);
+  margin: 0 auto 12px;
+  background: #121726;
+  border: 1px solid #738098;
+  border-radius: 28px;
+  padding: 4px 4px 4px 16px;
+}
+.askGia input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  min-height: 40px;
+  padding: 8px 0;
+  font: inherit;
+}
+.askGia input:focus {
+  outline: none;
+}
+.askGiaSend {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: #a6192e;
+  color: #fff;
+  font-size: 1.1rem;
+}
+.askGiaSend:hover {
+  background: #8b1426;
+  filter: none;
+}
+.jtbd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 16px;
+  max-width: 720px;
+}
+.jtbd button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: .8rem;
+  font-weight: 500;
+  background: #121726;
+  border-color: #738098;
+  color: #f8fafc;
+}
+.inviteGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  text-align: left;
+}
+.inviteCard {
+  padding: 14px 16px;
+  background: #121726;
+  border: 1px solid #455169;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.inviteCard h2 {
+  font-size: 1rem;
+  line-height: 1.3;
+  letter-spacing: -.3px;
+  margin: 0;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.inviteCard p {
+  color: #bac6d8;
+  font-size: .78rem;
+  margin: 0;
+}
+.inviteCard .tag {
+  margin: 0;
+  color: #f5d77f;
+}
+.inviteCard button {
+  margin-top: auto;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px solid #455169;
+  border-radius: 0;
+  font-size: .75rem;
+  justify-content: space-between;
+  display: flex;
+}
+.folded {
+  padding-block: 24px 96px;
+  display: grid;
+  gap: 8px;
+}
+.folded > details {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px 14px;
+  background: var(--surface);
+}
+.folded > details > summary {
+  font-weight: 650;
+  font-size: .95rem;
+}
+.legalStrip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 18;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  background: #0b0f19f2;
+  color: #bac6d8;
+  border-top: 1px solid #455169;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+}
+.legalStrip p {
+  margin: 0;
+}
+.legalStrip a {
+  color: #f8fafc;
+  font-weight: 600;
+}
+.legalStop {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: #f8fafc;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.site-header {
+  min-height: 64px;
+}
+footer {
+  padding-bottom: 88px;
+}
+.mobile-cta {
+  display: none !important;
+}
+
 .giaFab {
   position: fixed;
   right: 16px;
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(56px + env(safe-area-inset-bottom));
   z-index: 20;
   min-height: 48px;
   padding: 12px 18px;
@@ -2009,6 +2203,76 @@ textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--err
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
   cursor: pointer;
 }
+.comingSoon {
+  opacity: 0.78;
+}
+.comingSoon button {
+  cursor: default;
+  opacity: 0.7;
+}
+.nowrap {
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .giaFab {
+    bottom: 56px;
+  }
+}
+@media (max-width: 700px) {
+  .firstScreen .lede {
+    white-space: normal;
+    font-size: .88rem;
+    margin-bottom: 12px;
+  }
+  .firstScreen h1 {
+    font-size: 1.7rem;
+  }
+  .askGia {
+    width: 100%;
+  }
+  .jtbd button {
+    font-size: .72rem;
+    padding: 6px 10px;
+  }
+  .inviteGrid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .inviteCard {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 4px 10px;
+  }
+  .inviteCard h2 {
+    font-size: .92rem;
+    flex: 1;
+  }
+  .inviteCard > p:not(.tag) {
+    display: none;
+  }
+  .inviteCard button {
+    width: auto;
+    margin-left: auto;
+    border: 0;
+    padding: 0;
+    min-height: 36px;
+  }
+  .legalStrip {
+    font-size: 11px;
+    padding-right: 108px;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .giaFab {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+}
+
+}
+
+/* Portaled GIA dock sits on document.body, so these must be top-level module classes. */
 .giaDock {
   position: fixed;
   inset: 0;
@@ -2024,19 +2288,12 @@ textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--err
   background: #fafafb;
   box-shadow: -8px 0 32px rgb(0 0 0 / 0.2);
 }
-.comingSoon {
-  opacity: 0.78;
-}
-.comingSoon button {
-  cursor: default;
-  opacity: 0.7;
-}
 @media (min-width: 768px) {
   .giaDock {
     background: transparent;
-    inset: auto 16px 16px auto;
+    inset: auto 16px 56px auto;
     width: 420px;
-    height: min(720px, calc(100dvh - 32px));
+    height: min(720px, calc(100dvh - 80px));
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 16px 48px rgb(0 0 0 / 0.28);
@@ -2044,9 +2301,4 @@ textarea[aria-invalid=true], select[aria-invalid=true] { border-color: var(--err
   .giaDockInner {
     width: 100%;
   }
-  .giaFab {
-    bottom: 24px;
-  }
-}
-
 }
