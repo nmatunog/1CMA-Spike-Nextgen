@@ -10,6 +10,17 @@ import { sameOrigin } from '@/lib/gia/origin';
 import { discardedUploadResponse, looksLikeUploadPayload } from '@/lib/gia/uploads.mjs';
 import { assertOtpDevNotProduction, hashClientKey } from '@/lib/gia/otp.mjs';
 import { storeableMessageText } from '@/lib/mvp01/engage';
+import {
+  checkRequestRate,
+  cappedUrgentIdentity,
+  checkUnconsentedUrgentCap,
+  hashRateKey,
+  logSafetyHandoffFailed,
+  logUnconsentedUrgentCapped,
+  rateLimitsFromEnv,
+  resolveClientIp,
+  warnIfProductionMissingProxy,
+} from '@/lib/gia/rate.mjs';
 export const runtime = 'nodejs';
 function secret() {
   const s = process.env.GIA_SESSION_SECRET;
@@ -26,9 +37,10 @@ async function identity() {
   jar.set('gia_session', `${next}.${sign(next)}`, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 60 * 60 * 24 * 30 });
   return next;
 }
-const ALLOWED_ERRORS = ['consent_required', 'invalid_contact', 'invalid_session', 'opted_out', 'session_full', 'session_unavailable', 'verification_required', 'invalid_message', 'unknown_action', 'otp_not_configured', 'otp_locked', 'otp_throttled', 'otp_dev_forbidden', 'malformed_request', 'request_too_large', 'wrong_program', 'invalid_program', 'unsupported_program_source'];
+const ALLOWED_ERRORS = ['consent_required', 'invalid_contact', 'invalid_session', 'opted_out', 'session_full', 'session_unavailable', 'verification_required', 'invalid_message', 'unknown_action', 'otp_not_configured', 'otp_locked', 'otp_throttled', 'otp_dev_forbidden', 'malformed_request', 'request_too_large', 'wrong_program', 'invalid_program', 'unsupported_program_source', 'rate_limited'];
 function fail(message: string) {
-  return NextResponse.json({ error: ALLOWED_ERRORS.includes(message) ? message : 'service_unavailable' }, { status: message === 'request_too_large' ? 413 : ALLOWED_ERRORS.includes(message) ? 400 : 503 });
+  const status = message === 'request_too_large' ? 413 : message === 'rate_limited' ? 429 : ALLOWED_ERRORS.includes(message) ? 400 : 503;
+  return NextResponse.json({ error: ALLOWED_ERRORS.includes(message) ? message : 'service_unavailable' }, { status });
 }
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {};
@@ -100,7 +112,20 @@ export async function POST(req: Request) {
     const jar = await cookies();
     const language = jar.get('gia_language')?.value;
     const ipHash = clientHash(req);
+    const limits = rateLimitsFromEnv();
+    warnIfProductionMissingProxy();
+    const resolvedIp = resolveClientIp(req);
+    const ipKey = resolvedIp.ip ? hashRateKey(resolvedIp.ip) : null;
+    let rateLimited = false;
+    try {
+      rateLimited = (await checkRequestRate(ipKey, limits)).limited;
+    } catch {
+      rateLimited = false;
+    }
     const resolved = readProgram(body, jar);
+    if (rateLimited && body.action !== 'message' && body.action !== 'opt_out') {
+      return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+    }
     if (body.action === 'opt_out') {
       const result = await perform(repository, id, 'opt_out', pickWorkflowInput('opt_out', body));
       return NextResponse.json(publicResult(result));
@@ -119,6 +144,9 @@ export async function POST(req: Request) {
         ? { id: String(rawCitation.id), version: String(rawCitation.version), source: String(rawCitation.source) }
         : null;
       const safetyUrgent = reason === 'urgent' && citation?.id === 'KP-SAFETY-01';
+      if (rateLimited && !safetyUrgent) {
+        return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+      }
       if (response.intent === 'opt_out' && !safetyUrgent) return NextResponse.json(await perform(repository, id, 'opt_out', {}));
       const program = programOrThrow(resolved);
       // Suppression is checked before responding or changing language, except crisis/safety.
@@ -129,38 +157,59 @@ export async function POST(req: Request) {
       }
       if (response.intent === 'language') jar.set('gia_language', response.language, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' });
       const storeText = safetyUrgent ? null : storeableMessageText(body.text, response.intent, reason);
-      // Only structured intent/citation metadata is retained for audit; document payloads are never saved.
-      const extra = await repository.run(id, async tx => {
-        const c = await tx.findCandidate();
-        await tx.recordTurn({ action: 'message', intent: response.intent, reason, citation, outcome: 'ok' }, storeText);
-        const listing = response.intent === 'list_fep_sessions' && isFepScheduleQuery(String(body.text).toLowerCase());
-        await emitGiaEngagement(tx, id, {
-          action: 'message',
-          intent: listing ? null : response.intent,
-          citation,
-          conversation: !listing,
-        });
-        const shouldHandoff = response.intent === 'request_leader'
-          || (response.intent === 'refuse' && (reason === 'documents' || reason === 'licensing_detail'))
-          || reason === 'licensing_detail'
-          || reason === 'urgent'
-          || reason === 'product_inquiry';
-        const handoffReason = (response.intent === 'refuse' && reason === 'documents')
-          ? 'licensing_detail'
-          : (reason || 'unapproved_or_unknown');
-        try {
+      let skipUnconsentedVisitorRow = false;
+      let urgentCapHits: number | null = null;
+      if (safetyUrgent && !pre.consented) {
+        if (rateLimited) skipUnconsentedVisitorRow = true;
+        else {
+          try {
+            const cap = await checkUnconsentedUrgentCap(ipKey, limits);
+            skipUnconsentedVisitorRow = cap.limited;
+            urgentCapHits = cap.hits;
+          } catch {
+            skipUnconsentedVisitorRow = true;
+          }
+        }
+      }
+      if (safetyUrgent && skipUnconsentedVisitorRow) {
+        logUnconsentedUrgentCapped({ reason: rateLimited ? 'request_rate' : 'urgent_cap', hits: urgentCapHits });
+      }
+      let extra: unknown = null;
+      try {
+        extra = await repository.run(id, async tx => {
+          const c = await tx.findCandidate();
+          await tx.recordTurn({ action: 'message', intent: response.intent, reason, citation, outcome: 'ok' }, storeText);
+          const listing = response.intent === 'list_fep_sessions' && isFepScheduleQuery(String(body.text).toLowerCase());
+          await emitGiaEngagement(tx, id, {
+            action: 'message',
+            intent: listing ? null : response.intent,
+            citation,
+            conversation: !listing,
+          });
+          const shouldHandoff = response.intent === 'request_leader'
+            || (response.intent === 'refuse' && (reason === 'documents' || reason === 'licensing_detail'))
+            || reason === 'licensing_detail'
+            || reason === 'urgent'
+            || reason === 'product_inquiry';
+          const handoffReason = (response.intent === 'refuse' && reason === 'documents')
+            ? 'licensing_detail'
+            : (reason || 'unapproved_or_unknown');
           if (c?.consented && shouldHandoff) {
             return { handoff: await tx.handoff(c, handoffReason, {}, { program, consented: true }) };
           }
           if (safetyUrgent) {
+            if (skipUnconsentedVisitorRow) {
+              return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false, identity: cappedUrgentIdentity(ipKey || 'global') }) };
+            }
             return { handoff: await tx.handoffVisitor({ reason: 'urgent', program, consented: false }) };
           }
-        } catch (e) {
-          if (!safetyUrgent) throw e;
           return null;
-        }
-        return null;
-      });
+        });
+      } catch (e) {
+        if (!safetyUrgent) throw e;
+        logSafetyHandoffFailed(e);
+        extra = null;
+      }
       if (response.intent === 'get_my_status') {
         try {
           const status = await perform(repository, id, 'get_my_status', pickWorkflowInput('get_my_status', body, { program, clientHash: ipHash }));

@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   db: null as unknown as PGlite,
   cookies: {} as Record<string, string>,
   setCalls: [] as Array<{ name: string; value: string }>,
+  failHandoffInsert: false,
 }));
 
 vi.mock('next/headers', () => ({
@@ -27,6 +28,11 @@ vi.mock('postgres', () => ({ default: () => {
     const query = async (parts: TemplateStringsArray, ...args: unknown[]) => {
       const text = parts.reduce((s, p, i) => s + p + (i < args.length ? `$${i + 1}` : ''), '');
       if (text.includes('pg_advisory_xact_lock')) return [];
+      if (state.failHandoffInsert && /INSERT INTO candidate_handoffs/i.test(text)) {
+        const err = new Error('synthetic_sql') as Error & { code: string };
+        err.code = '40001';
+        throw err;
+      }
       return (await db.query(text, args)).rows;
     };
     query.json = (v: unknown) => JSON.stringify(v);
@@ -41,6 +47,9 @@ process.env.GIA_PILOT_ENABLED = 'true';
 process.env.GIA_OTP_DEV = 'true';
 process.env.GIA_OTP_COOLDOWN_MS = '0';
 process.env.DATABASE_URL = 'postgres://synthetic-api';
+process.env.GIA_RATE_LIMIT_IP_MAX = '10000';
+process.env.GIA_RATE_LIMIT_GLOBAL_MAX = '10000';
+process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1000';
 vi.stubEnv('NODE_ENV', 'test');
 
 const { POST } = await import('@/app/api/gia/route');
@@ -81,6 +90,7 @@ describe('GIA API reject audit', () => {
     resetEngagementPort();
     state.cookies = { gia_session: `${sessionId}.${mac}` };
     state.setCalls = [];
+    state.failHandoffInsert = false;
   });
   afterAll(async () => { await state.db.close(); });
 
@@ -191,16 +201,19 @@ describe('GIA API reject audit', () => {
     expect(turns.some(row => row.reason === 'urgent')).toBe(true);
     expect(JSON.stringify({ stored, turns })).not.toMatch(/thinking about suicide/i);
 
-    const queue = await listHandoffs(tag, { email: 'leader@example.test', role: 'leader' }, {});
+    const queue = await listHandoffs(tag, { email: 'admin@example.test', role: 'admin' }, {});
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({
       name: 'Unconsented visitor',
       reason: 'urgent',
       consented: false,
       program: 'recruit',
-      visitor_identity: sessionId,
+      visitor_identity: sessionId.slice(0, 8),
       candidate_id: null,
+      unassigned: true,
     });
+    const leaders = await listHandoffs(tag, { email: 'leader@example.test', role: 'leader' }, {});
+    expect(leaders).toHaveLength(0);
     expect(queue[0].created_at).toBeTruthy();
   });
 
@@ -425,5 +438,249 @@ describe('GIA API reject audit', () => {
     expect(handoffs[0]).toMatchObject({ reason: 'unapproved_or_unknown', state: 'open' });
     const created = (await state.db.query("SELECT * FROM candidate_events WHERE kind='handoff.created'")).rows;
     expect(created).toHaveLength(1);
+  });
+
+  it('still serves KP-SAFETY-01 when the urgent handoff write throws a SQL error', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    state.failHandoffInsert = true;
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.text).toMatch(/NCMH Crisis Hotline at 1553/);
+    expect(body.error).toBeUndefined();
+    expect(body.handoff).toBeFalsy();
+    const logs = spy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(logs).toMatch(/gia_safety_handoff_failed/);
+    expect(logs).not.toMatch(/want to die|suicide|visitor@|@example/i);
+    spy.mockRestore();
+  });
+
+  it('rate-limits non-crisis traffic and still serves crisis text without extra urgent rows', async () => {
+    const prevIp = process.env.GIA_RATE_LIMIT_IP_MAX;
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_TRUSTED_PROXY = 'cloudflare';
+    process.env.GIA_RATE_LIMIT_IP_MAX = '2';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    const headers = { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' };
+    const ping = () => POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }));
+    expect((await ping()).status).toBe(200);
+    expect((await ping()).status).toBe(200);
+    const limited = await ping();
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: 'rate_limited' });
+
+    const crisis = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(crisis.status).toBe(200);
+    const limitedCrisis = await crisis.json();
+    expect(limitedCrisis.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    const limitedRows = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string }>;
+    expect(limitedRows.every(r => r.visitor_identity.startsWith('cap:'))).toBe(true);
+    expect(limitedRows).toHaveLength(1);
+
+    process.env.GIA_RATE_LIMIT_IP_MAX = '10000';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    await state.db.exec('TRUNCATE gia_rate_windows');
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '198.51.100.4' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect((await first.json()).handoff).toBeTruthy();
+    const nextId = randomBytes(32).toString('hex');
+    state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const second = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '198.51.100.4' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(second.status).toBe(200);
+    const secondBody = await second.json();
+    expect(secondBody.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(secondBody.handoff).toBeTruthy();
+    const urgent = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string }>;
+    expect(urgent.some(r => r.visitor_identity.startsWith('cap:'))).toBe(true);
+    expect(urgent.filter(r => !r.visitor_identity.startsWith('cap:'))).toHaveLength(1);
+    expect(spy.mock.calls.map(c => String(c[0])).join('\n')).toMatch(/gia_unconsented_urgent_capped/);
+    spy.mockRestore();
+    process.env.GIA_RATE_LIMIT_IP_MAX = prevIp;
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('prunes gia_rate_windows older than the TTL when a window is bumped', async () => {
+    const stale = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    await state.db.query('INSERT INTO gia_rate_windows(bucket, window_start, hits) VALUES($1, $2, 1)', ['stale', stale]);
+    const res = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }));
+    expect(res.status).toBe(200);
+    expect((await state.db.query("SELECT bucket FROM gia_rate_windows WHERE bucket='stale'")).rows).toHaveLength(0);
+  });
+
+  it('does not let a spoofed X-Forwarded-For bypass the unconsented urgent cap', async () => {
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_TRUSTED_PROXY = 'cloudflare';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.50', 'x-forwarded-for': '198.51.100.1' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect((await first.json()).handoff).toBeTruthy();
+    const nextId = randomBytes(32).toString('hex');
+    state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const spoofed = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.50', 'x-forwarded-for': '198.51.100.77' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(spoofed.status).toBe(200);
+    const body = await spoofed.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.handoff).toBeTruthy();
+    const urgent = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string }>;
+    expect(urgent.filter(r => !r.visitor_identity.startsWith('cap:'))).toHaveLength(1);
+    expect(urgent.some(r => r.visitor_identity.startsWith('cap:'))).toBe(true);
+    expect(spy.mock.calls.map(c => String(c[0])).join('\n')).toMatch(/gia_unconsented_urgent_capped/);
+    spy.mockRestore();
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('does not share a constant IP bucket when no trusted proxy is set', async () => {
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUST_CF_CONNECTING_IP;
+    delete process.env.GIA_TRUST_FORWARDED_FOR;
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    for (let i = 0; i < 3; i += 1) {
+      const nextId = randomBytes(32).toString('hex');
+      state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.51.100.${i + 1}` },
+        body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+      }));
+      expect(res.status).toBe(200);
+      expect((await res.json()).handoff).toBeTruthy();
+    }
+    const visitors = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent' AND visitor_identity NOT LIKE 'cap:%'")).rows;
+    expect(visitors).toHaveLength(3);
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('gives distinct trusted client IPs their own unconsented urgent rows', async () => {
+    const prevUrgent = process.env.GIA_URGENT_UNCONSENTED_IP_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_TRUSTED_PROXY = 'cloudflare';
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = '1';
+    const first = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.10' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(first.status).toBe(200);
+    expect((await first.json()).handoff).toBeTruthy();
+    const nextId = randomBytes(32).toString('hex');
+    state.cookies.gia_session = `${nextId}.${createHmac('sha256', SECRET).update(nextId).digest('hex')}`;
+    const other = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.11' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(other.status).toBe(200);
+    expect((await other.json()).handoff).toBeTruthy();
+    const visitors = (await state.db.query("SELECT visitor_identity FROM candidate_handoffs WHERE reason='urgent' AND visitor_identity NOT LIKE 'cap:%'")).rows;
+    expect(visitors).toHaveLength(2);
+    process.env.GIA_URGENT_UNCONSENTED_IP_MAX = prevUrgent;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
+  });
+
+  it('still writes a consented crisis handoff when the global request limit is hit', async () => {
+    const prevGlobal = process.env.GIA_RATE_LIMIT_GLOBAL_MAX;
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = '1';
+    const consented = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'consent', agree: true, notice: 'gia-pilot-2026-11-04', name: 'Synthetic Visitor', email: 'ok@example.test' }),
+    }));
+    expect(consented.status).toBe(200);
+    await state.db.exec('TRUNCATE gia_rate_windows');
+    expect((await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }))).status).toBe(200);
+    const crisis = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(crisis.status).toBe(200);
+    const body = await crisis.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.handoff).toBeTruthy();
+    expect(body.handoff.consented === true || body.handoff.consented === 't').toBe(true);
+    expect(body.handoff.candidate_id).toBeTruthy();
+    expect((await state.db.query("SELECT id FROM candidate_handoffs WHERE reason='urgent'")).rows).toHaveLength(1);
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = prevGlobal;
+  });
+
+  it('keeps an unconsented crisis visible to admins when the global request limit is hit', async () => {
+    const prevGlobal = process.env.GIA_RATE_LIMIT_GLOBAL_MAX;
+    const prevTrust = process.env.GIA_TRUSTED_PROXY;
+    delete process.env.GIA_TRUSTED_PROXY;
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = '1';
+    expect((await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'what is FEP' }),
+    }))).status).toBe(200);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const crisis = await POST(new Request('http://127.0.0.1/api/gia', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'message', text: 'I want to die' }),
+    }));
+    expect(crisis.status).toBe(200);
+    const body = await crisis.json();
+    expect(body.citation).toMatchObject({ id: 'KP-SAFETY-01' });
+    expect(body.handoff).toBeTruthy();
+    const rows = (await state.db.query("SELECT visitor_identity, candidate_id FROM candidate_handoffs WHERE reason='urgent'")).rows as Array<{ visitor_identity: string; candidate_id: string | null }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].candidate_id).toBeNull();
+    expect(rows[0].visitor_identity).toBe('cap:global');
+    expect(spy.mock.calls.map(c => String(c[0])).join('\n')).toMatch(/gia_unconsented_urgent_capped/);
+    spy.mockRestore();
+    process.env.GIA_RATE_LIMIT_GLOBAL_MAX = prevGlobal;
+    if (prevTrust == null) delete process.env.GIA_TRUSTED_PROXY;
+    else process.env.GIA_TRUSTED_PROXY = prevTrust;
   });
 });

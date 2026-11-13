@@ -55,6 +55,7 @@ const TABLES = [
   'program_roles',
   'evaluation_form_configs',
   'candidate_evaluations',
+  'gia_rate_windows',
 ] as const;
 
 const PRIVILEGES = {
@@ -81,6 +82,7 @@ const PRIVILEGES = {
   program_roles: { select: true, insert: false, update: false, delete: false },
   evaluation_form_configs: { select: true, insert: false, update: false, delete: false },
   candidate_evaluations: { select: true, insert: true, update: false, delete: false },
+  gia_rate_windows: { select: true, insert: true, update: true, delete: true },
 } as const;
 
 function tag(db: PGlite): Sql {
@@ -137,7 +139,9 @@ describe('gia_app least-privilege access', () => {
     expect(files).toContain('0007_cc03_evaluate_engage.sql');
     expect(files).toContain('0008_mvp01_journey.sql');
     expect(files).toContain('0009_gia_unconsented_urgent_handoff.sql');
-    expect(files[files.length - 1]).toBe('0009_gia_unconsented_urgent_handoff.sql');
+    expect(files).toContain('0010_gia_rate_windows.sql');
+    expect(files).toContain('0011_gia_rate_windows_delete.sql');
+    expect(files[files.length - 1]).toBe('0011_gia_rate_windows_delete.sql');
   });
 
   it('FORCE RLS and a gia_app ALLOW policy on every workflow table', async () => {

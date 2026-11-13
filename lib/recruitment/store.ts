@@ -279,6 +279,7 @@ export async function listCandidates(sql: Sql, actor: StaffActor, filters: Comma
   });
 }
 
+/** Unconsented urgent rows are admin-only and flagged unassigned. Leaders never inherit them. */
 export async function listHandoffs(sql: Sql, actor: StaffActor, filters: CommandFilters): Promise<HandoffQueueItem[]> {
   const leader = scopedLeader(actor, filters.leader);
   const source = filters.source?.trim() || '';
@@ -292,9 +293,8 @@ export async function listHandoffs(sql: Sql, actor: StaffActor, filters: Command
       AND (
         ${actor.role} = 'admin'
         OR c.assigned_leader = ${actor.email}
-        OR (h.consented = false AND h.reason = 'urgent')
       )
-      AND (${leader} = '' OR c.assigned_leader = ${leader} OR (h.consented = false AND h.reason = 'urgent'))
+      AND (${leader} = '' OR c.assigned_leader = ${leader})
       AND (${source} = '' OR (c.id IS NOT NULL AND EXISTS (
         SELECT 1 FROM candidate_identities i WHERE i.candidate_id = c.id AND i.source = ${source}
       )))
@@ -318,8 +318,9 @@ export async function listHandoffs(sql: Sql, actor: StaffActor, filters: Command
       overdue: !!(due && new Date(due).getTime() < now),
       consented,
       program: row.program == null ? null : String(row.program),
-      visitor_identity: row.visitor_identity == null ? null : String(row.visitor_identity),
+      visitor_identity: row.visitor_identity == null ? null : String(row.visitor_identity).slice(0, 8),
       created_at: iso(row.created_at) || '',
+      unassigned: !consented && String(row.reason) === 'urgent',
     };
   });
 }

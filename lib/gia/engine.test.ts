@@ -32,6 +32,22 @@ describe('approved knowledge and language boundaries', () => {
   it('keeps English regardless of geography', () => { expect(respond('I live in Cebu').language).toBe('en'); });
   it('does not infer a language request from a language mention', () => { expect(respond('My class is in Cebuano').language).toBe('en'); });
   it('honors STOP during booking and polite requests', () => { expect(respond('Book FEP, actually STOP please').intent).toBe('opt_out'); });
+  it('honors an explicit STOP even when the same line has an activity-verb stop', () => {
+    expect(respond('Please STOP, I will stop attending').intent).toBe('opt_out');
+    expect(respond('STOP attending').intent).toBe('opt_out');
+  });
+  it('does not treat stop-as-activity as opt-out when the ask is a refund', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).reason).toBe('refund');
+    expect(respond('Can I get a refund if I stop going?', 'en', knowledge, docsNow).intent).toBe('request_leader');
+  });
+  it('does not treat stop by / stop over as opt-out', () => {
+    expect(respond('Can I stop by the office tomorrow?').intent).not.toBe('opt_out');
+    expect(respond('I will stop by on Saturday').intent).not.toBe('opt_out');
+    expect(respond('Pwede ba ako mag stop by sa office?').intent).not.toBe('opt_out');
+    expect(respond('STOP').intent).toBe('opt_out');
+    expect(respond('stop messaging me').intent).toBe('opt_out');
+  });
   it('serves the translated approved answer after explicit request', () => { const lang = respond('Bisaya').language; expect(respond('FEP',lang,pack,now).text).toContain('Libre'); });
   const sample = pack[0];
   if (!sample) throw new Error('shipping pack is empty');
@@ -125,6 +141,17 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
     expect(respond('I need help booking FEP', 'en', knowledge, docsNow, { consented: true }).reason).not.toBe('urgent');
     expect(respond('See you in a month', 'en', knowledge, docsNow).reason).not.toBe('compensation');
     expect(respond('Can I send my NBI clearance here?', 'en', knowledge, docsNow).reason).toBe('documents');
+  });
+  it('uses general stems for deletion, compensation, product, and evaluation result', () => {
+    const docsNow = new Date('2026-11-12T12:00:00Z');
+    expect(respond('Please wipe my records', 'en', knowledge, docsNow).reason).toBe('deletion_request');
+    expect(respond('Remove my saved account', 'en', knowledge, docsNow).reason).toBe('deletion_request');
+    expect(respond("What's the typical take-home for advisors?", 'en', knowledge, docsNow).reason).toBe('compensation');
+    expect(respond('Is there a guaranteed paycheck?', 'en', knowledge, docsNow).reason).toBe('compensation');
+    expect(respond('Which insurance plan should a family buy?', 'en', knowledge, docsNow).reason).toBe('product_inquiry');
+    expect(respond('Help me choose a product for a relative', 'en', knowledge, docsNow).reason).toBe('product_inquiry');
+    expect(respond('Did I pass the evaluation?', 'en', knowledge, docsNow).reason).toBe('status_detail');
+    expect(respond('Tell me if I failed the evaluation', 'en', knowledge, docsNow).reason).toBe('status_detail');
   });
   it('serves approved KP-DOCS-01 for the iRecruit checklist after 2026-11-12', () => {
     const docsNow = new Date('2026-11-12T12:00:00Z');
