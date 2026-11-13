@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nextgen-staging",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-13",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Placeholder only. Do not create Hyperdrive or any other Cloudflare resource from this PR.
+  // Replace the id off-repo before a real deploy. localConnectionString is the synthetic
+  // PGlite demo socket (tests/gia/demo-server.mjs) for wrangler preview, not production.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000-0000-0000-0000-000000000000",
+      "localConnectionString": "postgres://postgres:postgres@127.0.0.1:55432/postgres"
+    }
+  ],
+  // Non-secret staging flags. Secrets stay out of the repo (use wrangler secrets / .dev.vars).
+  "vars": {
+    "GIA_TRUSTED_PROXY": "cloudflare",
+    "GIA_PILOT_ENABLED": "true",
+    "GIA_OTP_DEV": "false"
+  }
+}
