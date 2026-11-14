@@ -1,3 +1,4 @@
+import { mayContainAiaCredentials } from '@/lib/gia/credential-safety.mjs';
 import { EVENT_KINDS } from '@/lib/recruitment/stages';
 import { isStopped } from '@/lib/recruitment/suppression';
 import { isUuid, type Sql } from '@/lib/recruitment/store';
@@ -138,11 +139,11 @@ export function looksLikeSecretToken(value: string) {
   return false;
 }
 
-/** Persist chat only when it is not a document/status payload and does not look like a secret or contact. */
+/** Refused credentials must never be retained, even when the password is an ordinary word. */
 export function storeableMessageText(text: unknown, intent: string | null = null, reason: string | null = null) {
   if (typeof text !== 'string' || !text) return null;
-  if (reason === 'documents' || intent === 'get_my_status') return null;
-  if (looksLikeSecretToken(text) || looksLikeContact(text)) return null;
+  if (reason === 'documents' || reason === 'aia_credentials' || intent === 'get_my_status') return null;
+  if (mayContainAiaCredentials(text) || looksLikeSecretToken(text) || looksLikeContact(text)) return null;
   return text;
 }
 

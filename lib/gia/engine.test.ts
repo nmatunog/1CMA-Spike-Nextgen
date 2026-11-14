@@ -211,7 +211,7 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
   });
 
   it('refuses AIA login credentials and never asks for them', () => {
-    for (const q of ['Here is my AIA password', 'My AIA login is demo@aia', 'Log in to iRecruit with this password']) {
+    for (const q of ['Here is my AIA password', 'My AIA login is demo@aia', 'Log in to iRecruit with this password', 'AIA pw: sunshine', 'password ko sa AIA kay sunshine', 'ang akong password sa AIA kay sunshine', 'AIA creds: sunshine', 'A.I.A. password: sunshine']) {
       const r = respond(q, 'en', knowledge, recNow);
       expect(r.intent, q).toBe('refuse');
       expect(r.reason, q).toBe('aia_credentials');
