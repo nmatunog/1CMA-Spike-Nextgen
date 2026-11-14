@@ -94,6 +94,27 @@ describe('GIA API reject audit', () => {
   });
   afterAll(async () => { await state.db.close(); });
 
+  it('refuses alphabetic AIA credentials without retaining them in the transcript', async () => {
+    const messages = [
+      'Here is my AIA password: sunshine',
+      'my aia login is juan.delacruz password is mangoes',
+      'aia username jdelacruz password kalamansi',
+    ];
+    for (const text of messages) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ intent: 'refuse', reason: 'aia_credentials' });
+    }
+    const turns = (await state.db.query("SELECT intent,reason,message_text FROM gia_turns WHERE action='message'")).rows;
+    expect(turns).toHaveLength(messages.length);
+    expect(turns.every(row => row.message_text == null)).toBe(true);
+    expect(JSON.stringify(turns)).not.toMatch(/sunshine|juan\.delacruz|mangoes|jdelacruz|kalamansi/);
+  });
+
   it('audits malformed, oversized, and unknown actions without payload secrets', async () => {
     const malformed = await POST(new Request('http://127.0.0.1/api/gia', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{not-json' }));
     expect(malformed.status).toBe(400);

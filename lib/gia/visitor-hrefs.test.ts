@@ -18,6 +18,25 @@ const GENERIC_JOIN = AIA_REF_JOIN;
 const IRECRUIT = 'https://irecruit.aia.com.ph/login';
 
 describe('visitor href guard', () => {
+  it('allows only local paths or approved HTTPS AIA pages, never governance or unsafe destinations', () => {
+    for (const href of [
+      'https://github.com/nmatunog/NEXO/issues/27',
+      'https://github.com/nmatunog/1CMA-Spike-Nextgen/pull/13',
+      'javascript:alert(1)', 'data:text/html,hello', 'http://www.aia.com.ph/en',
+      '//evil.example/path', '/\\evil.example/path', 'https://www.aia.com.ph.evil.example/en',
+      'https://user:password@www.aia.com.ph/en', 'https://www.aia.com.ph:444/en',
+    ]) expect(visitorSafeHref(href)).toBeNull();
+    expect(visitorSafeHref('/gia/privacy')).toBe('/gia/privacy');
+    expect(visitorSafeHref(AIA_REF_PARTNER)).toBe(AIA_REF_PARTNER);
+  });
+
+  it('renders an internal governance citation as plain text', () => {
+    const html = renderToStaticMarkup(createElement(GiaCitation, {
+      citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://github.com/nmatunog/NEXO/issues/27' },
+    }));
+    expect(html).toContain('KP-LIT-01 · v0.2');
+    expect(hrefsFromHtml(html)).toEqual([]);
+  });
   it('blocks generic join-us-now and iRecruit from becoming visitor hrefs', () => {
     expect(visitorSafeHref(GENERIC_JOIN)).toBeNull();
     expect(visitorSafeHref(`${GENERIC_JOIN}?reference=`)).toBeNull();
