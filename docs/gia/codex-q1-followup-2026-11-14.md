@@ -79,3 +79,23 @@ Environment: Node 24.19.0; CI uses Node 22. All commands use `SKIP_AUTO_SHIP=1 A
 - First full sequential Vitest attempt overlapped build/browser work: **343 passed, 2 failed, 22 skipped; 3 files failed**. Failures were a 10-second API setup timeout, a 5-second synthetic seed timeout and the expired official-eval fixture described above. These results are not counted as PASS.
 
 PR #19 remains at `79059e65d20f546df86665bc35ca4316d09f4d78`; PR #20 remains at `b895e1d9935c2f705f92e15c5070f239e487cd3f`. Shared assisted fields remain blob `fcfc4aad2dc11673db1802c63bd46e25360d238a`, identical to #20. No merge, deployment or live database action occurred.
+
+## Owner-reported follow-up — 15 November 2026
+
+The owner reported 11 retained variants out of 27 and false refusals of ordinary registration questions at `53ffad0`. Only the supplied examples are available here; do not claim all 27 have been verified.
+
+- Storage now uses `mayContainAiaCredentials` independently of response selection. It covers `pass`, `pasword`, `passwrod`, dotted/zero-width AIA, and conservatively discards AIA account payloads even when their format is ambiguous.
+- Conversational refusal uses a separate disclosure check, with explicit assignments taking precedence over question wording. Ordinary login, username and reset questions route to the existing approved KP-REC-01 registration guidance rather than the credential refusal. No recruitment copy, approval metadata or recruiter attribution was changed.
+- Regression coverage includes the supplied credential examples, refusal-precedence cases, a disclosure followed by a question, ordinary account questions, API transcript inspection and the two reported ordinary questions in Chromium.
+- Some harmless AIA credential/account questions may still have null transcript text by design. This conservative storage decision does not cause a credential-refusal reply.
+
+The complete synthetic 27-phrase set was requested for additional coverage; it is not a prerequisite for fixing the examples already supplied. Claude exact-HEAD QA and existing KP-REC/footer/product gates remain outstanding.
+
+### Follow-up validation record
+
+- The first implementation run caught a false refusal of the reset-password question. It was corrected before publication.
+- An interim full run passed 381 tests. A later run was started before the final helper/test edits had settled; it reported 383 passed and one failed exam-question regression against the earlier transformed helper. That mixed-source run is not the final validation result.
+- The final frozen-source rerun, rather than either interim count, is the release-review evidence below.
+- Final offline production build, plain TypeScript and lint passed. Chromium passed all three selected flows: ordinary account questions, intern FEP boundaries, and synthetic consent/Bisaya/booking/handoff/staff follow-up (3 passed, no skips). The local synthetic server was stopped and generated screenshots were excluded.
+
+- Final frozen-source Vitest: `npx vitest run --maxWorkers=1 --no-file-parallelism --hookTimeout=30000 --testTimeout=15000`: **384 tests / 39 files PASS**, zero failed or skipped, 174.01 seconds. This supersedes the interim runs above.

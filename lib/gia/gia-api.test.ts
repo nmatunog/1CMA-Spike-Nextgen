@@ -101,7 +101,8 @@ describe('GIA API reject audit', () => {
       'aia username jdelacruz password kalamansi',
       "I'm a team leader, my AIA password is sunshine",
       'homework: my aia password is sunshine',
-      'AIA pw: sunshine',
+      'AIA pw: sunshine', 'AIA pass: sunshine', 'iRecruit pass sunshine',
+      'my AIA account: juan / sunshine', 'AIA pasword: sunshine',
       'password ko sa AIA kay sunshine',
       'ang akong password sa AIA kay sunshine',
       'AIA creds: sunshine',
@@ -122,6 +123,17 @@ describe('GIA API reject audit', () => {
     expect(turns).toHaveLength(messages.length);
     expect(turns.every(row => row.message_text == null)).toBe(true);
     expect(JSON.stringify(turns)).not.toMatch(/sunshine|juan\.delacruz|mangoes|jdelacruz|kalamansi/);
+  });
+
+  it('answers ordinary recruit login and username questions without credential refusal', async () => {
+    for (const text of ['I want to become an AIA advisor, where do I log in?', 'do I need a username?']) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ intent: 'answer', citation: { id: 'KP-REC-01' } });
+    }
   });
 
   it('audits malformed, oversized, and unknown actions without payload secrets', async () => {

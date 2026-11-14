@@ -60,6 +60,18 @@ test('intern guide hides FEP and denies FEP listing', async ({page}) => {
   await expect(page.getByText('KP-FEP-01 · v0.2', { exact: true })).toHaveCount(0);
   await expectSafeVisitorLinks(page);
 });
+test('recruit account questions receive registration guidance rather than credential refusal', async ({page}) => {
+  test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
+  await page.goto('/gia');
+  let answers = 0;
+  for (const question of ['I want to become an AIA advisor, where do I log in?', 'do I need a username?']) {
+    await page.getByRole('textbox', { name: 'Message GIA' }).fill(question);
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByText('KP-REC-01 · v0.3', { exact: true })).toHaveCount(++answers);
+    await expectPlainCitation(page, 'KP-REC-01 · v0.3');
+    await expect(page.getByText(/I cannot accept AIA login credentials/)).toHaveCount(0);
+  }
+});
 test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', async ({page,browser}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
   await page.goto('/gia');

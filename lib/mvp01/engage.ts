@@ -1,4 +1,4 @@
-import { isAiaCredentialDump } from '@/lib/gia/credential-safety.mjs';
+import { mayContainAiaCredentials } from '@/lib/gia/credential-safety.mjs';
 import { EVENT_KINDS } from '@/lib/recruitment/stages';
 import { isStopped } from '@/lib/recruitment/suppression';
 import { isUuid, type Sql } from '@/lib/recruitment/store';
@@ -143,7 +143,7 @@ export function looksLikeSecretToken(value: string) {
 export function storeableMessageText(text: unknown, intent: string | null = null, reason: string | null = null) {
   if (typeof text !== 'string' || !text) return null;
   if (reason === 'documents' || reason === 'aia_credentials' || intent === 'get_my_status') return null;
-  if (isAiaCredentialDump(text) || looksLikeSecretToken(text) || looksLikeContact(text)) return null;
+  if (mayContainAiaCredentials(text) || looksLikeSecretToken(text) || looksLikeContact(text)) return null;
   return text;
 }
 
