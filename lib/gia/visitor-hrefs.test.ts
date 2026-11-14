@@ -30,6 +30,20 @@ describe('visitor href guard', () => {
     expect(visitorSafeHref(AIA_REF_PARTNER)).toBe(AIA_REF_PARTNER);
   });
 
+  it('blocks encoded generic registration and iRecruit paths, including nested encodings', () => {
+    for (const href of [
+      'https://www.aia.com.ph/en/financialadvisor/join%2Dus%2Dnow',
+      'https://www.aia.com.ph/%69recruit', '/%69recruit',
+      '/join%252Dus%252Dnow', '/%2569recruit', '/%5cevil.example', '/broken%zz',
+    ]) {
+      expect(visitorSafeHref(href), href).toBeNull();
+      const html = renderToStaticMarkup(createElement(GiaCitation, {
+        citation: { id: 'KP-REC-01', version: '0.3', source: href },
+      }));
+      expect(hrefsFromHtml(html), href).toEqual([]);
+    }
+  });
+
   it('renders an internal governance citation as plain text', () => {
     const html = renderToStaticMarkup(createElement(GiaCitation, {
       citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://github.com/nmatunog/NEXO/issues/27' },

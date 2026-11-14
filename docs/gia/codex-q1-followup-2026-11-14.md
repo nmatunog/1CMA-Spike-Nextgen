@@ -6,22 +6,23 @@
 - Repository: `nmatunog/1CMA-Spike-Nextgen`.
 - Existing draft PR #19 head: `79059e65d20f546df86665bc35ca4316d09f4d78`.
 - Local follow-up branch: `codex/gia-q1-credential-citation-fixes`.
-- Code commit for review: `418a7e63a821761d33d750a7f87694626bd251a3`.
+- Published initial follow-up: `7c11d279f17f30435483505bd50fe93ef15e0b99` (combines unpublished local code `418a7e6` and documentation `3da07c0`).
+- Review the latest published head of `codex/gia-q1-credential-citation-fixes`, including the SPIKEDEV second-check corrections below.
 - Findings addressed: Claude Q1 comment `6871213160`, A (HIGH), C (MEDIUM), D (LOW).
 - No merge, deployment, live database access, new data collection, paid service or Ollama integration.
 
-## Changes
+## Original changes at published `7c11d27`
 
-1. `lib/mvp01/engage.ts`: return null for transcript text classified as `aia_credentials`, even when passwords contain only ordinary alphabetic words. Existing intent/reason metadata remains available.
+1. `lib/mvp01/engage.ts`: return null for transcript text classified as `aia_credentials`, even when passwords contain only ordinary alphabetic words. Allowlisted intent metadata remains available; refused turns already stored an empty reason before this patch.
 2. `lib/gia/gia-api.test.ts`: route-level POST tests prove all three synthetic alphabetic credential messages are refused and stored with null text.
 3. `lib/gia/visitor-hrefs.ts`: visitor destinations are restricted to root-relative local paths or HTTPS pages on the exact AIA public host. Refuse internal GitHub governance links, unsafe schemes, protocol-relative/backslash destinations, credentials in URLs, non-default ports, generic AIA registration and iRecruit URLs. Valid recruiter-attributed URLs remain supported.
 4. `lib/gia/visitor-hrefs.test.ts`: render-level internal citation regression plus hostile URL cases and allowed destination checks.
 
 The new tests were run before implementation and reproduced all three failures. After implementation, all 28 tests across the two targeted files pass.
 
-## Evidence and limitations
+## Historical evidence and limitations (before SPIKEDEV corrections)
 
-- Lint/typecheck passed at the unchanged PR #19 baseline; the follow-up Cloudflare build also ran Next lint/type validation successfully.
+- Historical baseline lint/typecheck passed. The initial follow-up Cloudflare build passed, but that did **not** validate test-file typing: SPIKEDEV subsequently found plain `tsc --noEmit` failing in `gia-api.test.ts`. See the second-check corrections below.
 - `npm run build:gia:offline`: PASS at the PR #19 baseline.
 - `npm run build:cf`: PASS with follow-up code; gzip-9 handler size 1,135,843 bytes.
 - Initial baseline full Vitest invocation was not green: 338 passed, one test timed out, and two setup hooks timed out (15 skipped tests). Sequential retry of the affected suites passed all 20 tests. No production code was changed to hide test timeouts.
@@ -39,7 +40,7 @@ The new tests were run before implementation and reproduced all three failures. 
 
 ## Claude independent review request
 
-Review the code commit `418a7e63a821761d33d750a7f87694626bd251a3` against PR #19 head `79059e65d20f546df86665bc35ca4316d09f4d78`; also consider the whole PR #19 diff against `21c33d3ddfa5d6184522861a01ed253ecc67fa35` so the earlier verdict is not lost.
+Review the latest published fixes-branch HEAD (record its full SHA in the verdict) against PR #19 head `79059e65d20f546df86665bc35ca4316d09f4d78`; also consider the whole PR #19 diff against `21c33d3ddfa5d6184522861a01ed253ecc67fa35` so the earlier verdict is not lost.
 
 Confirm that refused alphabetic AIA credentials are never written to `gia_turns.message_text`, that audit/engagement metadata remains allowlisted, and that internal governance/unsafe URL citations render as text. Verify valid attributed recruiter links and public AIA references still work and shared assisted fields remain unchanged. Repeat lint, typecheck, relevant tests and browser checks at the exact reviewed head on a capable host. Report PASS/BLOCKED with severity and SHA. Treat KP-REC provenance as unresolved until genuine evidence is supplied. Do not claim this patch fixes every earlier finding.
 
@@ -48,3 +49,33 @@ Codex implemented this follow-up and cannot provide its independent QA verdict. 
 ## Next implementation slice
 
 After independent review and knowledge-provenance resolution: bounded welcome/GIA UX extension from the existing preview (SPIKE `Learn. Build. Grow.`, supplied GIA face asset, mobile-first cross-device chat, accessible direct next steps). Preserve backend/consent contracts, recruiter attribution and separate AIA/learning entitlements. The new UX is not implemented in this security patch.
+
+## SPIKEDEV second-check corrections
+
+Source: https://github.com/nmatunog/NEXO/issues/32#issuecomment-6874768351
+
+SPIKEDEV tested published `7c11d279f17f30435483505bd50fe93ef15e0b99` and found one HIGH, two MEDIUM and two LOW findings. This was a second-check, not Claude Q1.
+
+- HIGH-1: type the synthetic query result so plain TypeScript can check transcript assertions.
+- MED-1: share conservative AIA credential detection between responses and persistence. Persistence checks text independently of refusal reason, covering rule-precedence, abbreviated, dotted AIA, Tagalog and Bisaya disclosures. Credential-related questions may also be discarded conservatively.
+- MED-2: browser assertions require visible non-link citations and inspect actual visitor hrefs; intern checks require citation text to be absent, not merely its link.
+- LOW-1: inspect decoded destinations, including nested encoding; malformed encoding fails closed. Keep valid attributed recruiter and public AIA links covered.
+- LOW-2: identify the published commit and correct historical typecheck and refusal-metadata claims above.
+
+These corrections require Claude exact-HEAD review; Codex validation is recorded below. KP-REC exact wording approval, footer wording, asset inventory and mobile footer overlap remain unresolved. PR #19/#20 heads and shared assisted fields must remain unchanged.
+
+Validation also exposed an existing dated eval fixture: `seedSaturday` used the frozen 12 Nov knowledge date and produced a 14 Nov 09:00 UTC session, which had expired by this run. Keep knowledge evaluation frozen, but seed synthetic booking dates in the future relative to the real clock used by the repository. This is a test-fixture correction only; no production booking logic changes.
+
+## Codex validation after SPIKEDEV corrections
+
+Environment: Node 24.19.0; CI uses Node 22. All commands use `SKIP_AUTO_SHIP=1 AUTO_SHIP=0`; data is synthetic and local.
+
+- `npm run lint`: PASS, no warnings or errors.
+- `npm run typecheck` (`tsc --noEmit`): PASS, including test files.
+- `npm run build:gia:offline`: PASS.
+- `npm run build:cf`: PASS with the existing Google Font mock; gzip-9 handler 1,134,003 bytes.
+- `GIA_PILOT_ENABLED=true npx playwright test tests/gia/browser.spec.ts tests/gia/mvp01-journey.spec.ts tests/gia/spike-preview-screenshots.spec.ts`: **10 passed, 1 expected disabled-mode skip**, no failures. Chromium launched successfully on this host. Includes the visible plain-text citations, intern denial, consent/booking/handoff/timeline flows and 390/1440 preview checks. The synthetic demo server was stopped afterward; generated screenshots were not added to this patch.
+- Final sequential retry after build/browser work stopped: `npx vitest run --maxWorkers=1 --no-file-parallelism --hookTimeout=30000 --testTimeout=15000`: **39 files / 369 tests PASS**, zero skipped or failed, 180.69 seconds. Timeout allowances are command-line only; no test assertions were disabled.
+- First full sequential Vitest attempt overlapped build/browser work: **343 passed, 2 failed, 22 skipped; 3 files failed**. Failures were a 10-second API setup timeout, a 5-second synthetic seed timeout and the expired official-eval fixture described above. These results are not counted as PASS.
+
+PR #19 remains at `79059e65d20f546df86665bc35ca4316d09f4d78`; PR #20 remains at `b895e1d9935c2f705f92e15c5070f239e487cd3f`. Shared assisted fields remain blob `fcfc4aad2dc11673db1802c63bd46e25360d238a`, identical to #20. No merge, deployment or live database action occurred.
