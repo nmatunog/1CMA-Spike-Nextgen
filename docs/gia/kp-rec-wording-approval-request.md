@@ -181,4 +181,3 @@ Pwede una nga part-time. Dili fixed 9-to-5. Pwede sa balay, digital, o in person
 ```text
 Pwede munang part-time. Hindi fixed 9-to-5. Pwede sa bahay, digital, o in person. Hindi nagku-quote ng kita ang GIA. Source: AIA Philippines, as of 14 Nov 2026. Magparehistro lang sa recruiter, o magsimula sa Literacy o FEP.
 ```
-
