@@ -1,0 +1,156 @@
+{
+  "recordDate": "2026-11-16",
+  "owner": "Nilo",
+  "recordedBy": "Codex",
+  "sourceHead": "89dde2024124bad4e826fc3212f061b8e367d7e0",
+  "scope": "Only these 8 entries and 24 language answers. No merge, deployment, live registration or data authorization.",
+  "provenance": "Wording reviewed one response at a time in this owner Codex conversation, 15–16 November 2026. Feedback quoted per entry. This is a Codex-transcribed conversation record, not an owner-authored GitHub comment or independent QA verdict.",
+  "styleGuidance": {
+    "ceb": "Always conversational/street Cebuano, using familiar everyday words rather than formal or literal translation",
+    "tl": "Always conversational/street Tagalog, using familiar everyday words rather than formal or literal translation"
+  },
+  "answersSha256": "4a343538f473e81d7559a51b099adc013d729a9e1f5ca6486d707e2568f1e99a",
+  "entries": [
+    {
+      "id": "KP-REC-01",
+      "previousVersion": "0.3",
+      "version": "0.4",
+      "answers": {
+        "en": "This is only for those who want to become AIA advisors, not for interns or free learners.\n\n1. Free Financial Literacy.\n2. Free FEP.\n3. Register only through the link provided by your recruiter.\n4. SPIKE Venture Studio.\n\nDo not send your AIA login credentials.",
+        "ceb": "para sa mag AIA advisor ra ni - dili sa intern o free-learner.\n\n1. Libreng Financial Literacy.\n2. Libreng FEP.\n3. Mag register lang sa link nga gihatag sa imong recruiter.\n4. SPIKE Venture Studio.\n\nAyaw og send og AIA login.",
+        "tl": "Para lang ito sa gustong maging AIA advisor, hindi sa intern o free learner.\n\n1. Libreng Financial Literacy.\n2. Libreng FEP.\n3. Mag-register lang gamit ang link na ibinigay ng recruiter mo.\n4. SPIKE Venture Studio.\n\nHuwag mong ipadala ang AIA login details mo."
+      },
+      "ownerEvidence": null,
+      "ownerFeedback": {
+        "en": "good",
+        "tl": "good",
+        "ceb": "Owner supplied wording; normalized four-step numbering shown with the translations"
+      },
+      "note": "Original owner wording retained in proposedVerbatim. Only step numbering/line layout normalized in proposed Cebuano. Submission clarification remains a separate proposed FAQ."
+    },
+    {
+      "id": "KP-REC-02",
+      "previousVersion": "0.1",
+      "version": "0.2",
+      "answers": {
+        "en": "No. AIA registration and payment for Level-Up are separate. Register only through the link provided by your recruiter. SPIKE-Versa course access is also separate. Ask your recruiter about Level-Up and the AIA Advisor application.",
+        "ceb": "Dili. Lain ang AIA registration ug ang bayad sa Level-Up. Magparehistro lang sa attributed nga link sa imong recruiter. Lain sab ang SPIKE-Versa course access. Pangutana sa imong recruiter para sa Level-Up ug sa AIA Advisor application.",
+        "tl": "Hindi. Magkaiba ang AIA registration at ang pagbabayad para sa Level-Up. Magparehistro lamang gamit ang link na ibinigay ng recruiter mo. Hiwalay din ang SPIKE-Versa course access. Magtanong sa recruiter mo tungkol sa Level-Up at sa AIA Advisor application."
+      },
+      "ownerEvidence": {
+        "source": "Owner in this Codex conversation",
+        "statement": "ok to use",
+        "date": "2026-11-15",
+        "scope": "The English and Tagalog translations just shown, based on the owner-edited Cebuano draft. No other entries, merge or deployment authorized."
+      },
+      "ownerFeedback": {
+        "ceb": "Owner supplied exact wording"
+      },
+      "note": "Approved wording recorded for the wording batch; runtime pack and cleared security head remain unchanged."
+    },
+    {
+      "id": "KP-REC-03",
+      "previousVersion": "0.1",
+      "version": "0.2",
+      "answers": {
+        "en": "An AIA Life Planner is a licensed professional who helps you plan for your future and protect your family through AIA insurance. AIA Philippines is part of AIA, which operates in many countries across Asia. It was formerly Philam Life.\n\nIf you’re interested in becoming an AIA advisor, you can start with free Financial Literacy or FEP. When you’re ready to register, use the link provided by your recruiter so your registration is credited to them.",
+        "ceb": "Ang AIA Life Planner kay licensed nga professional nga motabang nimo og plano para sa imong kaugmaon ug pagprotektar sa imong pamilya gamit ang insurance sa AIA. Ang AIA Philippines kay parte sa AIA, nga naa sa daghang nasod sa Asia. Mao ni ang dating Philam Life.\n\nKung interesado ka mahimong AIA advisor, pwede ka magsugod sa libreng Financial Literacy o FEP. Kung mag-register na ka, gamita ang link nga gihatag sa imong recruiter para ma-credit niya imong registration.",
+        "tl": "Ang AIA Life Planner ay isang licensed professional na tutulong sa ’yo magplano para sa future mo at maprotektahan ang pamilya mo gamit ang insurance ng AIA. Ang AIA Philippines ay bahagi ng AIA, na nasa maraming bansa sa Asia. Ito ang dating Philam Life.\n\nKung interesado kang maging AIA advisor, puwede kang magsimula sa libreng Financial Literacy o FEP. Kapag magre-register ka na, gamitin ang link na ibinigay ng recruiter mo para ma-credit sa kanya ang registration mo."
+      },
+      "ownerEvidence": null,
+      "ownerFeedback": {
+        "ceb": "a lot better!",
+        "tl": "good",
+        "en": "good"
+      },
+      "note": null
+    },
+    {
+      "id": "KP-REC-04",
+      "previousVersion": "0.1",
+      "version": "0.2",
+      "answers": {
+        "en": "New AIA Life Planners get training, guidance and mentoring. Your recruitment team, sales team and leader will help you through the licensing process. You don’t need sales experience.\n\nYou can start with free Financial Literacy or FEP, or talk to your recruiter if you want to register. For questions about earnings or compensation, your leader can help.",
+        "ceb": "Naay training, guidance ug mentoring para sa mga bag-ong AIA Life Planner. Tabangan ka sa recruitment team, sales team ug imong leader samtang nag-process ka sa imong lisensya. Dili kinahanglan nga naa kay sales experience.\n\nPwede ka magsugod sa libreng Financial Literacy o FEP, o makig-istorya sa imong recruiter kung gusto ka mag-register. Para sa mga pangutana bahin sa kita o compensation, imong leader ang makatubag.",
+        "tl": "May training, guidance at mentoring para sa mga bagong AIA Life Planner. Tutulungan ka ng recruitment team, sales team at leader mo habang inaasikaso mo ang lisensya mo. Hindi kailangang may experience ka na sa sales.\n\nPuwede kang magsimula sa libreng Financial Literacy o FEP, o kausapin ang recruiter mo kung gusto mong mag-register. Tungkol naman sa kita o compensation, sa leader mo puwedeng magtanong."
+      },
+      "ownerEvidence": null,
+      "ownerFeedback": {
+        "ceb": "good",
+        "en": "good",
+        "tl": "good"
+      },
+      "note": null
+    },
+    {
+      "id": "KP-REC-05",
+      "previousVersion": "0.1",
+      "version": "0.2",
+      "answers": {
+        "en": "People join AIA from different backgrounds—corporate work, teaching, healthcare, fresh graduates and OFWs who have returned home. Being willing to learn matters more than having sales experience.\n\nYou still need a license to become an AIA advisor. This path is for people who want to become advisors, not for interns or free learners.\n\nIf you’re interested, you can start with free Financial Literacy or FEP, or talk to your recruiter.",
+        "ceb": "Lain-laing background ang mga nag-AIA—naay gikan sa corporate work, mga teacher, healthcare workers, fresh graduates ug mga OFW nga namauli. Mas importante nga willing ka mokat-on kaysa naa na kay sales experience.\n\nKinahanglan gihapon og lisensya para mahimong AIA advisor. Kini nga dalan para sa gustong mag-advisor, dili para sa intern o free learner.\n\nKung interesado ka, pwede ka magsugod sa libreng Financial Literacy o FEP, o makig-istorya sa imong recruiter.",
+        "tl": "Iba-iba ang background ng mga sumasali sa AIA—may galing sa corporate work, mga teacher, healthcare worker, fresh graduate at mga OFW na umuwi na. Mas importante na willing kang matuto kaysa may experience ka na sa sales.\n\nKailangan pa rin ng lisensya para maging AIA advisor. Para ito sa gustong maging advisor, hindi sa intern o free learner.\n\nKung interesado ka, puwede kang magsimula sa libreng Financial Literacy o FEP, o kausapin ang recruiter mo."
+      },
+      "ownerEvidence": null,
+      "ownerFeedback": {
+        "ceb": "good",
+        "en": "good",
+        "tl": "good"
+      },
+      "note": null
+    },
+    {
+      "id": "KP-REC-06",
+      "previousVersion": "0.1",
+      "version": "0.2",
+      "answers": {
+        "en": "You start as an AIA Life Planner. Later on, you can build your own team and move into team leadership.\n\nAt SPIKE, these are your steps:\n\n1. Free Financial Literacy.\n2. Free Financial Entrepreneur Preview.\n3. Register through the link provided by your recruiter.\n4. SPIKE Venture Studio.",
+        "ceb": "Magsugod ka pagka AIA Life Planner. Dayon later, pwede pud ka maghimo og imong team ug mosulod sa team leadership.\n\nSa SPIKE, mao ni ang imong agan:\n\n1. Libreng Financial Literacy.\n2. Libreng Financial Entrepreneur Preview.\n3. Mag-register sa link nga gihatag sa imong recruiter.\n4. SPIKE Venture Studio.",
+        "tl": "Magsisimula ka bilang AIA Life Planner. Later on, puwede ka ring bumuo ng sarili mong team at maging team leader.\n\nSa SPIKE, ito ang mga steps mo:\n\n1. Libreng Financial Literacy.\n2. Libreng Financial Entrepreneur Preview.\n3. Mag-register gamit ang link na ibinigay ng recruiter mo.\n4. SPIKE Venture Studio."
+      },
+      "ownerEvidence": {
+        "source": "Owner replacement wording in this Codex conversation",
+        "date": "2026-11-16"
+      },
+      "ownerFeedback": {
+        "en": "good",
+        "tl": "good"
+      },
+      "note": "Preserves owner spelling and program wording exactly; does not rename FEP globally."
+    },
+    {
+      "id": "KP-REC-07",
+      "previousVersion": "0.1",
+      "version": "0.2",
+      "answers": {
+        "en": "You can start part-time. The schedule isn’t a fixed 9-to-5. You can meet clients in person or online, and some tasks can be done from home. Office visits are usually for training or meetings.\n\nFor questions about earnings, allowances or bonuses, talk to your recruiter or leader. You can also start with free Financial Literacy or FEP if you want to learn more about the opportunity.",
+        "ceb": "Pwede ka magsugod og part-time. Dili fixed nga 9-to-5 ang schedule. Pwede ka makig-meet sa clients in person o online, ug naa pud kay mga buluhaton nga mahimo ra sa balay. Kasagaran, moadto ka sa office para sa training o meeting.\n\nPara sa mga pangutana bahin sa kita, allowances o bonuses, istoryaha imong recruiter o leader. Pwede pud ka magsugod sa libreng Financial Literacy o FEP kung gusto pa ka makasabot sa oportunidad.",
+        "tl": "Puwede kang magsimula nang part-time. Hindi fixed na 9-to-5 ang schedule. Puwede kang makipag-meet sa clients nang personal o online, at may mga gawain ding puwedeng gawin sa bahay. Kadalasan, pupunta ka sa office para sa training o meeting.\n\nTungkol sa kita, allowances o bonuses, kausapin ang recruiter o leader mo. Puwede ka ring magsimula sa libreng Financial Literacy o FEP kung gusto mo munang mas maintindihan ang opportunity."
+      },
+      "ownerEvidence": null,
+      "ownerFeedback": {
+        "ceb": "good",
+        "en": "good",
+        "tl": "good"
+      },
+      "note": null
+    },
+    {
+      "id": "KP-REC-08",
+      "previousVersion": null,
+      "version": "0.1",
+      "answers": {
+        "en": "No, SPIKE doesn’t. Your recruiter and your leader will submit and confirm your AIA application.",
+        "ceb": "DIli ang SPIKE.  Ang imong recruiter ug ang Leader ang mo submit og mo confirm sa imong AIA Application.",
+        "tl": "Hindi ang SPIKE. Ang recruiter at leader mo ang magsu-submit at magko-confirm ng AIA application mo."
+      },
+      "ownerEvidence": null,
+      "ownerFeedback": {
+        "ceb": "Owner supplied answer",
+        "en": "good",
+        "tl": "good"
+      },
+      "note": "Owner-supplied exact answer; proposed separate FAQ, not inserted into runtime pack."
+    }
+  ]
+}
