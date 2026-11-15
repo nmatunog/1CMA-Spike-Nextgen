@@ -152,5 +152,6 @@
       },
       "note": "Owner-supplied exact answer; proposed separate FAQ, not inserted into runtime pack."
     }
-  ]
+  ],
+  "runtimeDateBasis": "Existing knowledge-import guard uses UTC calendar dates. Review occurred on 16 November in Asia/Manila while UTC was still 15 November; approvedOn/effective use 2026-11-15 without changing the guard."
 }
