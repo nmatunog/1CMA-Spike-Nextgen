@@ -13,13 +13,13 @@ describe('credential retention boundary', () => {
   });
   it.each(aiaRegistrationQuestions)('routes an ordinary account question to registration guidance: %s', text => {
     expect(isAiaCredentialDump(text)).toBe(false);
-    const reply = respond(text, 'en', knowledge, new Date('2026-11-14T08:00:00Z'));
+    const reply = respond(text, 'en', knowledge, new Date('2026-11-16T08:00:00Z'));
     expect(reply.intent).toBe('answer');
     expect(reply.citation?.id).toBe('KP-REC-01');
   });
   it.each([...aiaLeaderQuestions, ...otherAccountQuestions])('preserves leader help without AIA registration or refusal: %s', text => {
     expect(isAiaCredentialDump(text)).toBe(false);
-    const reply = respond(text, 'en', knowledge, new Date('2026-11-14T08:00:00Z'));
+    const reply = respond(text, 'en', knowledge, new Date('2026-11-16T08:00:00Z'));
     expect(reply.intent).toBe('request_leader');
     expect(reply.citation?.id).not.toBe('KP-REC-01');
   });
