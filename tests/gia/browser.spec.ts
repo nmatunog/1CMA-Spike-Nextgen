@@ -1,3 +1,4 @@
+import { aiaRegistrationQuestions, aiaLeaderQuestions, otherAccountQuestions } from './fixtures/credential-regressions';
 import { expectPlainCitation, expectSafeVisitorLinks } from './visitor-link-assertions';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -60,18 +61,30 @@ test('intern guide hides FEP and denies FEP listing', async ({page}) => {
   await expect(page.getByText('KP-FEP-01 · v0.2', { exact: true })).toHaveCount(0);
   await expectSafeVisitorLinks(page);
 });
-test('recruit account questions receive registration guidance rather than credential refusal', async ({page}) => {
-  test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
-  await page.goto('/gia');
-  let answers = 0;
-  for (const question of ['I want to become an AIA advisor, where do I log in?', 'do I need a username?']) {
-    await page.getByRole('textbox', { name: 'Message GIA' }).fill(question);
-    await page.getByRole('button', { name: 'Send', exact: true }).click();
-    await expect(page.getByText('KP-REC-01 · v0.3', { exact: true })).toHaveCount(++answers);
-    await expectPlainCitation(page, 'KP-REC-01 · v0.3');
-    await expect(page.getByText(/I cannot accept AIA login credentials/)).toHaveCount(0);
-  }
-});
+for (const [label, questions, registration] of [
+  ['AIA registration questions', aiaRegistrationQuestions, true],
+  ['AIA account support questions', aiaLeaderQuestions, false],
+  ['SPIKE FEP and generic account questions', otherAccountQuestions, false],
+] as const) {
+  test(`${label} preserve the correct guidance without credential refusal`, async ({page}) => {
+    test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
+    await page.goto('/gia');
+    let answers = 0;
+    for (const question of questions) {
+      await page.getByRole('textbox', { name: 'Message GIA' }).fill(question);
+      await page.getByRole('button', { name: 'Send', exact: true }).click();
+      if (registration) {
+        await expect(page.getByText('KP-REC-01 · v0.3', { exact: true })).toHaveCount(++answers);
+        await expectPlainCitation(page, 'KP-REC-01 · v0.3');
+      } else {
+        await expect(page.getByText('I do not have an approved answer for that yet. I can connect you with a 1CMA leader.', { exact: true })).toHaveCount(++answers);
+        await expect(page.getByText('KP-REC-01 · v0.3', { exact: true })).toHaveCount(0);
+      }
+      await expect(page.getByText(/I cannot accept AIA login credentials/)).toHaveCount(0);
+      await expectSafeVisitorLinks(page);
+    }
+  });
+}
 test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', async ({page,browser}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
   await page.goto('/gia');
