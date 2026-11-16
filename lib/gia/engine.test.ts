@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { respond, knowledge, approved, welcome, isCrisis } from './engine.mjs';
 import { staffRole, canAccess } from './access.mjs';
+import { visitorSafeHref } from './visitor-hrefs';
 const now = new Date('2026-11-04T12:00:00Z');
 // Exercise the real owner-approved pack at its effective date.
 const pack = knowledge;
@@ -161,5 +162,90 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
     expect(r.citation).toMatchObject({ id: 'KP-DOCS-01' });
     expect(r.text).toMatch(/iRecruit/);
     expect(respond('upload my IC exam documents','en',knowledge,docsNow)).not.toHaveProperty('citation');
+  });
+});
+
+describe('AIA advisor registration (KP-REC, 2026-11-16)', () => {
+  const recNow = new Date('2026-11-16T12:00:00Z');
+  function urlsIn(text: string) {
+    return [...String(text).matchAll(/https:\/\/[^\s]+/g)].map((m) => m[0].replace(/[.,)]+$/, ''));
+  }
+
+  it('serves the 4-step AIA advisor journey without generic Join us URLs', () => {
+    for (const q of ['How do I join AIA / register?', 'How do I join AIA?', 'How do I register?', 'Join AIA']) {
+      const r = respond(q, 'en', knowledge, recNow);
+      expect(r.intent, q).toBe('answer');
+      expect(r.citation, q).toMatchObject({ id: 'KP-REC-01', version: '0.4' });
+      expect(r.text, q).toMatch(/only for those who want to become AIA advisors/i);
+      expect(r.text, q).toMatch(/Free Financial Literacy/);
+      expect(r.text, q).toMatch(/Free FEP/);
+      expect(r.text, q).toMatch(/link provided by your recruiter/);
+      expect(r.text, q).toMatch(/SPIKE Venture Studio/);
+      const entry = knowledge.find(e => e.id === r.citation?.id && e.version === r.citation?.version);
+      expect(entry?.approvalRef).toContain('a3560c8838d2c5d574427f0bf59a0bd2407fdd68');
+      expect(entry?.approvedOn).toBe('2026-11-15');
+      expect(r.text, q).not.toMatch(/https?:\/\/\S*irecruit/i);
+      expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best/i);
+      expect(urlsIn(r.text)).toEqual([]);
+      expect(visitorSafeHref(r.citation?.source), q).toBeNull();
+    }
+    expect(respond('What happens after FEP?', 'en', knowledge, recNow).intent).not.toBe('answer');
+  });
+
+  it('serves owner-reviewed AIA career KPs with approval provenance and no generic signup URLs', () => {
+    const cases = [
+      ['What does an AIA advisor do?', 'KP-REC-03'],
+      ['What training and support do I get?', 'KP-REC-04'],
+      ['Who can apply to be an AIA advisor?', 'KP-REC-05'],
+      ['What does the AIA advisor path look like?', 'KP-REC-06'],
+      ['AIA advisor career FAQs', 'KP-REC-07'],
+    ] as const;
+    for (const [q, id] of cases) {
+      const r = respond(q, 'en', knowledge, recNow);
+      expect(r.intent, q).toBe('answer');
+      expect(r.citation, q).toMatchObject({ id });
+      const entry = knowledge.find(e => e.id === r.citation?.id && e.version === r.citation?.version);
+      expect(entry?.approvalRef).toContain('a3560c8838d2c5d574427f0bf59a0bd2407fdd68');
+      expect(entry?.approvedOn).toBe('2026-11-15');
+      expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best|unlimited income|₱/i);
+      expect(urlsIn(r.text)).toEqual([]);
+    }
+  });
+
+  it('refuses AIA login credentials and never asks for them', () => {
+    for (const q of ['Here is my AIA password', 'My AIA login is demo@aia', 'Log in to iRecruit with this password', 'AIA pw: sunshine', 'password ko sa AIA kay sunshine', 'ang akong password sa AIA kay sunshine', 'AIA creds: sunshine', 'A.I.A. password: sunshine']) {
+      const r = respond(q, 'en', knowledge, recNow);
+      expect(r.intent, q).toBe('refuse');
+      expect(r.reason, q).toBe('aia_credentials');
+      expect(r.text, q).toMatch(/cannot accept AIA login credentials/i);
+      expect(r.text, q).not.toMatch(/https?:\/\/\S*irecruit/i);
+      expect(urlsIn(r.text)).toEqual([]);
+    }
+    const join = respond('How do I join AIA?', 'en', knowledge, recNow);
+    expect(join.text).toMatch(/Do not send your AIA login credentials/);
+    expect(join.text).not.toMatch(/enter your (aia )?password/i);
+  });
+
+  it('treats AIA registration and Level-Up payment as separate checks', () => {
+    const r = respond('Is AIA registration the same as paying for Level-Up?', 'en', knowledge, recNow);
+    expect(r.intent).toBe('answer');
+    expect(r.citation).toMatchObject({ id: 'KP-REC-02' });
+    expect(r.text).toMatch(/are separate/i);
+    expect(r.text).toMatch(/Versa course access/i);
+    expect(r.text).toMatch(/Ask your recruiter about Level-Up/);
+    expect(r.text).not.toMatch(/coming soon|not live/i);
+    expect(urlsIn(r.text)).toEqual([]);
+    expect(r.text).not.toMatch(/https?:\/\/\S*irecruit/i);
+  });
+
+  it('does not serve AIA registration to intern or RA programs', () => {
+    expect(respond('How do I join AIA?', 'en', knowledge, recNow, { program: 'intern' })).toMatchObject({
+      intent: 'request_leader',
+      reason: 'route_spike_interns',
+    });
+    expect(respond('How do I join AIA?', 'en', knowledge, recNow, { program: 'ra' })).toMatchObject({
+      intent: 'request_leader',
+      reason: 'route_ra_spike',
+    });
   });
 });
