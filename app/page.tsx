@@ -1,11 +1,6 @@
-import { LandingExperience } from "@/components/landing/LandingExperience";
-import { LandingNav } from "@/components/landing/LandingNav";
+import { redirect } from "next/navigation";
 
+/** Temporary: send testers to GIA instead of the old AIA landing. */
 export default function HomePage() {
-  return (
-    <>
-      <LandingNav />
-      <LandingExperience />
-    </>
-  );
+  redirect("/gia");
 }

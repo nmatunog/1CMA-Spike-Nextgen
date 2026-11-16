@@ -23,6 +23,8 @@ const child = spawn(process.execPath,['node_modules/next/dist/bin/next','start',
   GIA_RATE_LIMIT_IP_MAX:'500', GIA_RATE_LIMIT_GLOBAL_MAX:'2000', GIA_URGENT_UNCONSENTED_IP_MAX:'50',
   RECRUITMENT_STAFF_ACCOUNTS:JSON.stringify({[access.email]:{salt,hash:scryptSync(access.password,salt,64).toString('hex')},[access.leaderEmail]:{salt,hash:scryptSync(access.leaderPassword,salt,64).toString('hex')}}),
   RECRUITMENT_STAFF_ROLES:JSON.stringify({[access.email]:'admin',[access.leaderEmail]:'leader'}),
+  AIA_DEFAULT_RECRUITER_REGISTRATION_URL: process.env.AIA_DEFAULT_RECRUITER_REGISTRATION_URL || 'https://www.aia.com.ph/en/financialadvisor/join-us-now?reference=eyJjb2RlIjoiMDAwMDAwMDAwIiwibmFtZSI6IlRFU1QvUkVDUlVJVEVSIn0=',
+  AIA_DEFAULT_RECRUITER_DISPLAY_NAME: process.env.AIA_DEFAULT_RECRUITER_DISPLAY_NAME || 'TEST/RECRUITER',
 }});
 child.on('exit',async code => { await server.stop();await db.close();process.exit(code || 0); });
 process.on('SIGTERM',() => child.kill('SIGTERM'));

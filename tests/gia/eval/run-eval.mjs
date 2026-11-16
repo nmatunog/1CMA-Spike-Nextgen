@@ -22,8 +22,11 @@ export function nextSaturday(from) {
 export async function seedSaturday(db, full = false) {
   const saturdayId = randomUUID();
   const laterId = randomUUID();
-  const saturday = nextSaturday(OFFICIAL_NOW).toISOString();
-  const later = new Date(OFFICIAL_NOW.getTime() + 14 * 86400000).toISOString();
+  // Booking storage checks the real clock. Keep synthetic sessions in the future
+  // even after the frozen knowledge-evaluation date has passed.
+  const bookingNow = new Date(Math.max(Date.now(), OFFICIAL_NOW.getTime()));
+  const saturday = nextSaturday(bookingNow).toISOString();
+  const later = new Date(bookingNow.getTime() + 14 * 86400000).toISOString();
   await db.query('INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,$2,$3)', [saturdayId, saturday, full ? 1 : 5]);
   await db.query('INSERT INTO fep_sessions(id,starts_at,capacity) VALUES($1,$2,5)', [laterId, later]);
   return { saturdayId, laterId };
