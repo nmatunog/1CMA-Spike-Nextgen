@@ -10,6 +10,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Cold synthetic PGlite setup can exceed the default 10-second hook budget.
+    hookTimeout: 30000,
     include: ["**/*.test.ts", "lib/gia/*.test.mjs"],
   },
   resolve: {

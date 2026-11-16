@@ -101,3 +101,27 @@ describe('visitor href guard', () => {
     expect(html).not.toMatch(/join-us-now|irecruit/i);
   });
 });
+
+describe('LOW-N1 valid percent encoding without traversal', () => {
+  it.each([
+    '/gia/Financial%20Literacy',
+    '/gia/privacy?topic=Financial%20Literacy',
+    'https://www.aia.com.ph/en/Financial%20Literacy',
+    'https://www.aia.com.ph/en/about?topic=Financial%20Literacy',
+    '/gia/%E2%9C%93',
+    '/gia/report%2Epdf',
+  ])('accepts a safe encoded destination: %s', href => {
+    expect(visitorSafeHref(href)).toBe(href);
+  });
+  it.each([
+    '/gia/%00', '/gia/%09', '/gia/%0a', '/gia/%0d', '/gia/%1f', '/gia/%7f',
+    '/gia/%250a', '/%2fevil.example', '/%252Fevil.example', '/gia/%5cfoo',
+    '/gia/%255cfoo', '/gia/%2e%2e/private', '/gia/.%2e/private',
+    '/gia/%252e%252e/private', '/gia/%2e/private', '/gia/../private',
+    '/gia/%2F..%2Fprivate', '/broken%zz',
+    '/join%2dus%2dnow', '/%69recruit', '/%2569recruit',
+    'https://www.aia.com.ph/en/financialadvisor/join-us-now?topic=hello%20there',
+  ])('rejects unsafe or prohibited encoded destinations: %s', href => {
+    expect(visitorSafeHref(href)).toBeNull();
+  });
+});

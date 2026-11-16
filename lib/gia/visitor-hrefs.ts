@@ -13,6 +13,8 @@ function decodedForInspection(value: string): string | null {
   let decoded = value;
   for (let i = 0; i < 8; i++) {
     try {
+      // Inspect every layer so nested encodings cannot hide path separators.
+      if (/%(?:2f|5c)/i.test(decoded)) return null;
       const next = decodeURIComponent(decoded);
       if (next === decoded) return decoded;
       decoded = next;
@@ -46,7 +48,10 @@ export function visitorSafeHref(raw: string | null | undefined): string | null {
   if (!value) return null;
   // Backslashes/control characters can make browser URL parsing change the origin.
   const decoded = decodedForInspection(value);
-  if (decoded == null || /[\\\u0000-\u0020\u007f]/.test(decoded)) return null;
+  if (/[\\\u0000-\u0020\u007f]/.test(value)) return null;
+  if (decoded == null || /[\\\u0000-\u001f\u007f]/.test(decoded)) return null;
+  // Inspect before URL parsing can normalize literal or encoded dot segments.
+  if (/(?:^|\/)\.{1,2}(?:\/|$)/.test(decoded.split(/[?#]/, 1)[0])) return null;
   if (isIrecruitHref(value)) return null;
   if (isGenericAiaJoinHref(value)) return null;
   if (value.startsWith('/') && !value.startsWith('//')) return value;

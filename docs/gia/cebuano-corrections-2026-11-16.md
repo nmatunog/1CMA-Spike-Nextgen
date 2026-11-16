@@ -2,11 +2,11 @@
 
 Parent: `cb03e8eb109b8731e5ee63ac94d8d94f112d6b7b`.
 
-The owner explicitly requested only these corrections in the Codex conversation on 16 November 2026:
+The 16 November 2026 correction contains 3 owner-ordered edits and 3 SPIKEDEV-suggested edits, all explicitly authorized by the owner in the follow-up instruction:
 
 - KP-REC-01 Cebuano: capitalize the first letter.
 - KP-REC-06 Cebuano: `agan` → `agianan`.
-- KP-REC-08 Cebuano: `DIli` → `Dili`, remove the double space, lowercase mid-sentence `Leader` / `Application`, and `og` → `ug`.
+- KP-REC-08 Cebuano: owner-ordered `og` → `ug`; SPIKEDEV-suggested `DIli` → `Dili`, removal of the double space, and lowercase mid-sentence `Leader` / `Application`.
 
 No other answer wording, versions, routing, approval dates, dependencies or configuration changed. All 24 answers byte-match across runtime, JSON and Markdown. The existing immutable approval reference records the original review; this follow-up records the subsequent explicit correction instruction, transcribed by Codex rather than an owner-authored GitHub comment.
 
