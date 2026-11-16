@@ -63,6 +63,14 @@ export const genericCredentialDisclosures = [
   'password - sunshine', 'password ko: sunshine', 'ang password ko: sunshine',
   'heto po password ko: sunshine', 'my password is: sunshine',
   'password ko po ay sunshine', 'ang password ko po kay sunshine', 'Password ko sa SPIKE kay sunshine',
+  // SPIKEDEV addendum 6905209674.
+  'password: spike', 'password: learning', 'pw: portal', 'password: zoom', 'password: session',
+  'password: account', 'password ko kay spike', 'password nako: sunshine', 'password ko po: sunshine',
+  '007123456 / P@ss', '007123456 / pass', '007123456 xyz', 'username: 007123456 pass: xyz',
+  'username: 007123456 password: xyz', 'user 007123456 pass xyz',
+  'ito po ang username ko 007123456 at password sunshine', 'kini akong username 007123456 ug password sunshine',
+  'username ko 007123456 password ko sunshine', 'akong password: sunshine', 'ang akong pw kay sunshine',
+  'juan@x.com Secret123', 'juan@x.com P@ss', 'juan@x.com sunshine', 'juan@x.com xyz',
 ];
 // Blanked from transcripts, but not refused (no explicit single-token assignment).
 export const storageOnlyCredentialShapes = [
@@ -73,6 +81,10 @@ export const storageOnlyCredentialShapes = [
   'ang password ko ay nakalimutan ko', 'ang password nako kay nalimtan nako', 'password ko kay wala nagana',
   'My password is 8 characters, is that ok?', 'My password is supposed to have a symbol?',
   'My PIN is 4 digits right?', 'I forgot my password, my email is juan@example.com',
+  // SPIKEDEV addendum 6905209674: first-token stop words must not exempt storage.
+  'password: right', 'password: same', 'password: please', 'password: correct horse', 'password is new',
+  'password is my dog rex', 'password: the dog rex', 'pw ko sunshine', 'pass ko kay sunshine',
+  'ang password ko ay bago',
 ];
 // Ordinary troubleshooting and questions that must not be refused (M2 included).
 export const credentialTroubleshooting = [
@@ -85,6 +97,8 @@ export const credentialTroubleshooting = [
   'My email is juan@example.com and I am free Mon/Tue',
   'What is the difference between AIA / iRecruit / SPIKE?', 'How do I join AIA? I am free 11/16/2026',
   'My recruiter code is 007123456, how do I register?', 'yes / no', 'and/or',
+  'ang password ko ay bago', 'my email is juan@example.com', 'Nakalimtan nako akong password sa SPIKE', '007123456',
+  'juan@example.com please contact me',
 ];
 // Join questions that must still reach KP-REC-01 (M2 / INFO-2).
 export const aiaJoinWithSlashes = ['How do I join AIA? I am free 11/16/2026', 'How do I join AIA / register?'];
