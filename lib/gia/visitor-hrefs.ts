@@ -11,13 +11,16 @@ function normalizePath(pathname: string) {
 
 function decodedForInspection(value: string): string | null {
   let decoded = value;
+  let decodedPath = value.split(/[?#]/, 1)[0];
   for (let i = 0; i < 8; i++) {
     try {
-      // Inspect every layer so nested encodings cannot hide path separators.
-      if (/%(?:2f|5c)/i.test(decoded)) return null;
+      // Keep the original path boundary while inspecting every decoding layer.
+      // Encoded separators in query references must not suppress a valid CTA.
+      if (/%(?:2f|5c)/i.test(decodedPath)) return null;
       const next = decodeURIComponent(decoded);
       if (next === decoded) return decoded;
       decoded = next;
+      decodedPath = decodeURIComponent(decodedPath);
     } catch { return null; }
   }
   return null;
