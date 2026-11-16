@@ -74,11 +74,11 @@ for (const [label, questions, registration] of [
       await page.getByRole('textbox', { name: 'Message GIA' }).fill(question);
       await page.getByRole('button', { name: 'Send', exact: true }).click();
       if (registration) {
-        await expect(page.getByText('KP-REC-01 · v0.3', { exact: true })).toHaveCount(++answers);
-        await expectPlainCitation(page, 'KP-REC-01 · v0.3');
+        await expect(page.getByText('KP-REC-01 · v0.4', { exact: true })).toHaveCount(++answers);
+        await expectPlainCitation(page, 'KP-REC-01 · v0.4');
       } else {
         await expect(page.getByText('I do not have an approved answer for that yet. I can connect you with a 1CMA leader.', { exact: true })).toHaveCount(++answers);
-        await expect(page.getByText('KP-REC-01 · v0.3', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('KP-REC-01 · v0.4', { exact: true })).toHaveCount(0);
       }
       await expect(page.getByText(/I cannot accept AIA login credentials/)).toHaveCount(0);
       await expectSafeVisitorLinks(page);

@@ -165,8 +165,8 @@ describe('boundary, documents, FEP change and unserved drafts', () => {
   });
 });
 
-describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
-  const recNow = new Date('2026-11-14T12:00:00Z');
+describe('AIA advisor registration (KP-REC, 2026-11-16)', () => {
+  const recNow = new Date('2026-11-16T12:00:00Z');
   function urlsIn(text: string) {
     return [...String(text).matchAll(/https:\/\/[^\s]+/g)].map((m) => m[0].replace(/[.,)]+$/, ''));
   }
@@ -175,15 +175,15 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
     for (const q of ['How do I join AIA / register?', 'How do I join AIA?', 'How do I register?', 'Join AIA']) {
       const r = respond(q, 'en', knowledge, recNow);
       expect(r.intent, q).toBe('answer');
-      expect(r.citation, q).toMatchObject({ id: 'KP-REC-01', version: '0.3' });
-      expect(r.text, q).toMatch(/AIA advisor path only/i);
+      expect(r.citation, q).toMatchObject({ id: 'KP-REC-01', version: '0.4' });
+      expect(r.text, q).toMatch(/only for those who want to become AIA advisors/i);
       expect(r.text, q).toMatch(/Free Financial Literacy/);
       expect(r.text, q).toMatch(/Free FEP/);
-      expect(r.text, q).toMatch(/attributed link/);
-      expect(r.text, q).toMatch(/system of record/);
+      expect(r.text, q).toMatch(/link provided by your recruiter/);
       expect(r.text, q).toMatch(/SPIKE Venture Studio/);
-      expect(r.text, q).toMatch(/SPIKE does not submit or confirm AIA applications/);
-      expect(r.text, q).toMatch(/Source: AIA Philippines, as of 14 Nov 2026/);
+      const entry = knowledge.find(e => e.id === r.citation?.id && e.version === r.citation?.version);
+      expect(entry?.approvalRef).toContain('a3560c8838d2c5d574427f0bf59a0bd2407fdd68');
+      expect(entry?.approvedOn).toBe('2026-11-15');
       expect(r.text, q).not.toMatch(/https?:\/\/\S*irecruit/i);
       expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best/i);
       expect(urlsIn(r.text)).toEqual([]);
@@ -192,7 +192,7 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
     expect(respond('What happens after FEP?', 'en', knowledge, recNow).intent).not.toBe('answer');
   });
 
-  it('serves paraphrased AIA career KPs with source date and no generic signup URLs', () => {
+  it('serves owner-reviewed AIA career KPs with approval provenance and no generic signup URLs', () => {
     const cases = [
       ['What does an AIA advisor do?', 'KP-REC-03'],
       ['What training and support do I get?', 'KP-REC-04'],
@@ -204,7 +204,9 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
       const r = respond(q, 'en', knowledge, recNow);
       expect(r.intent, q).toBe('answer');
       expect(r.citation, q).toMatchObject({ id });
-      expect(r.text, q).toMatch(/Source: AIA Philippines, as of 14 Nov 2026/);
+      const entry = knowledge.find(e => e.id === r.citation?.id && e.version === r.citation?.version);
+      expect(entry?.approvalRef).toContain('a3560c8838d2c5d574427f0bf59a0bd2407fdd68');
+      expect(entry?.approvedOn).toBe('2026-11-15');
       expect(r.text, q).not.toMatch(/join-us-now|partner-with-the-best|unlimited income|₱/i);
       expect(urlsIn(r.text)).toEqual([]);
     }
@@ -220,7 +222,7 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
       expect(urlsIn(r.text)).toEqual([]);
     }
     const join = respond('How do I join AIA?', 'en', knowledge, recNow);
-    expect(join.text).toMatch(/Never send AIA login credentials/);
+    expect(join.text).toMatch(/Do not send your AIA login credentials/);
     expect(join.text).not.toMatch(/enter your (aia )?password/i);
   });
 
@@ -228,10 +230,10 @@ describe('AIA advisor registration (KP-REC, 2026-11-14)', () => {
     const r = respond('Is AIA registration the same as paying for Level-Up?', 'en', knowledge, recNow);
     expect(r.intent).toBe('answer');
     expect(r.citation).toMatchObject({ id: 'KP-REC-02' });
-    expect(r.text).toMatch(/separate checks/i);
+    expect(r.text).toMatch(/are separate/i);
     expect(r.text).toMatch(/Versa course access/i);
-    expect(r.text).toMatch(/coming soon/i);
-    expect(r.text).toMatch(/not to interns or free learners/i);
+    expect(r.text).toMatch(/Ask your recruiter about Level-Up/);
+    expect(r.text).not.toMatch(/coming soon|not live/i);
     expect(urlsIn(r.text)).toEqual([]);
     expect(r.text).not.toMatch(/https?:\/\/\S*irecruit/i);
   });
