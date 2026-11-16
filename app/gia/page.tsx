@@ -1,4 +1,5 @@
 import { Inter } from 'next/font/google';
+import { initialVisitorProgram } from '@/lib/gia/first-screen';
 import { GiaChat } from '@/components/gia/GiaChat';
 import { readDefaultRecruiterRegistration } from '@/lib/gia/recruiter-registration';
 
@@ -11,10 +12,11 @@ export const metadata = {
   description: 'GIYA Institute — The SPIKE Method. Official AI guide across the SPIKE ecosystem.',
 };
 
-export default function GiaPage() {
+export default async function GiaPage({ searchParams }: { searchParams: Promise<{ program?: string }> }) {
+  const { program } = await searchParams;
   return (
     <div className={inter.className}>
-      <GiaChat variant="page" defaultRecruiter={readDefaultRecruiterRegistration()} />
+      <GiaChat variant="page" initialProgram={initialVisitorProgram(program)} defaultRecruiter={readDefaultRecruiterRegistration()} />
     </div>
   );
 }

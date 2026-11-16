@@ -1,8 +1,9 @@
 export const SPIKE_PREVIEW_PATH = '/spike-preview';
 export const STAFF_POST_LOGIN_PATH = '/recruitment/command';
 
-export const GIA_TITLE = 'GIA — Your 1CMA AI Guide';
-export const GIA_SUBTITLE = 'GIYA Institute — The SPIKE Method';
+export const GIA_TITLE = 'GIA';
+export const GIA_SUBTITLE = 'Your AI guide. Ask away.';
+export const GIA_ABOUT_CONTEXT = 'GIYA Institute — The SPIKE Method';
 export const GIA_PILOT_BADGE = '1CMA · Controlled synthetic-data pilot';
 export const GIA_DISCLAIMER =
   'Learning does not authorize you to sell insurance or give insurance advice.';
