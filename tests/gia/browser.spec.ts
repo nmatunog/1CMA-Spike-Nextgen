@@ -212,6 +212,8 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await staffPage.waitForURL('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Unassigned Alpha'}).click();
   await expect(staffPage.getByRole('heading',{name:'Preliminary evaluation'})).toBeVisible();
+  const evaluatedMetric = staffPage.locator('dt',{hasText:'Evaluated'}).locator('xpath=../dd');
+  const evaluatedBefore = Number(await evaluatedMetric.textContent());
   const evalForm=staffPage.locator('form').filter({has:staffPage.getByRole('button',{name:'Record evaluation'})});
   await evalForm.getByLabel('Background',{exact:true}).fill('Synthetic Alpha background');
   await evalForm.getByLabel('Education').fill('Synthetic college');
@@ -230,7 +232,7 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await followForm.getByRole('button',{name:'Save follow-up'}).click();
   await expect(staffPage.getByRole('status')).toHaveText('Follow-up saved');
   await expect(staffPage.getByText(/last engaged/i).first()).toBeVisible();
-  await expect(staffPage.locator('dt',{hasText:'Evaluated'}).locator('xpath=../dd')).toHaveText('1');
+  await expect(evaluatedMetric).toHaveText(String(evaluatedBefore + 1));
   await staffPage.screenshot({path:'docs/cc03/screenshots/evaluate-desktop.png',fullPage:true});
   await staffPage.setViewportSize({width:390,height:844});
   expect(await staffPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
