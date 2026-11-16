@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isAiaCredentialDump, isCredentialDisclosure, mayContainCredentialValue } from './credential-safety.mjs';
 import { respond, knowledge } from './engine.mjs';
 import { credentialDisclosures as disclosures, aiaRegistrationQuestions, aiaLeaderQuestions, otherAccountQuestions,
-  genericCredentialDisclosures, storageOnlyCredentialShapes, credentialTroubleshooting } from '../../tests/gia/fixtures/credential-regressions';
+  genericCredentialDisclosures, storageOnlyCredentialShapes, credentialTroubleshooting, aiaJoinWithSlashes } from '../../tests/gia/fixtures/credential-regressions';
 import { storeableMessageText } from '../mvp01/engage';
 
 describe('credential retention boundary', () => {
@@ -52,5 +52,10 @@ describe('credential retention boundary', () => {
   it.each([...credentialTroubleshooting, ...otherAccountQuestions, ...aiaLeaderQuestions])('does not refuse ordinary troubleshooting: %s', text => {
     expect(isCredentialDisclosure(text)).toBe(false);
     expect(respond(text, 'en', knowledge, new Date('2026-11-16T08:00:00Z')).intent).not.toBe('refuse');
+  });
+  it.each(aiaJoinWithSlashes)('keeps join questions with slashes on registration guidance: %s', text => {
+    const reply = respond(text, 'en', knowledge, new Date('2026-11-16T08:00:00Z'));
+    expect(reply.intent).toBe('answer');
+    expect(reply.citation?.id).toBe('KP-REC-01');
   });
 });
