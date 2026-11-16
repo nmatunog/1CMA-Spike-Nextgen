@@ -101,6 +101,8 @@ test('GIA visitor conversation and handoff appear on the candidate timeline', as
   const visitor = 'Synthetic GIA Timeline Visitor';
 
   await page.goto('/gia');
+  await page.getByRole('button', { name: 'Is it free?', exact: true }).click();
+  await page.getByRole('button', { name: 'Save a contact', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill(visitor);
   await page.getByLabel('Email', { exact: true }).fill('gia-timeline@example.test');
   await page.getByRole('checkbox').check();
@@ -153,8 +155,7 @@ test('GIA visitor conversation and handoff appear on the candidate timeline', as
 
   const internContext = await browser.newContext();
   const internPage = await internContext.newPage();
-  await internPage.goto('/gia');
-  await internPage.getByRole('radio', { name: 'Intern' }).click();
+  await internPage.goto('/gia?program=intern');
   await expect(internPage.getByRole('button', { name: 'Show FEP sessions' })).toHaveCount(0);
   await internPage.getByRole('textbox', { name: 'Message GIA' }).fill('Show FEP sessions');
   await internPage.getByRole('button', { name: 'Send', exact: true }).click();

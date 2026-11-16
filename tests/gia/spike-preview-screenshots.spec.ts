@@ -91,13 +91,16 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     const dock = page.getByRole('dialog', { name: 'GIA guide' });
     await expect(dock).toBeVisible();
     await expect(dock.getByRole('button', { name: 'Close GIA' })).toBeVisible();
-    await expect(dock.locator('h1')).toHaveText('GIA — Your 1CMA AI Guide');
+    await expect(dock.locator('h1')).toHaveText('GIA');
     await dock.screenshot({ path: `${DIR}/gia-panel-${width}.png` });
 
+    await dock.getByRole('button', { name: 'Is it free?', exact: true }).click();
+    await dock.getByRole('button', { name: 'Save a contact', exact: true }).click();
     await expect(dock.getByRole('heading', { name: 'Save a contact for booking or leader follow-up' })).toBeVisible();
     await dock.getByRole('heading', { name: 'Save a contact for booking or leader follow-up' }).scrollIntoViewIfNeeded();
     await dock.screenshot({ path: `${DIR}/consent-card-${width}.png` });
 
+    await dock.getByRole('button', { name: 'More options', exact: true }).click();
     await dock.getByRole('button', { name: AIA_JOIN_ASK }).scrollIntoViewIfNeeded();
     await dock.getByRole('button', { name: AIA_JOIN_ASK }).click();
     await expect(dock.getByLabel('GIA is typing')).toBeVisible();
@@ -162,8 +165,10 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
 
     await page.setViewportSize({ width, height: width === 390 ? 1200 : 1400 });
     await page.goto('/gia');
-    await expect(page.getByRole('heading', { name: 'GIA — Your 1CMA AI Guide' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'GIA', exact: true })).toBeVisible();
     await expect(page.getByText('Learning does not authorize you to sell insurance or give insurance advice.')).toBeVisible();
+    await page.getByRole('button', { name: 'Is it free?', exact: true }).click();
+    await page.getByRole('button', { name: 'Save a contact', exact: true }).click();
     await page.getByRole('heading', { name: 'Save a contact for booking or leader follow-up' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${DIR}/gia-page-${width}.png`, fullPage: true });
   }

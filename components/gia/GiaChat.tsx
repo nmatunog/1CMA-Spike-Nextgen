@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { welcome, NOTICE } from '@/lib/gia/engine.mjs';
+import { NOTICE } from '@/lib/gia/engine.mjs';
 import { GiaCitation } from '@/components/gia/GiaCitation';
 import { RegisterWithRecruiter } from '@/components/gia/RegisterWithRecruiter';
 import { AIA_CAREER_CHIPS, AIA_LEVELUP_ASK } from '@/lib/gia/path-picker';
@@ -16,18 +16,15 @@ import {
   GIA_CONSENT_TAG,
   GIA_CONSENT_TITLE,
   GIA_DISCLAIMER,
-  GIA_FOOTER_LINE2_PREFIX,
-  GIA_NOTICE_PRIVACY,
-  GIA_PILOT_BADGE,
+  GIA_ABOUT_CONTEXT,
   GIA_SUBTITLE,
-  GIA_SYSTEM_NOTE,
   GIA_TITLE,
   LEADER_INVITE,
   NEXT_STEP_INVITE,
-  resolveGiaPrompt,
   visibleJtbd,
   type GiaProgram,
 } from '@/lib/gia/ui-copy';
+import { FIRST_SCREEN_GREETING, FIRST_SCREEN_CHIPS, PATH_QUESTION, PATH_CHOICES, resolveVisitorPrompt } from '@/lib/gia/first-screen';
 import styles from './gia-chat.module.css';
 
 type Turn = { kind: 'gia' | 'user'; text: string; citation?: { id: string; version: string; source: string } };
@@ -44,6 +41,7 @@ const CONSENT_INTENTS = new Set([
 
 export function GiaChat({
   variant = 'page',
+  initialProgram = 'recruit',
   initialPrompt,
   seed,
   defaultRecruiter = null,
@@ -51,6 +49,7 @@ export function GiaChat({
   onClose,
 }: {
   variant?: 'page' | 'panel';
+  initialProgram?: Program;
   initialPrompt?: string;
   seed?: Seed;
   defaultRecruiter?: RecruiterRegistration | null;
@@ -58,7 +57,7 @@ export function GiaChat({
   onClose?: () => void;
 }) {
   const [dark, setDark] = useState(false);
-  const [turns, setTurns] = useState<Turn[]>([{ kind: 'gia', text: welcome }]);
+  const [turns, setTurns] = useState<Turn[]>([{ kind: 'gia', text: FIRST_SCREEN_GREETING }]);
   const [text, setText] = useState('');
   const [otp, setOtp] = useState('');
   const [needOtp, setNeedOtp] = useState(false);
@@ -66,19 +65,22 @@ export function GiaChat({
   const [consent, setConsent] = useState(false);
   const [saved, setSaved] = useState(false);
   const [stopped, setStopped] = useState(false);
-  const [showConsent, setShowConsent] = useState(true);
+  const [showConsent, setShowConsent] = useState(false);
+  const [moreActions, setMoreActions] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [contact, setContact] = useState({ name: '', email: '' });
-  const [program, setProgram] = useState<Program>('recruit');
+  const [program, setProgram] = useState<Program>(initialProgram);
   const [stuck, setStuck] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const lastSeed = useRef<number | null>(null);
   const skipTyping = useRef<(() => void) | null>(null);
 
-  const chips = [
-    ...visibleJtbd(program).map((item) => item.label),
+  const engaged = turns.some(t => t.kind === 'user') || saved;
+  const fepRelevant = turns.some(t => t.citation?.id.startsWith('KP-FEP-'));
+  const chips = !engaged ? [...FIRST_SCREEN_CHIPS] : moreActions ? [
+    ...visibleJtbd(program).map(item => item.label),
     ...(program === 'recruit' ? [...AIA_CAREER_CHIPS, AIA_LEVELUP_ASK, NEXT_STEP_INVITE] : []),
-  ];
+  ] : program === 'recruit' ? ['I want to learn money basics', 'I want to explore a business path', LEADER_INVITE] : [LEADER_INVITE];
   const nearBottom = () => {
     const el = threadRef.current;
     if (!el) return true;
@@ -104,8 +106,8 @@ export function GiaChat({
       void call('opt_out');
       return;
     }
-    const resolved = resolveGiaPrompt(label);
-    if (resolved.program && resolved.program !== program) setProgram(resolved.program);
+    const resolved = resolveVisitorPrompt(label);
+    if (resolved.program && resolved.program !== program) { setProgram(resolved.program); setSessions([]); setMoreActions(false); }
     add('user', label);
     void call('message', { text: resolved.text, ...(resolved.program ? { program: resolved.program } : {}) });
   }
@@ -230,12 +232,6 @@ export function GiaChat({
             <h1>{GIA_TITLE}</h1>
             <p>{GIA_SUBTITLE}</p>
           </div>
-          <span className={styles.badge}>{GIA_PILOT_BADGE}</span>
-          <div className={styles.desktopPicker}>
-            <span className={styles.programLabel} id="gia-program-label">Which 1CMA program should GIA guide?</span>
-            <ProgramPicker program={program} onChange={(next) => { setProgram(next); setSessions([]); }} labelledBy="gia-program-label" />
-          </div>
-          <a className={styles.privacyHeader} href="/gia/privacy">Privacy notice</a>
           <div className={styles.headerActions}>
             <button
               type="button"
@@ -258,10 +254,6 @@ export function GiaChat({
           </div>
         </div>
       </header>
-      <div className={`${styles.programRow} ${styles.mobilePicker}`}>
-        <span className={styles.programLabel}>Which 1CMA program should GIA guide?</span>
-        <ProgramPicker program={program} onChange={(next) => { setProgram(next); setSessions([]); }} labelledBy={undefined} />
-      </div>
       <div
         className={styles.threadWrap}
         ref={threadRef}
@@ -269,9 +261,7 @@ export function GiaChat({
           if (nearBottom()) setStuck(false);
         }}
       >
-        <div className={styles.thread} aria-label="Conversation" aria-live="polite">
-          <p className={styles.note}>{GIA_SYSTEM_NOTE}</p>
-          <p className={styles.note}>{GIA_PILOT_BADGE}</p>
+        <div className={`${styles.thread} ${!engaged ? styles.introThread : ''}`} aria-label="Conversation" aria-live="polite">
           {turns.map((t, i) =>
             t.kind === 'user' ? (
               <div key={i} className={`${styles.row} ${styles.rowUser}`}>
@@ -283,6 +273,7 @@ export function GiaChat({
                 <div className={styles.col}>
                   <span className={styles.who}>GIA</span>
                   <div className={styles.bubbleGia}>
+                    {i > 0 && turns[i - 1]?.text === 'What is this?' && <p className={styles.aboutContext}>{GIA_ABOUT_CONTEXT}</p>}
                     <GiaText text={t.text} />
                     {t.citation && (
                       <p>
@@ -290,14 +281,6 @@ export function GiaChat({
                       </p>
                     )}
                   </div>
-                  {i === 0 && (
-                    <div className={styles.notice}>
-                      <span aria-hidden="true">🛡</span>
-                      <p>
-                        {GIA_NOTICE_PRIVACY} <a href="/gia/privacy">Privacy notice</a>
-                      </p>
-                    </div>
-                  )}
                   {i === turns.length - 1 && t.kind === 'gia' && !busy && (
                     <div className={styles.chips}>
                       {chips.map((label) => (
@@ -305,20 +288,24 @@ export function GiaChat({
                           {label}
                         </button>
                       ))}
-                      {program === 'recruit' && (
+                      {engaged && program === 'recruit' && (fepRelevant || moreActions) && (
                         <button type="button" className={styles.chip} disabled={busy || stopped} onClick={() => { void call('list_fep_sessions'); }}>
                           Show FEP sessions
                         </button>
                       )}
-                      <button type="button" className={styles.chip} disabled={!saved || busy || stopped} onClick={() => { void call('request_leader', { reason: 'leader_requested' }); }}>
+                      {engaged && saved && <button type="button" className={styles.chip} disabled={!saved || busy || stopped} onClick={() => { void call('request_leader', { reason: 'leader_requested' }); }}>
                         Save leader request
-                      </button>
-                      <button type="button" className={styles.chip} disabled={!saved || busy || stopped} onClick={() => { void call('get_my_status'); }}>
+                      </button>}
+                      {engaged && saved && <button type="button" className={styles.chip} disabled={!saved || busy || stopped} onClick={() => { void call('get_my_status'); }}>
                         Check my status
-                      </button>
-                      <button type="button" className={styles.chip} disabled={busy} onClick={() => { void call('opt_out'); }}>
-                        STOP / opt out
-                      </button>
+                      </button>}
+                      {engaged && !saved && !showConsent && !stopped && <button type="button" className={styles.chip} onClick={() => setShowConsent(true)}>Save a contact</button>}
+                      {engaged && !moreActions && !stopped && <button type="button" className={styles.chip} onClick={() => setMoreActions(true)}>More options</button>}
+                      {engaged && !stopped && <details className={styles.pathHelp}>
+                        <summary>Find my path</summary>
+                        <p>{PATH_QUESTION}</p>
+                        <div className={styles.chips}>{PATH_CHOICES.map(label => <button key={label} type="button" className={styles.chip} disabled={busy} onClick={() => sendChip(label)}>{label}</button>)}</div>
+                      </details>}
                     </div>
                   )}
                 </div>
@@ -457,11 +444,7 @@ export function GiaChat({
         </form>
       </div>
       <footer className={styles.footer}>
-        <p>{GIA_DISCLAIMER}</p>
-        <p>
-          {GIA_FOOTER_LINE2_PREFIX}
-          <a href="/gia/privacy">Privacy notice</a>
-        </p>
+        <p><a href="/gia/privacy">Privacy notice</a> · <button type="button" className={styles.stopLink} aria-label="STOP / opt out" disabled={busy} onClick={() => { void call('opt_out'); }}>STOP</button> anytime · Don&apos;t send IDs or documents. {GIA_DISCLAIMER}</p>
       </footer>
     </div>
   );
@@ -482,34 +465,6 @@ function GiaText({ text }: { text: string }) {
         );
       })}
     </p>
-  );
-}
-
-function ProgramPicker({
-  program,
-  onChange,
-  labelledBy,
-}: {
-  program: Program;
-  onChange: (next: Program) => void;
-  labelledBy?: string;
-}) {
-  const ids: Program[] = ['recruit', 'intern', 'ra'];
-  return (
-    <div className={styles.seg} role="radiogroup" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : 'Which 1CMA program should GIA guide?'}>
-      {ids.map((id) => (
-        <button
-          key={id}
-          type="button"
-          className={styles.segBtn}
-          role="radio"
-          aria-checked={program === id}
-          onClick={() => onChange(id)}
-        >
-          {id === 'recruit' ? 'Recruit' : id === 'intern' ? 'Intern' : 'RA'}
-        </button>
-      ))}
-    </div>
   );
 }
 
