@@ -1,3 +1,4 @@
+import { credentialDisclosures, aiaRegistrationQuestions, aiaLeaderQuestions, otherAccountQuestions } from '../../tests/gia/fixtures/credential-regressions';
 import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { createHmac, randomBytes } from 'node:crypto';
@@ -93,6 +94,48 @@ describe('GIA API reject audit', () => {
     state.failHandoffInsert = false;
   });
   afterAll(async () => { await state.db.close(); });
+
+  it('refuses alphabetic AIA credentials without retaining them in the transcript', async () => {
+    const messages = credentialDisclosures;
+    for (const text of messages) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+      const result = await res.json();
+      expect(result.intent).toBe('refuse');
+    }
+    const turns = (await state.db.query<{ intent: string; reason: string; message_text: string | null }>("SELECT intent,reason,message_text FROM gia_turns WHERE action='message'")).rows;
+    expect(turns).toHaveLength(messages.length);
+    expect(turns.every(row => row.message_text == null)).toBe(true);
+    expect(JSON.stringify(turns)).not.toMatch(/sunshine|juan\.delacruz|mangoes|jdelacruz|kalamansi/);
+  });
+
+  it('answers ordinary recruit login and username questions without credential refusal', async () => {
+    for (const text of aiaRegistrationQuestions) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ intent: 'answer', citation: { id: 'KP-REC-01' } });
+    }
+  });
+
+  it('keeps AIA support and SPIKE/FEP account questions on leader help', async () => {
+    for (const text of [...aiaLeaderQuestions, ...otherAccountQuestions]) {
+      const res = await POST(new Request('http://127.0.0.1/api/gia', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'message', text }),
+      }));
+      expect(res.status).toBe(200);
+      const reply = await res.json();
+      expect(reply.intent, text).toBe('request_leader');
+      expect(reply.citation?.id, text).not.toBe('KP-REC-01');
+    }
+  });
 
   it('audits malformed, oversized, and unknown actions without payload secrets', async () => {
     const malformed = await POST(new Request('http://127.0.0.1/api/gia', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{not-json' }));

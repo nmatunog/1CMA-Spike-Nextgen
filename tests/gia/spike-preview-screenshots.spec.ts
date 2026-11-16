@@ -1,3 +1,4 @@
+import ownerWording from '../../docs/gia/owner-wording-2026-11-16.json';
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { AIA_JOIN_ASK } from '../../lib/gia/path-picker';
@@ -13,8 +14,7 @@ async function hrefsIn(scope: Page | Locator) {
 }
 
 const DIR = 'docs/screenshots/spike-preview';
-const AIA_TEXT =
-  "AIA advisor path only — not intern or free-learner paths. 1 Free Financial Literacy. 2 Free FEP. 3 Register only through your recruiter's attributed link so credit is kept; AIA's official process is the system of record. 4 SPIKE Venture Studio. Never send AIA login credentials. SPIKE does not submit or confirm AIA applications. Source: AIA Philippines, as of 14 Nov 2026.";
+const AIA_TEXT = ownerWording.entries.find(e => e.id === 'KP-REC-01')!.answers.en;
 
 test('synthetic screenshots at 390 and 1440', async ({ page }) => {
   await mkdir(DIR, { recursive: true });
@@ -82,7 +82,7 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
         body: JSON.stringify({
           intent: 'answer',
           text: join ? AIA_TEXT : "I'm GIA — Your 1CMA AI Guide.",
-          citation: join ? { id: 'KP-REC-01', version: '0.3', source: 'https://www.aia.com.ph/en/financialadvisor/join-us-now' } : undefined,
+          citation: join ? { id: 'KP-REC-01', version: '0.4', source: 'https://www.aia.com.ph/en/financialadvisor/join-us-now' } : undefined,
         }),
       });
     });
@@ -103,15 +103,15 @@ test('synthetic screenshots at 390 and 1440', async ({ page }) => {
     await expect(dock.getByLabel('GIA is typing')).toBeVisible();
     await dock.getByLabel('GIA is typing').scrollIntoViewIfNeeded();
     await dock.screenshot({ path: `${DIR}/gia-typing-${width}.png` });
-    await expect(dock.getByText(/attributed link/)).toBeVisible({ timeout: 8_000 });
-    await expect(dock.getByText('KP-REC-01 · v0.3')).toBeVisible();
+    await expect(dock.getByText(/link provided by your recruiter/)).toBeVisible({ timeout: 8_000 });
+    await expect(dock.getByText('KP-REC-01 · v0.4')).toBeVisible();
     await expect(dock.getByRole('link', { name: /KP-REC-01/ })).toHaveCount(0);
     await expect(dock.getByText(/join-us-now|partner-with-the-best/)).toHaveCount(0);
     expect(blockedVisitorHrefs(await hrefsIn(dock))).toEqual([]);
     expect(blockedVisitorHrefs(await hrefsIn(page))).toEqual([]);
     const jump = dock.getByRole('button', { name: /New message/ });
     if (await jump.isVisible().catch(() => false)) await jump.click();
-    await dock.getByText(/attributed link/).scrollIntoViewIfNeeded();
+    await dock.getByText(/link provided by your recruiter/).scrollIntoViewIfNeeded();
     await dock.screenshot({ path: `${DIR}/aia-register-${width}.png` });
 
     await dock.getByLabel('Name').fill(SYNTHETIC_CONSENT_CONTACT.name);
