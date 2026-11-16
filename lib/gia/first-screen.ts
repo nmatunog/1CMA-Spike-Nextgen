@@ -11,7 +11,8 @@ export function initialVisitorProgram(value: unknown): GiaProgram {
 
 /** UI hints select existing public adapters; they never verify a role or grant access. */
 export function resolveVisitorPrompt(input: string): { text: string; program?: GiaProgram } {
-  if (input === 'What is this?' || input === 'Is it free?') return { text: 'is financial literacy free' };
+  if (input === 'What is this?') return { text: 'What is SPIKE?' };
+  if (input === 'Is it free?') return { text: 'is financial literacy free' };
   if (input === 'How do I start?') return { text: 'What should I do next?' };
   if (input === 'Exploring a career') return { text: 'What should I do next?', program: 'recruit' };
   if (input === 'A student internship') return { text: 'Tell me about SPIKE for Interns', program: 'intern' };

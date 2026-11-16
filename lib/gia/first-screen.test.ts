@@ -11,7 +11,7 @@ describe('first-screen presentation routing', () => {
   });
   it.each(FIRST_SCREEN_CHIPS)('uses existing approved information for %s', label => {
     const reply = respond(resolveVisitorPrompt(label).text, 'en', knowledge, now);
-    expect(reply.citation?.id).toBe('KP-LIT-01');
+    expect(reply.citation?.id).toBe(label === 'What is this?' ? 'KP-REC-09' : 'KP-LIT-01');
     expect(['answer', 'next_step']).toContain(reply.intent);
   });
   it.each(['intern', 'ra', 'recruit'] as const)('keeps the testing override %s', program => {

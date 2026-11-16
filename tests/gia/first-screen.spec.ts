@@ -34,9 +34,9 @@ test('existing approved value is available before a signup or contact request', 
   page.on('request', request => { if (request.url().endsWith('/api/gia') && request.method() === 'POST') actions.push(request.postDataJSON().action); });
   await page.goto('/gia');
   await page.getByRole('button', { name: 'What is this?', exact: true }).click();
-  await expect(page.getByText('KP-LIT-01 · v0.2', { exact: true })).toBeVisible();
-  await expect(page.getByText('GIYA Institute — The SPIKE Method', { exact: true })).toBeVisible();
-  await expect(page.getByText('Financial Literacy is free. You may start with learning or explore the free Financial Entrepreneurship Preview directly.')).toBeVisible();
+  await expect(page.getByText('KP-REC-09 · v0.1', { exact: true })).toBeVisible();
+  await expect(page.getByText(/SPIKE is a guided pathway from 1CMA Cebu/)).toBeVisible();
+  await expect(page.getByText(/GIYA/)).toHaveCount(0);
   await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'More options', exact: true })).toBeVisible();
   expect(actions).toEqual(['message']);

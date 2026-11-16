@@ -16,7 +16,6 @@ import {
   GIA_CONSENT_TAG,
   GIA_CONSENT_TITLE,
   GIA_DISCLAIMER,
-  GIA_ABOUT_CONTEXT,
   GIA_SUBTITLE,
   GIA_TITLE,
   LEADER_INVITE,
@@ -273,7 +272,6 @@ export function GiaChat({
                 <div className={styles.col}>
                   <span className={styles.who}>GIA</span>
                   <div className={styles.bubbleGia}>
-                    {i > 0 && turns[i - 1]?.text === 'What is this?' && <p className={styles.aboutContext}>{GIA_ABOUT_CONTEXT}</p>}
                     <GiaText text={t.text} />
                     {t.citation && (
                       <p>
