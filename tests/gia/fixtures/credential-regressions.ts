@@ -42,3 +42,19 @@ export const otherAccountQuestions = [
   'What is the password for the Zoom FEP session?',
   "What's a strong password?", 'do I need a username?',
 ];
+// Credentials sent without naming AIA/iRecruit, and AIA username shapes
+// (an email, or a number starting with 007). Synthetic values only.
+export const genericCredentialDisclosures = [
+  'my password is sunshine', 'password ko kay sunshine', 'ang password ko ay mangoes',
+  'username juan password mangoes', 'pw: sunshine', 'login: juan / sunshine',
+  'irecruit | juan | sunshine', '007123456 / sunshine', '007123456 sunshine',
+  'my username is 007123456 password sunshine', 'juan.delacruz@example.test / sunshine',
+];
+// Blanked from transcripts, but not refused: no explicit assignment.
+export const storageOnlyCredentialShapes = ['password sunshine', 'my number is 007-123-456'];
+// Ordinary troubleshooting that must not be refused.
+export const credentialTroubleshooting = [
+  'my password expired', 'my password is wrong', 'Is the FEP page password-protected?',
+  'Nawala akong password sa SPIKE.', "I forgot my SPIKE password and can't sign in.",
+  'Dili ko ka-login, reset my password.', 'Nakalimutan ko ang SPIKE password, hindi ako makapasok.',
+];
