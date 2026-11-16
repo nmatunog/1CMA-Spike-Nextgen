@@ -4,7 +4,7 @@ This records the exact selected wording from the owner's one-at-a-time Codex rev
 
 The owner supplied Cebuano edits, requested conversational/street Cebuano and Tagalog, and reviewed the aligned translations. KP-REC-02 was explicitly accepted with “ok to use”; subsequent responses were accepted with the feedback quoted below. No blanket approval of other Knowledge Pack entries is inferred. This record was transcribed by Codex; it is not an owner-authored GitHub approval comment and does not replace independent review of provenance. No external approval message was posted.
 
-Exact id/version/answers JSON SHA-256: `4a343538f473e81d7559a51b099adc013d729a9e1f5ca6486d707e2568f1e99a`. Machine-readable record: [owner-wording-2026-11-16.json](owner-wording-2026-11-16.json).
+Exact id/version/answers JSON SHA-256: `2eb9c08554ae260cbbeeec92f5ede4089b6a8c1f9a859ca936ac7a40097a10ad`. Machine-readable record: [owner-wording-2026-11-16.json](owner-wording-2026-11-16.json).
 
 The older [approval request](kp-rec-wording-approval-request.md) describes the previous text at `89dde20`; it is not the snapshot selected here. Versions are incremented. The owner review date is 16 November 2026 in Asia/Manila. The existing runtime guard uses UTC calendar dates; UTC was still 15 November during this review, so runtime approvedOn/effective use `2026-11-15`. The guard itself is unchanged. Existing entries keep their original 14 December 2026 review deadline.
 
@@ -28,7 +28,7 @@ Do not send your AIA login credentials.
 ### ceb
 
 ```text
-para sa mag AIA advisor ra ni - dili sa intern o free-learner.
+Para sa mag AIA advisor ra ni - dili sa intern o free-learner.
 
 1. Libreng Financial Literacy.
 2. Libreng FEP.
@@ -189,7 +189,7 @@ At SPIKE, these are your steps:
 ```text
 Magsugod ka pagka AIA Life Planner. Dayon later, pwede pud ka maghimo og imong team ug mosulod sa team leadership.
 
-Sa SPIKE, mao ni ang imong agan:
+Sa SPIKE, mao ni ang imong agianan:
 
 1. Libreng Financial Literacy.
 2. Libreng Financial Entrepreneur Preview.
@@ -251,7 +251,7 @@ No, SPIKE doesn’t. Your recruiter and your leader will submit and confirm your
 ### ceb
 
 ```text
-DIli ang SPIKE.  Ang imong recruiter ug ang Leader ang mo submit og mo confirm sa imong AIA Application.
+Dili ang SPIKE. Ang imong recruiter ug ang leader ang mo submit ug mo confirm sa imong AIA application.
 ```
 
 ### tl

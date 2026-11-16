@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import selected from '../../docs/gia/owner-wording-2026-11-16.json';
 import { entries } from './knowledge/domains/recruitment.mjs';
 import { isApproved, validateEntry } from './knowledge-import.mjs';
@@ -30,6 +31,18 @@ describe('owner-selected recruitment wording', () => {
       expect(isApproved(e, new Date('2026-11-14T12:00:00Z')), e.id).toBe(false);
       expect(e.approvalRef).toContain('/blob/a3560c8838d2c5d574427f0bf59a0bd2407fdd68/');
     }
+  });
+  it('keeps the owner-corrected Cebuano identical in runtime and both review records', () => {
+    const readable = readFileSync('docs/gia/owner-wording-2026-11-16.md', 'utf8');
+    expect(readable).toContain(selected.answersSha256);
+    for (const id of ['KP-REC-01', 'KP-REC-06', 'KP-REC-08']) {
+      const answer = selected.entries.find(e => e.id === id)!.answers.ceb;
+      expect(readable).toContain(answer);
+      expect(entries.find(e => e.id === id && isApproved(e, now))!.answers.ceb).toBe(answer);
+    }
+    expect(selected.entries.find(e => e.id === 'KP-REC-01')!.answers.ceb).toMatch(/^Para /);
+    expect(selected.entries.find(e => e.id === 'KP-REC-06')!.answers.ceb).toContain('imong agianan:');
+    expect(selected.entries.find(e => e.id === 'KP-REC-08')!.answers.ceb).toBe('Dili ang SPIKE. Ang imong recruiter ug ang leader ang mo submit ug mo confirm sa imong AIA application.');
   });
   for (const e of selected.entries) for (const lang of ['en', 'ceb', 'tl'] as const) {
     it(`serves ${e.id} ${lang} exactly as reviewed`, () => {
