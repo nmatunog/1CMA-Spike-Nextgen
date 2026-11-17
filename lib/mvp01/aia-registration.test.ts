@@ -425,7 +425,7 @@ describe('Official AIA registration milestone', () => {
     })).rejects.toThrow(/suppressed/);
   });
 
-  it('documents staff-reference AIA pages as do-not-send and does not add a migration', () => {
+  it('documents staff-reference AIA pages as do-not-send and keeps the AIA schema unchanged', () => {
     expect([...AIA_STAFF_REFERENCE_PAGES]).toEqual([
       'https://www.aia.com.ph/en/financialadvisor/partner-with-the-best',
       'https://www.aia.com.ph/en/financialadvisor/join-us-now',
@@ -437,7 +437,12 @@ describe('Official AIA registration milestone', () => {
     expect(docs).toContain(AIA_STAFF_REFERENCE_PAGES[0]);
     expect(docs).toContain(AIA_STAFF_REFERENCE_PAGES[1]);
     const migrations = readdirSync('migrations').filter((name) => /^\d+.*\.sql$/.test(name));
-    expect(migrations.some((name) => name.startsWith('0012'))).toBe(false);
+    // Later member onboarding may add tables; it must not rewrite AIA attribution.
+    for (const name of migrations.filter((name) => Number(name.slice(0, 4)) > 11)) {
+      const migration = readFileSync(`migrations/${name}`, 'utf8');
+      expect(migration).not.toMatch(/\b(?:ALTER|DROP)\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:candidates|candidate_aia_registrations|aia_recruiters)\b/i);
+      expect(migration).not.toMatch(/\b(?:UPDATE|DELETE\s+FROM)\s+(?:candidates|candidate_aia_registrations|aia_recruiters)\b/i);
+    }
     const panel = readFileSync('app/recruitment/command/panel.tsx', 'utf8');
     expect(panel).not.toContain('https://www.aia.com.ph/en/financialadvisor/join-us-now');
     expect(panel).not.toMatch(/atob|JSON\.parse\(.*reference/);

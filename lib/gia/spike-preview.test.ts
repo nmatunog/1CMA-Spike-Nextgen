@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import nextConfig from '@/next.config';
-import HomePage from '@/app/page';
+import { GET as rootGet } from '@/app/route';
+import { NextRequest } from 'next/server';
 import {
   FEP_INVITE,
   GIA_CONSENT_SAVE,
@@ -21,22 +22,16 @@ import {
 const landing = readFileSync('components/spike-preview/SpikePreviewLanding.tsx', 'utf8');
 const chat = readFileSync('components/gia/GiaChat.tsx', 'utf8');
 const login = readFileSync('app/login/page.tsx', 'utf8');
-const home = readFileSync('app/page.tsx', 'utf8');
+const home = readFileSync('app/route.ts', 'utf8');
 const giaPage = readFileSync('app/gia/page.tsx', 'utf8');
 
 it('keeps / as a temporary redirect to /spike-preview', async () => {
   const rules = await nextConfig.redirects!();
-  expect(rules).toContainEqual({ source: '/', destination: '/spike-preview', permanent: false });
-  expect(home).toMatch(/redirect\(["']\/spike-preview["']\)/);
-  try {
-    HomePage();
-    throw new Error('expected redirect');
-  } catch (error) {
-    const digest = String((error as { digest?: string }).digest ?? error);
-    expect(digest).toMatch(/NEXT_REDIRECT/);
-    expect(digest).toMatch(/\/spike-preview/);
-    expect(digest).toMatch(/307/);
-  }
+  expect(rules.some(rule => rule.source === '/')).toBe(false); // Middleware prepares handoffs first.
+  expect(home).toContain('receiveHandoff');
+  const response = await rootGet(new NextRequest('http://localhost/'));
+  expect(response.status).toBe(307);
+  expect(new URL(response.headers.get('location')!, 'http://localhost').pathname).toBe('/spike-preview');
 });
 
 it('serves only the approved chat-first landing and preserves the full chat route', () => {

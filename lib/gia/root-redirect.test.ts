@@ -1,22 +1,23 @@
 import { expect, it } from 'vitest';
+import { NextRequest } from 'next/server';
 import nextConfig from '@/next.config';
-import HomePage from '@/app/page';
+import { GET } from '@/app/route';
 
-it('sends / to /spike-preview with a temporary (307) redirect in next.config', async () => {
+it('lets the root receiver consume handoffs before a static redirect', async () => {
   const rules = await nextConfig.redirects!();
-  expect(rules).toContainEqual({ source: '/', destination: '/spike-preview', permanent: false });
-  expect(rules.some((rule) => rule.source === '/' && rule.permanent === true)).toBe(false);
+  expect(rules.some(rule => rule.source === '/')).toBe(false);
 });
-
-it('HomePage server-renders a temporary redirect to /spike-preview', () => {
-  try {
-    HomePage();
-    throw new Error('expected redirect("/spike-preview")');
-  } catch (error) {
-    const digest = String((error as { digest?: string }).digest ?? error);
-    expect(digest).toMatch(/NEXT_REDIRECT/);
-    expect(digest).toMatch(/\/spike-preview/);
-    expect(digest).toMatch(/307/);
-    expect(digest).not.toMatch(/308/);
-  }
+it('redirects ordinary root visits temporarily, preserving non-handoff query fields', async () => {
+  const response = await GET(new NextRequest('http://localhost/?campaign=synthetic'));
+  expect(response.status).toBe(307);
+  expect(response.headers.get('location')).toBe('/spike-preview?campaign=synthetic');
+  expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+  expect(response.headers.get('cache-control')).toContain('no-store');
+});
+it('does not forward malformed partner fields into a second URL', async () => {
+  const response = await GET(new NextRequest('http://localhost/?mfn=Demo&code=FREE-SYN00001&extra=variable'));
+  expect(response.status).toBe(303);
+  expect(response.headers.get('location')).toBe('/signup');
+  expect(JSON.stringify([...response.headers])).not.toContain('FREE-SYN00001');
+  expect(JSON.stringify([...response.headers])).not.toContain('variable');
 });

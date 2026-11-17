@@ -1,3 +1,5 @@
+import { memberService } from '@/lib/member/runtime';
+import { authorizeMember } from '@/lib/member/authorize';
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { verifyStaff } from "@/lib/gia/staff-credentials.mjs";
@@ -34,6 +36,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     Credentials({
+      id: 'member',
+      credentials: { email: { type: 'email' }, password: { type: 'password' } },
+      authorize: authorizeMember,
+    }),
+    Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -56,8 +63,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 14 },
   callbacks: {
+    async jwt({ token, user }) {
+      if (user?.id?.startsWith('member:')) token.memberVersion = (user as { authVersion?: number }).authVersion;
+      if (token.sub?.startsWith('member:')) {
+        try { if (!await memberService().session(token.sub.slice(7), Number(token.memberVersion))) return null; } catch { return null; }
+      }
+      return token;
+    },
     session({ session, token }) {
-      if (session.user) session.user.id = token.sub || "";
+      if (session.user) {
+        session.user.id = token.sub || "";
+        if (token.sub?.startsWith('member:')) (session.user as typeof session.user & { authVersion?: number }).authVersion = Number(token.memberVersion);
+      }
       return session;
     },
   },

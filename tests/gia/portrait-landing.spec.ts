@@ -7,7 +7,7 @@ test.use({ reducedMotion: 'reduce' });
 test('root opens the landing page and /gia keeps full chat', async ({ page, request }) => {
   const response = await request.get('/', { maxRedirects: 0 });
   expect(response.status()).toBe(307);
-  expect(response.headers().location).toBe('/spike-preview');
+  expect(new URL(response.headers().location, 'http://localhost').pathname).toBe('/spike-preview');
   await page.goto('/');
   await expect(page).toHaveURL(/\/spike-preview$/);
   await expect(page.getByRole('heading', { name: 'Ask GIA. Start free.' })).toBeVisible();

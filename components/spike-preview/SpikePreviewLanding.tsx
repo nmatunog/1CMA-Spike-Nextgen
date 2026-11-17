@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { GiaChat } from '@/components/gia/GiaChat';
 import { GiaAvatar } from '@/components/gia/GiaAvatar';
@@ -20,7 +20,8 @@ function Icon({ kind }: { kind: 'moon' | 'sun' | 'send' | 'spike' | 'book' }) {
   );
 }
 
-export function SpikePreviewLanding({ fontClass, defaultRecruiter = null }: {
+export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, children }: {
+  children?: ReactNode;
   fontClass?: string;
   defaultRecruiter?: RecruiterRegistration | null;
 }) {
@@ -65,7 +66,7 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null }: {
   }
 
   return <>
-    <div className={`${styles.root} ${fontClass ?? ''}`} data-theme={theme} inert={giaOpen}>
+    <div className={`${styles.root} ${children ? styles.memberRoot : ''} ${fontClass ?? ''}`} data-theme={theme} inert={giaOpen}>
       <a className={styles.skipLink} href="#main">Skip to content</a>
       <header>
         <div className={styles.brands}>
@@ -77,6 +78,7 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null }: {
         </button>
       </header>
       <main id="main" tabIndex={-1}>
+        {children ?? <>
         <section className={styles.hero} aria-labelledby="hero-title" data-testid="gia-hero">
           <div className={styles['hero-photo']}>
             <Image src="/spike-preview/gia-hero.webp" alt="GIA, your 1CMA AI guide" fill priority unoptimized sizes="(max-width: 900px) calc(100vw - 32px), 542px" />
@@ -104,6 +106,7 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null }: {
             <span className={styles['option-text']}><span className={styles.optionTitle}>Talk to GIA</span><span className={styles.optionCaption}>Ask anything, anytime</span></span>
           </button>
         </section>
+        </>}
       </main>
       <footer><a href="/gia/privacy">Privacy notice</a>{' · Reply STOP to opt out'}</footer>
     </div>
