@@ -1,18 +1,19 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { MemberError } from './service';
 const state = vi.hoisted(() => ({ session: null as null | { user: { id: string; email: string; authVersion?: number } }, disabled: false }));
-const fake = vi.hoisted(() => ({ origin: 'http://127.0.0.1:3002', limit: vi.fn(), requestVerification: vi.fn(), verifyEmail: vi.fn(), signup: vi.fn(), forgot: vi.fn(), reset: vi.fn(), link: vi.fn(), change: vi.fn(), logout: vi.fn(), expire: vi.fn(), session: vi.fn() }));
+const fake = vi.hoisted(() => ({ prepare: vi.fn(), origin: 'http://127.0.0.1:3002', limit: vi.fn(), requestVerification: vi.fn(), verifyEmail: vi.fn(), signup: vi.fn(), forgot: vi.fn(), reset: vi.fn(), link: vi.fn(), change: vi.fn(), logout: vi.fn(), expire: vi.fn(), session: vi.fn() }));
 vi.mock('@/auth', () => ({ auth: async () => state.session }));
-vi.mock('./runtime', () => ({ memberService: () => { if (state.disabled) throw new MemberError('member_unavailable', 503); return fake; } }));
+vi.mock('./runtime', async () => ({ memberAdapters: { codeFormat: (await import('./code-format')).syntheticCodeFormat }, memberService: () => { if (state.disabled) throw new MemberError('member_unavailable', 503); return fake; } }));
 import { POST } from '@/app/api/member/route';
+import { GET as arrival } from '@/app/api/member/arrival/route';
 import { setHandoff } from './http';
 import { NextResponse } from 'next/server';
 const ORIGIN = 'http://127.0.0.1:3002';
 function request(body: unknown, origin: string | null = ORIGIN) {
   return new NextRequest(`${ORIGIN}/api/member`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(origin ? { origin } : {}), cookie: `spike_member_handoff=${'a'.repeat(64)}` }, body: JSON.stringify(body) });
 }
-beforeEach(() => { vi.clearAllMocks(); state.session = null; state.disabled = false; fake.origin = ORIGIN; fake.verifyEmail.mockResolvedValue('b'.repeat(64)); });
+beforeEach(() => { vi.clearAllMocks(); state.session = null; state.disabled = false; fake.origin = ORIGIN; fake.verifyEmail.mockResolvedValue('b'.repeat(64)); fake.prepare.mockResolvedValue('c'.repeat(64)); });
 it.each([null, 'https://unrelated.example.test'])('rejects missing or cross-site Origin %s', async origin => {
   expect((await POST(request({ action: 'begin' }, origin))).status).toBe(403);
   expect(fake.requestVerification).not.toHaveBeenCalled();
@@ -58,4 +59,21 @@ it('always sends no-store and no-referrer on member responses', async () => {
   const response = await POST(request({ action: 'begin' }));
   expect(response.headers.get('cache-control')).toContain('no-store');
   expect(response.headers.get('referrer-policy')).toBe('no-referrer');
+});
+
+afterEach(() => vi.unstubAllEnvs());
+it('rejects unsigned plain queries by default even in local demo mode', async () => {
+  vi.stubEnv('MEMBER_ALLOW_PLAIN_QUERY',''); vi.stubEnv('MEMBER_LOCAL_DEMO','true');
+  const response=await arrival(new NextRequest(ORIGIN+'/?mfn=Demo&mln=Member&me=demo%40example.test&sfn=Test&sln=Sponsor&code=FREE-SYN00001'));
+  expect(response.headers.get('location')).toBe('/signup'); expect(response.headers.get('set-cookie')).toContain('Max-Age=0');
+  expect(fake.prepare).not.toHaveBeenCalled();
+});
+it('requires both explicit local flags for the synthetic plain-query fallback', async () => {
+  vi.stubEnv('MEMBER_ALLOW_PLAIN_QUERY','true'); vi.stubEnv('MEMBER_LOCAL_DEMO','false');
+  const request=new NextRequest(ORIGIN+'/?mfn=Demo&mln=Member&me=demo%40example.test&sfn=Test&sln=Sponsor&code=FREE-SYN00001');
+  await arrival(request); expect(fake.prepare).not.toHaveBeenCalled();
+  vi.stubEnv('MEMBER_LOCAL_DEMO','true');
+  const response=await arrival(request);
+  expect(fake.prepare).toHaveBeenCalledOnce(); expect(response.status).toBe(303);
+  expect(response.headers.get('location')).toBe('/signup'); expect(response.cookies.get('spike_member_handoff')?.value).toBe('c'.repeat(64));
 });

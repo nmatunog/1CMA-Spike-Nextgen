@@ -1,8 +1,11 @@
+import { syntheticCodeFormat } from './code-format';
 import { memberDb } from './db';
 import { MemberError, MemberService } from './service';
 import { syntheticMailSink } from './mail';
 import { syntheticVerifier } from './verifier';
 
+// Configuration seam: replace only after the partner format contract is approved.
+export const memberAdapters = { codeFormat: syntheticCodeFormat, authoritativeSource: 'pending' } as const;
 let verifier: ReturnType<typeof syntheticVerifier> | undefined;
 export function memberEnabled() { return process.env.MEMBER_ONBOARDING_ENABLED === 'true'; }
 export function memberService() {

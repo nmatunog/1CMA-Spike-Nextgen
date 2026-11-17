@@ -16,5 +16,12 @@ export function memberDb(): MemberDb {
       return client.begin(async transaction => work(wrap(transaction as unknown as ReturnType<typeof sql>))) as Promise<T>;
     },
   });
-  return wrap(sql());
+  // Each operation gets a transaction-local role; never change a pooled connection's
+  // session role or grant member storage to the existing GIA application identity.
+  const client = sql();
+  const transaction = async <T>(work: (db: MemberDb) => Promise<T>): Promise<T> => client.begin(async connection => {
+    await connection.unsafe('SET LOCAL ROLE member_app');
+    return work(wrap(connection as unknown as ReturnType<typeof sql>));
+  }) as Promise<T>;
+  return { query: (text, args) => transaction(db => db.query(text, args)), transaction };
 }

@@ -6,8 +6,8 @@ export function setHandoff(response: NextResponse, token: string, origin: string
   response.cookies.set(HANDOFF_COOKIE, token, { httpOnly: true, secure: new URL(origin).protocol === 'https:', sameSite: 'lax', path: '/', maxAge: token ? 15 * 60 : 0 });
   return response;
 }
-export async function smallJson(request: Request) {
-  if (Number(request.headers.get('content-length')) > 4096 || !request.headers.get('content-type')?.includes('application/json')) throw new Error('invalid_request');
+export async function smallText(request: Request, maximum = 4096) {
+  if (Number(request.headers.get('content-length')) > maximum || !request.headers.get('content-type')?.includes('application/json')) throw new Error('invalid_request');
   const reader = request.body?.getReader();
   if (!reader) throw new Error('invalid_request');
   let size = 0;
@@ -16,12 +16,15 @@ export async function smallJson(request: Request) {
     const { value, done } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > 4096) { await reader.cancel(); throw new Error('invalid_request'); }
+    if (size > maximum) { await reader.cancel(); throw new Error('invalid_request'); }
     chunks.push(value);
   }
   const bytes = new Uint8Array(size); let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-  const value = JSON.parse(new TextDecoder().decode(bytes));
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+}
+export async function smallJson(request: Request) {
+  const value = JSON.parse(await smallText(request));
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_request');
   return value as Record<string, unknown>;
 }

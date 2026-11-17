@@ -21,3 +21,9 @@ it('does not forward malformed partner fields into a second URL', async () => {
   expect(JSON.stringify([...response.headers])).not.toContain('FREE-SYN00001');
   expect(JSON.stringify([...response.headers])).not.toContain('variable');
 });
+
+it('never carries an opaque ticket into an application redirect when disabled', async () => {
+  const response = await GET(new NextRequest('https://example.test/?handoff=synthetic-ticket'));
+  expect(response.status).toBe(303); expect(response.headers.get('location')).toBe('/signup');
+  expect(JSON.stringify([...response.headers])).not.toContain('synthetic-ticket');
+});

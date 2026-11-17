@@ -1,14 +1,29 @@
 import { test, expect, type Page } from '@playwright/test';
 import postgres from 'postgres';
+import { createHmac, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const ORIGIN = process.env.GIA_TEST_URL || 'http://127.0.0.1:3002';
 const PASSWORD = 'Synthetic-member-password-8!';
-const db = postgres('postgres://postgres:postgres@127.0.0.1:55432/postgres', { max: 1 });
+const directDb = postgres('postgres://postgres:postgres@127.0.0.1:55432/postgres', { max: 1, prepare: false });
+// PGlite shares one backend across sockets. Keep each test query's wire messages
+// together so an app request cannot replace its unnamed portal between Bind/Execute.
+async function db(parts: TemplateStringsArray, ...values: unknown[]) {
+  return directDb.begin(async transaction => [...await (transaction as unknown as typeof directDb)(parts, ...values as never[])]);
+}
 test.use({ reducedMotion: 'reduce' });
 test.beforeEach(() => test.skip(process.env.MEMBER_LOCAL_DEMO !== 'true', 'Requires the explicitly enabled local synthetic member demo.'));
-test.afterAll(async () => { await db.end(); });
-function url(email: string, code: string, extra: Record<string,string> = {}) {
-  return '/?' + new URLSearchParams({ mfn: 'Demo', mln: 'Member', me: email, sfn: 'Test', sln: 'Sponsor', code, campaign: 'opaque-extra-synthetic-only', role: 'admin', ...extra });
+test.afterAll(async () => { await directDb.end(); });
+async function url(page: Page, email: string, code: string, extra: Record<string,string> = {}) {
+  const body = JSON.stringify({ mfn: 'Demo', mln: 'Member', me: email, sfn: 'Test', sln: 'Sponsor', code, campaign: 'opaque-extra-synthetic-only', role: 'admin', ...extra });
+  const { secret } = JSON.parse(readFileSync('work/member-issuer.json','utf8'));
+  const timestamp = String(Math.floor(Date.now()/1000)), nonce = randomBytes(32).toString('hex');
+  const signature = createHmac('sha256',secret).update(`versa-issuer-v1\n${timestamp}\n${nonce}\n${body}`).digest('hex');
+  const response = await page.request.post('/api/member/handoff',{headers:{'content-type':'application/json','x-versa-timestamp':timestamp,'x-versa-nonce':nonce,'x-versa-signature':signature}, data:body});
+  expect(response.status()).toBe(200);
+  const link = (await response.json()).url;
+  expect(link).not.toContain(email); expect(link).not.toContain(code);
+  return link;
 }
 async function post(page: Page, body: object) { return page.request.post('/api/member', { headers: { origin: ORIGIN }, data: body }); }
 async function mailbox(email: string, kind = 'verify') {
@@ -28,10 +43,10 @@ async function signin(page: Page, email: string, password = PASSWORD) {
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 }
-async function signup(page: Page, email: string, code: string) {
-  await page.goto(url(email, code)); await expect(page).toHaveURL(/\/signup$/);
-  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
-  await page.getByLabel('Confirm password', { exact: true }).fill(PASSWORD);
+async function signup(page: Page, email: string, code: string, password = PASSWORD) {
+  await page.goto(await url(page, email, code)); await expect(page).toHaveURL(/\/signup$/);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByLabel('Confirm password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Create my account', exact: true }).click();
   await expect(page).toHaveURL(/\/signup-done$/);
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
@@ -47,7 +62,7 @@ test('approved signup, check-email and signin screens at mobile and desktop, lig
   for (const width of [390,1440]) {
     const email = `signup${width}@example.test`;
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
-    await page.goto(url(email, width === 390 ? 'FREE-SYN00020' : 'FREE-SYN00021'));
+    await page.goto(await url(page, email, width === 390 ? 'FREE-SYN00020' : 'FREE-SYN00021'));
     await expect(page).toHaveURL(/\/signup$/);
     const details = page.getByRole('definition');
     await expect(details).toHaveText(['Demo Member', email, 'Test Sponsor', width === 390 ? 'FREE-SYN00020' : 'FREE-SYN00021']);
@@ -77,7 +92,8 @@ test('approved signup, check-email and signin screens at mobile and desktop, lig
 });
 
 test('root consumes query, rejects duplicate/incomplete fields, and keeps extra fields server-side', async ({ page }) => {
-  const response = await page.request.get(url('readonly@example.test','FREE-SYN00022'), { maxRedirects: 0 });
+  const arrival = await url(page, 'readonly@example.test','FREE-SYN00022');
+  const response = await page.request.get(arrival, { maxRedirects: 0 });
   expect(response.status()).toBe(303); expect(new URL(response.headers().location, ORIGIN).pathname).toBe('/signup');
   expect(response.headers()['cache-control']).toContain('no-store'); expect(response.headers()['referrer-policy']).toBe('no-referrer');
   const headers = JSON.stringify(response.headers()); expect(headers).not.toContain('readonly@example.test'); expect(headers).not.toContain('FREE-SYN00022'); expect(headers).not.toContain('opaque-extra');
@@ -88,14 +104,17 @@ test('root consumes query, rejects duplicate/incomplete fields, and keeps extra 
   expect(tampered.status()).toBe(400);
   const crossSite = await page.request.post('/api/member', { headers: { origin: 'https://unrelated.example.test' }, data: { action: 'begin' } });
   expect(crossSite.status()).toBe(403);
-  const duplicate = await page.request.get(url('duplicate@example.test','FREE-SYN00023')+'&me=other%40example.test', { maxRedirects: 0 });
+  const duplicate = await page.request.get(await url(page, 'duplicate@example.test','FREE-SYN00023')+'&me=other%40example.test', { maxRedirects: 0 });
   expect(new URL(duplicate.headers().location, ORIGIN).pathname).toBe('/signup');
   await page.goto('/signup'); await expect(page.getByRole('heading', { name: 'Open your Versa handoff' })).toBeVisible();
   await page.goto('/?mfn=Only'); await expect(page).toHaveURL(/\/signup$/);
   await expect(page.getByRole('heading', { name: 'Open your Versa handoff' })).toBeVisible();
-  await page.goto(url('escape@example.test','FREE-SYN00024', { mfn: '<img src=x onerror=alert(1)>' }));
+  await page.goto(await url(page, 'escape@example.test','FREE-SYN00024', { mfn: '<img src=x onerror=alert(1)>' }));
   await expect(page.getByRole('heading')).toContainText('<img src=x onerror=alert(1)>');
   await expect(page.locator('img[src="x"]')).toHaveCount(0);
+  const replay=await page.request.get(arrival,{maxRedirects:0});
+  expect(replay.status()).toBe(303); expect(replay.headers()['set-cookie']).toContain('Max-Age=0');
+  await page.goto('/signup'); await expect(page.getByRole('heading',{name:'Open your Versa handoff'})).toBeVisible();
 });
 
 test('new verified account, subsequent signin, forgot/reset, password change, logout and staff isolation', async ({ page, browser }) => {
@@ -135,13 +154,12 @@ test('new verified account, subsequent signin, forgot/reset, password change, lo
   await signin(page,email,'Synthetic-third-password-8'); await expect(page).toHaveURL(/\/member\/account$/);
 });
 
-test('existing account handoff goes to signin, never overwrites its password, and preserves the new sponsor', async ({ page }) => {
+test('existing and unknown accounts have identical arrival/signup responses without password overwrite', async ({ page }) => {
   const email = 'existing@example.test'; await active(page,email,'FREE-SYN00026');
   await page.getByRole('button',{name:'Sign out',exact:true}).click(); await expect(page).toHaveURL(/\/signin$/);
-  await page.goto(url(email,'FREE-SYN00027',{ sln: 'Another Sponsor' })); await expect(page).toHaveURL(/\/signin$/);
-  await expect(page.getByLabel('Email', { exact:true })).toHaveValue(email);
-  expect((await post(page,{action:'signup',password:'Must-not-overwrite',confirm:'Must-not-overwrite'})).status()).toBe(409);
-  await signin(page,email); await expect(page).toHaveURL(/\/signup-done$/); await verify(page,email); await signin(page,email);
+  await page.goto(await url(page, email,'FREE-SYN00027',{ sln: 'Another Sponsor' })); await expect(page).toHaveURL(/\/signup$/);
+  expect((await post(page,{action:'signup',password:'Must-not-overwrite',confirm:'Must-not-overwrite'})).status()).toBe(200);
+  await verify(page,email); await signin(page,email);
   await expect(page).toHaveURL(/\/member\/account$/); await expect(page.getByText('Sponsor: Test Another Sponsor')).toBeVisible();
   expect((await db`SELECT 1 FROM member_credentials WHERE email=${email}`).length).toBe(1);
 });
@@ -179,4 +197,20 @@ test('a member using a configured staff email still cannot enter staff APIs', as
   expect(session.user.id).toMatch(/^member:/);
   expect((await page.request.get('/api/recruitment/command')).status()).toBe(401);
   expect((await page.request.get('/api/admin/candidates')).status()).toBe(401);
+});
+
+
+test('a pending signup cannot squat another handoff or activate with its password', async ({page,browser}) => {
+  const owner=await browser.newPage({baseURL:ORIGIN}), email='no-squatting@example.test';
+  try {
+    await signup(page,email,'FREE-SYN00030','Squatter-password-8');
+    await signup(owner,email,'FREE-SYN00031','Owner-password-8');
+    await verify(owner,email); await signin(owner,email,'Owner-password-8');
+    await expect(owner).toHaveURL(/\/member\/account$/);
+    await page.goto('/signin'); await signin(page,email,'Squatter-password-8');
+    await expect(page).toHaveURL(/\/signup-done$/); // Generic proof flow; no account-state disclosure.
+    expect((await (await page.request.get('/api/auth/session')).json())?.user).toBeUndefined();
+    await page.goto('/member/account'); await expect(page.getByRole('heading',{name:'Sign in to continue'})).toBeVisible();
+    expect((await db`SELECT 1 FROM member_credentials WHERE email=${email}`).length).toBe(1);
+  } finally { await owner.close(); }
 });

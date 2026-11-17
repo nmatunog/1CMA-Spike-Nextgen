@@ -15,7 +15,14 @@
 | Sign-out and expired handoff | service expiry/logout + browser sign-out |
 | Sponsor / variable-data preservation; no recruiter-credit substitution | service claims checks + browser persisted metadata and sponsor display |
 | Staff isolation | unchanged staff namespace gate + HTTP wrong-namespace tests + real member requests denied by Command Center/admin APIs |
-| Mail delivery unavailable | local-only sink; UI explicitly says no email sent; HTTP provider-failure response test |
+| Mail delivery unavailable | signed issuer tampering/nonce replay/expiry/single-use, format injection and role/RLS tests in `service.test.ts`; local-only sink; UI explicitly says no email sent; HTTP provider-failure response test |
 | Existing landing, GIA STOP/crisis/consent and attribution | complete existing Playwright and Vitest suites retained |
 
 Gate counts, exact SHA, screenshots and handler gzip size are recorded in the draft PR. These are implementation checks, not SPIKEDEV/Claude independent QA. All fixtures use fictional `@example.test` identities and designated `SYN` codes; no real credentials or personal reference links.
+
+Rule 9 follow-up adds authenticated-body and sponsor tampering, stale timestamps,
+duplicate JSON, nonce replay, ticket expiry/parallel consumption, per-handoff
+squatting prevention, generic existing/unknown arrivals, configurable code parsing,
+and actual activation under the dedicated `member_app` role. Mail links, canonical
+candidate names and program-role writes are denied to that role; member tables are
+also denied to `gia_app`, `anon` and `authenticated`.

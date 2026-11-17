@@ -5,6 +5,8 @@ import { MemberError, MemberService, HANDOFF_MS, RESET_MS, VERIFY_MS } from './s
 import { parseHandoff, validPassword } from './contract';
 import { syntheticMailSink } from './mail';
 import { syntheticVerifier } from './verifier';
+import { randomBytes } from 'node:crypto';
+import { authenticatedPayload, consumeTicket, issueTicket, issuerSignature, TICKET_MS } from './transport';
 import { passwordMatches } from './security';
 import type { MemberDb, Row } from './db';
 
@@ -52,7 +54,7 @@ beforeAll(async () => {
 afterAll(async () => { await db.close(); });
 beforeEach(async () => {
   await resetWorkflowTables((sql: string) => db.exec(sql), WORKFLOW_RESET_TABLES);
-  await db.exec('TRUNCATE member_local_mail,member_rate_limits,member_pending_signups');
+  await db.exec('TRUNCATE member_local_mail,member_rate_limits,member_pending_signups,member_arrival_tickets');
   clock = Date.now();
   const { verifier } = await syntheticVerifier(SECRET);
   service = new MemberService(port, SECRET, ORIGIN, syntheticMailSink(port), verifier, () => clock);
@@ -154,7 +156,7 @@ describe('email ownership and canonical account activation', () => {
   });
   it('existing emails sign in then link without overwriting credentials or duplicating accounts', async () => {
     const first = await active(); const next = await verified({ code: 'FREE-SYN00006' });
-    await expect(service.signup(next.cookie, 'not-the-existing-password', 'not-the-existing-password')).rejects.toThrow('sign_in_required');
+    await expect(service.signup(next.cookie, 'not-the-existing-password', 'not-the-existing-password')).resolves.toBeUndefined();
     await service.link(next.cookie, first.member);
     expect(await port.query('SELECT 1 FROM user_accounts')).toHaveLength(1);
     expect(await service.signIn('demo@example.test', PASSWORD, 'local')).not.toBeNull();
@@ -163,11 +165,11 @@ describe('email ownership and canonical account activation', () => {
     const first = await active(); const next = await verified({ me: 'other@example.test', code: 'FREE-SYN00006' });
     await expect(service.link(next.cookie, first.member)).rejects.toThrow('handoff_not_verified');
   });
-  it('serializes duplicate-email signup without overwriting the winning password', async () => {
+  it('isolates parallel pending passwords without reserving an email', async () => {
     const a = await service.prepare(fields({ code: 'FREE-SYN00007' })), b = await service.prepare(fields({ code: 'FREE-SYN00008' }));
     const results = await Promise.allSettled([service.signup(a, PASSWORD, PASSWORD), service.signup(b, 'another-password', 'another-password')]);
-    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-    expect(await port.query('SELECT 1 FROM member_pending_signups')).toHaveLength(1);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(2);
+    expect(await port.query('SELECT 1 FROM member_pending_signups')).toHaveLength(2);
     expect(await port.query('SELECT 1 FROM user_accounts')).toHaveLength(0);
   });
   it('lets the email holder recover a pre-existing pending signup without granting access from email alone', async () => {
@@ -179,6 +181,20 @@ describe('email ownership and canonical account activation', () => {
     expect(await port.query('SELECT 1 FROM user_accounts')).toHaveLength(0);
     expect(await service.signIn('demo@example.test', PASSWORD, 'requester')).toBeNull();
     expect(await service.signIn('demo@example.test', 'owner-chosen-password', 'holder', proof)).not.toBeNull();
+  });
+  it('a squatter cannot block a later email holder or choose their password', async () => {
+    const a = await service.prepare(fields()), b = await service.prepare(fields({ code: 'FREE-SYN00006' }));
+    await service.signup(a, PASSWORD, PASSWORD);
+    await service.signup(b, 'owner-chosen-password', 'owner-chosen-password');
+    const proof = await service.verifyEmail(await emailLink());
+    expect(await service.signIn('demo@example.test', 'owner-chosen-password', 'holder', proof)).not.toBeNull();
+    expect(await service.signIn('demo@example.test', PASSWORD, 'squatter', a)).toBeNull();
+  });
+  it('expires old pending passwords without blocking a new handoff', async () => {
+    const a = await service.prepare(fields()); await service.signup(a, PASSWORD, PASSWORD);
+    clock += HANDOFF_MS * 2 + 1;
+    const b = await service.prepare(fields()); await service.signup(b, PASSWORD, PASSWORD);
+    expect(await port.query('SELECT 1 FROM member_pending_signups')).toHaveLength(1);
   });
   it('retains code availability in the upstream verifier: it never redeems or grants', async () => {
     const { verifier, admin } = await syntheticVerifier(SECRET);
@@ -237,5 +253,66 @@ describe('password lifecycle, sessions and abuse controls', () => {
     for (let index=0; index<5; index++) await service.limit('mail-subject', 5);
     await expect(service.limit('mail-subject', 5)).rejects.toBeInstanceOf(MemberError);
     expect(String((await port.query('SELECT key_hash FROM member_rate_limits'))[0].key_hash)).not.toContain('mail-subject');
+  });
+});
+
+
+describe('signed opaque transport, format adapter and least privilege', () => {
+  function signed(body = JSON.stringify({ mfn:'Demo',mln:'Member',me:'demo@example.test',sfn:'Test',sln:'Sponsor',code:'FREE-SYN00001' })) {
+    const timestamp=String(Math.floor(clock/1000)), nonce=randomBytes(32).toString('hex');
+    return { body, headers: new Headers({ 'x-versa-timestamp':timestamp,'x-versa-nonce':nonce,'x-versa-signature':issuerSignature(SECRET,timestamp,nonce,body) }) };
+  }
+  it('authenticates all six fields plus extras before issuing an opaque single-use ticket', async () => {
+    const input=signed(); const { payload,nonce }=authenticatedPayload(SECRET,input.headers,input.body,clock);
+    const ticket=await issueTicket(service,payload,nonce);
+    expect(ticket).not.toContain('demo'); expect(ticket).not.toContain('FREE');
+    const cookie=await consumeTicket(service,ticket); expect((await service.handoff(cookie)).payload.me).toBe(payload.me);
+    await expect(consumeTicket(service,ticket)).rejects.toThrow('handoff_unavailable');
+    expect(await port.query('SELECT 1 FROM user_accounts')).toHaveLength(0);
+  });
+  it('rejects signature, sponsor, timestamp, duplicate JSON and ticket tampering', async () => {
+    const input=signed();
+    expect(()=>authenticatedPayload(SECRET,input.headers,input.body.replace('Sponsor','Tampered'),clock)).toThrow();
+    expect(()=>authenticatedPayload(SECRET,input.headers,input.body,clock+120001)).toThrow();
+    expect(()=>authenticatedPayload('short',input.headers,input.body,clock)).toThrow();
+    const duplicate=signed('{"me":"one@example.test","me":"two@example.test"}');
+    expect(()=>authenticatedPayload(SECRET,duplicate.headers,duplicate.body,clock)).toThrow();
+    const ticket=await issueTicket(service,fields(),randomBytes(32).toString('hex'));
+    await expect(consumeTicket(service,'0'+ticket.slice(1,-1)+'x')).rejects.toThrow();
+    clock+=TICKET_MS+1; await expect(consumeTicket(service,ticket)).rejects.toThrow();
+  });
+  it('rejects issuer nonce replay and serializes parallel ticket consumption', async () => {
+    const nonce=randomBytes(32).toString('hex'), ticket=await issueTicket(service,fields(),nonce);
+    await expect(issueTicket(service,fields(),nonce)).rejects.toThrow();
+    const results=await Promise.allSettled([consumeTicket(service,ticket),consumeTicket(service,ticket)]);
+    expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);
+  });
+  it('accepts a reviewed alternate format only through the injected config adapter', () => {
+    const input=signed(JSON.stringify({mfn:'Demo',mln:'Member',me:'demo@example.test',sfn:'Test',sln:'Sponsor',code:'SYNTHETIC:01'}));
+    expect(()=>authenticatedPayload(SECRET,input.headers,input.body,clock)).toThrow();
+    const custom={normalize:(v:string)=>/^SYNTHETIC:\d{2}$/.test(v)?v:null};
+    expect(authenticatedPayload(SECRET,input.headers,input.body,clock,custom).payload.code).toBe('SYNTHETIC:01');
+  });
+  it('runs activation as member_app and denies mail reading, staff data and entitlement writes', async () => {
+    let cookie:string;
+    try {
+      await port.query('SET ROLE member_app');
+      cookie=await service.prepare(fields()); await service.signup(cookie,PASSWORD,PASSWORD);
+      await expect(port.query('SELECT link FROM member_local_mail')).rejects.toThrow(/permission denied/);
+      await expect(port.query('SELECT name FROM candidates')).rejects.toThrow(/permission denied/);
+      await expect(port.query('INSERT INTO program_roles DEFAULT VALUES')).rejects.toThrow(/permission denied/);
+    } finally { await port.query('RESET ROLE'); }
+    const token=await emailLink();
+    try {
+      await port.query('SET ROLE member_app');
+      const proof=await service.verifyEmail(token);
+      expect(await service.signIn('demo@example.test',PASSWORD,'local',proof)).not.toBeNull();
+    } finally { await port.query('RESET ROLE'); }
+    for (const role of ['gia_app','anon','authenticated']) {
+      try { await port.query(`SET ROLE ${role}`); await expect(port.query('SELECT payload FROM member_arrival_tickets')).rejects.toThrow(/permission denied/); }
+      finally { await port.query('RESET ROLE'); }
+    }
+    const rows=await port.query("SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname LIKE 'member_%' AND relkind='r'");
+    expect(rows.every(row=>row.relrowsecurity&&row.relforcerowsecurity)).toBe(true);
   });
 });

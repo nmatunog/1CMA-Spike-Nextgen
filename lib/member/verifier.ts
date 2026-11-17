@@ -3,6 +3,7 @@ import { digestCode } from '@/lib/vendor/versa-code/digest.js';
 import { createMemoryAdmin } from '@/lib/vendor/versa-code/test/memoryAdmin.js';
 
 export type VerifiedMember = { userId: string; email: string; emailConfirmed: true };
+/** Authoritative source pending: hosted adapter must be reviewed before enabling intake. */
 export interface CodeVerifier { check(code: string, identity: VerifiedMember): Promise<boolean> }
 /** Uses the pinned upstream verifier, never redeem(), with a grantor that cannot grant. */
 export function readOnlyVerifier(admin: unknown, secret: string): CodeVerifier {
