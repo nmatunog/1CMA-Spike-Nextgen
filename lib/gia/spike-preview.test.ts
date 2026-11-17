@@ -24,57 +24,35 @@ const login = readFileSync('app/login/page.tsx', 'utf8');
 const home = readFileSync('app/page.tsx', 'utf8');
 const giaPage = readFileSync('app/gia/page.tsx', 'utf8');
 
-it('keeps / as a temporary redirect to /gia', async () => {
+it('keeps / as a temporary redirect to /spike-preview', async () => {
   const rules = await nextConfig.redirects!();
-  expect(rules).toContainEqual({ source: '/', destination: '/gia', permanent: false });
-  expect(home).toMatch(/redirect\(["']\/gia["']\)/);
+  expect(rules).toContainEqual({ source: '/', destination: '/spike-preview', permanent: false });
+  expect(home).toMatch(/redirect\(["']\/spike-preview["']\)/);
   try {
     HomePage();
     throw new Error('expected redirect');
   } catch (error) {
     const digest = String((error as { digest?: string }).digest ?? error);
     expect(digest).toMatch(/NEXT_REDIRECT/);
-    expect(digest).toMatch(/\/gia/);
+    expect(digest).toMatch(/\/spike-preview/);
     expect(digest).toMatch(/307/);
   }
 });
 
-it('serves SPIKE × Versa visitor preview at /spike-preview without fake capture', () => {
+it('serves only the approved chat-first landing and preserves the full chat route', () => {
   expect(SPIKE_PREVIEW_PATH).toBe('/spike-preview');
   expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toContain('SpikePreviewLanding');
-  expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toContain("dynamic = 'force-dynamic'");
   expect(readFileSync('app/gia/page.tsx', 'utf8')).toContain("dynamic = 'force-dynamic'");
-  expect(landing).toMatch(/Free Financial Literacy/);
-  expect(landing).toMatch(/Free Financial Entrepreneurship Preview/);
-  expect(landing).toMatch(/Level-Up Financial Entrepreneurship/);
-  expect(landing).toMatch(/Coming soon · not live/);
-  expect(landing).toMatch(/Direct entry allowed/);
-  expect(landing).toContain('Ask GIA');
+  expect(giaPage).toContain('GIA, your 1CMA guide to SPIKE.');
+  for (const copy of ['Ask GIA. Start free.', 'Your 1CMA guide to growing into a financial entrepreneur.', 'What is SPIKE?', 'Hear it from GIA', 'Free Financial Literacy', 'Start learning, free', 'Talk to GIA', 'Ask anything, anytime', 'Reply STOP to opt out']) expect(landing).toContain(copy);
+  expect(landing).toContain("useState<'light' | 'dark'>('light')");
+  expect(landing).toContain("openGia('What is SPIKE?')");
+  expect(landing).toContain("openGia('is financial literacy free')");
   expect(landing).toContain('<GiaChat');
-  expect(landing).toContain('askGia');
-  expect(landing).toContain('Find your path');
-  expect(landing).toContain('routePathPicker');
-  expect(landing).toContain('Register with your recruiter');
-  expect(landing).toContain('SPIKE Venture Studio');
-  expect(landing).toContain('JOURNEY_STEP3_NOTE');
-  expect(landing).toContain('Nothing is stored. No account.');
-  expect(landing).toContain('AboutAiaCareer');
-  expect(landing).toContain('RegisterWithRecruiter');
-  expect(landing).not.toMatch(/href=["'][^"']*irecruit/i);
-  expect(landing).not.toMatch(/href=["']https:\/\/www\.aia\.com\.ph\/en\/financialadvisor\/join-us-now["']/);
-  expect(landing).not.toMatch(/never opens a generic AIA sign-up|awaiting Nilo|Not downloaded|no embed, no hotlink/);
-  expect(landing).toContain('{GIA_DISCLAIMER}');
+  expect(landing).toContain('<GiaAvatar');
   expect(landing).toContain('/gia/privacy');
-  expect(landing).toMatch(/STOP/);
-  expect(landing).toMatch(/loading="lazy"/);
-  expect(landing).not.toMatch(/VC-style safety net/);
-  expect(landing).not.toMatch(/date-of-birth|dateOfBirth|type="date"/);
-  expect(landing).not.toMatch(/Residence address|type="file"/);
-  expect(landing).not.toMatch(/Submit demo enrollment|Sign up & explore/);
-  expect(landing).not.toMatch(/Premium|priceless|₱0/i);
-  expect(landing).toMatch(/Synthetic details only/);
-  expect(landing).toMatch(/Versa/);
-  expect(landing).toMatch(/1CMA/);
+  expect(landing).not.toMatch(/Find your path|routePathPicker|RegisterWithRecruiter|AboutAiaCareer|JOURNEY_STEP3_NOTE|giaFab|review-banner|Meet GIA|video-placeholder|<nav/);
+  expect(landing).not.toMatch(/irecruit|join-us-now|type="file"|type="date"|localStorage|sessionStorage|indexedDB/);
 });
 
 it('maps visitor-goal chips to approved GIA flows without new content claims', () => {
@@ -105,10 +83,10 @@ it('maps visitor-goal chips to approved GIA flows without new content claims', (
   expect(chat).toContain('Skip wait');
 });
 
-it('mocks Inter for the offline Next.js build gate', () => {
+it('uses the supplied local Inter on the landing and keeps the offline chat font fixture', () => {
   const fontMock = readFileSync('tests/gia/font-mock.cjs', 'utf8');
   expect(giaPage).toMatch(/from 'next\/font\/google'/);
-  expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toMatch(/from 'next\/font\/google'/);
+  expect(readFileSync('app/spike-preview/page.tsx', 'utf8')).toMatch(/from 'next\/font\/local'/);
   expect(fontMock).toContain('family=Inter:wght@100..900');
 });
 

@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata = {
   title: 'GIA — Your 1CMA AI Guide',
-  description: 'GIYA Institute — The SPIKE Method. Official AI guide across the SPIKE ecosystem.',
+  description: 'GIA, your 1CMA guide to SPIKE.',
 };
 
 export default async function GiaPage({ searchParams }: { searchParams: Promise<{ program?: string }> }) {

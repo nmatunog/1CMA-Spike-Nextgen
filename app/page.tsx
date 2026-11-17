@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Temporary: send testers to GIA instead of the old AIA landing. */
+/** Welcome visitors on the SPIKE landing page; full chat remains at /gia. */
 export default function HomePage() {
-  redirect("/gia");
+  redirect("/spike-preview");
 }
