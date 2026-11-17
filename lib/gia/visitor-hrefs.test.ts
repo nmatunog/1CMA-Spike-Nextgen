@@ -3,9 +3,13 @@ import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { AboutAiaCareer } from '@/components/spike-preview/AboutAiaCareer';
 import { GiaCitation } from '@/components/gia/GiaCitation';
+import { RegisterWithRecruiter } from '@/components/gia/RegisterWithRecruiter';
 import { AIA_REF_JOIN, AIA_REF_PARTNER } from '@/lib/gia/aia-career-copy';
 import {
   SYNTHETIC_RECRUITER_REGISTRATION_URL,
+  AIA_JOIN_HOST,
+  AIA_JOIN_PATH,
+  resolveRecruiterCta,
 } from '@/lib/gia/recruiter-registration';
 import {
   blockedVisitorHrefs,
@@ -99,5 +103,75 @@ describe('visitor href guard', () => {
     expect(hrefsFromHtml(html)).toEqual([AIA_REF_PARTNER]);
     expect(blockedVisitorHrefs(hrefsFromHtml(html))).toEqual([]);
     expect(html).not.toMatch(/join-us-now|irecruit/i);
+  });
+});
+
+describe('LOW-N1 valid percent encoding without traversal', () => {
+  it.each([
+    '/gia/Financial%20Literacy',
+    '/gia/privacy?topic=Financial%20Literacy',
+    'https://www.aia.com.ph/en/Financial%20Literacy',
+    'https://www.aia.com.ph/en/about?topic=Financial%20Literacy',
+    '/gia/%E2%9C%93',
+    '/gia/report%2Epdf',
+  ])('accepts a safe encoded destination: %s', href => {
+    expect(visitorSafeHref(href)).toBe(href);
+  });
+  it.each([
+    '/gia/%00', '/gia/%09', '/gia/%0a', '/gia/%0d', '/gia/%1f', '/gia/%7f',
+    '/gia/%250a', '/%2fevil.example', '/%252Fevil.example', '/gia/%5cfoo',
+    '/gia/%255cfoo', '/gia/%2e%2e/private', '/gia/.%2e/private',
+    '/gia/%252e%252e/private', '/gia/%2e/private', '/gia/../private',
+    '/gia/%2F..%2Fprivate', '/broken%zz',
+    '/join%2dus%2dnow', '/%69recruit', '/%2569recruit',
+    'https://www.aia.com.ph/en/financialadvisor/join-us-now?topic=hello%20there',
+  ])('rejects unsafe or prohibited encoded destinations: %s', href => {
+    expect(visitorSafeHref(href)).toBeNull();
+  });
+});
+
+
+describe('M1 attributed references retain query encoding', () => {
+  // Synthetic all-zero codes only: the requested slash fixture plus a / and + variant.
+  const reference = Buffer.from('{"code":"000000000","name":"TEST?RECRUITER>>"}').toString('base64');
+  const withPlus = Buffer.from('{"code":"000000000","name":"TEST?RECRUITER>>>"}').toString('base64');
+  const hrefs = [reference, withPlus].flatMap(value => [value, encodeURIComponent(value)]).map(value =>
+    `https://${AIA_JOIN_HOST}${AIA_JOIN_PATH}?reference=${value}`);
+
+  it('uses an all-zero synthetic reference that reproduces the encoded slash', () => {
+    expect(JSON.parse(Buffer.from(reference, 'base64').toString()).code).toBe('000000000');
+    expect(reference).toContain('/');
+    expect(JSON.parse(Buffer.from(withPlus, 'base64').toString()).code).toBe('000000000');
+    expect(withPlus).toContain('/');
+    expect(withPlus).toContain('+');
+    expect(encodeURIComponent(reference)).toContain('%2F');
+  });
+  it.each(hrefs)('allows raw or encoded attributed query reference: %s', href => {
+    expect(visitorSafeHref(href)).toBe(href);
+    expect(blockedVisitorHrefs([href])).toEqual([]);
+  });
+  it.each(hrefs)('renders RegisterWithRecruiter as a real link: %s', href => {
+    const html = renderToStaticMarkup(createElement(RegisterWithRecruiter, {
+      cta: resolveRecruiterCta({ consented: true, program: 'recruit', defaultUrl: href, defaultName: 'TEST?RECRUITER>>' }),
+      contact: null,
+    }));
+    expect(html).toMatch(/<a\b/);
+    expect(hrefsFromHtml(html)).toEqual([href]);
+    expect(html).toContain('Register with your recruiter');
+  });
+  it('allows an encoded slash in an ordinary public AIA query', () => {
+    const href = 'https://www.aia.com.ph/en/x?y=a%2Fb';
+    expect(visitorSafeHref(href)).toBe(href);
+  });
+  it.each([
+    '/gia/..', '/gia/../login', '/gia/%2e%2e/login', '/gia/.%2e/login',
+    '/gia/%252e%252e/login', '/gia/%2e%2e%2flogin', '/gia/%252f..',
+    '/gia/./x', '/a/%5c..', 'https://www.aia.com.ph/../x',
+    'https://www.aia.com.ph/en/%2e%2e/irecruit',
+    'https://www.aia.com.ph/en/a%2Fb', '//evil.example/x', '/%2fevil.example',
+    `https://${AIA_JOIN_HOST}${AIA_JOIN_PATH}`, `https://${AIA_JOIN_HOST}${AIA_JOIN_PATH}?reference=`,
+    '/gia/%3fkeep%252f..', '/gia/%23keep%252f..',
+  ])('still blocks path traversal, encoded separators and generic registration: %s', href => {
+    expect(visitorSafeHref(href)).toBeNull();
   });
 });

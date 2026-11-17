@@ -6,7 +6,7 @@ The owner supplied Cebuano edits, requested conversational/street Cebuano and Ta
 
 Exact id/version/answers JSON SHA-256: `57e93bcc170136313767b2ad07a80e3908fb9b2269bf951b4aada365983a4438`. Before the approved KP-REC-09 addition: `2eb9c08554ae260cbbeeec92f5ede4089b6a8c1f9a859ca936ac7a40097a10ad`. Machine-readable record: [owner-wording-2026-11-16.json](owner-wording-2026-11-16.json).
 
-The older [approval request](kp-rec-wording-approval-request.md) describes the previous text at `89dde20`; it is not the snapshot selected here. Versions are incremented. The owner review date is 16 November 2026 in Asia/Manila. The existing runtime guard uses UTC calendar dates; UTC was still 15 November during this review, so runtime approvedOn/effective use `2026-11-15`. The guard itself is unchanged. Existing entries keep their original 14 December 2026 review deadline.
+The older [approval request](kp-rec-wording-approval-request.md) describes the previous text at `89dde20`; it is not the snapshot selected here. Versions are incremented. The owner review date is 16 November 2026 in Asia/Manila. The existing runtime guard uses UTC calendar dates; UTC was still 15 November during this review, so runtime approvedOn/effective use `2026-11-15`. The guard itself is unchanged. KP-REC-02 keeps its original 13 December 2026 review deadline; the other selected entries use 14 December 2026.
 
 ## KP-REC-01 v0.4
 

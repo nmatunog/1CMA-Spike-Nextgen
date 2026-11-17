@@ -150,7 +150,7 @@
         "en": "good",
         "tl": "good"
       },
-      "note": "Owner-supplied exact answer; proposed separate FAQ, not inserted into runtime pack."
+      "note": "Owner-supplied exact answer; inserted into the runtime pack as KP-REC-08 v0.1 in PR #22."
     },
     {
       "id": "KP-REC-09",

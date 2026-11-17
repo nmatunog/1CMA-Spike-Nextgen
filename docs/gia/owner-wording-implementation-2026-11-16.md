@@ -16,7 +16,7 @@ Runtime `approvalRef` points to the immutable readable record at commit `a3560c8
 
 All 24 answers stay within the existing 90-word guard. Wording is byte-matched against the review snapshot in tests. Owner spelling and the selected “Financial Entrepreneur Preview” wording in KP-REC-06 are preserved; this is not a global program rename.
 
-The owner review date is 16 November in Asia/Manila. Runtime approval/effective dates use 15 November UTC, following the existing UTC-calendar-day guard. The guard is unchanged. Superseded versions stop serving after 14 November UTC; they remain available for historical evaluation dates and citation/version traceability. Selected versions keep the original 14 December review deadline. There is no overlap in currently served versions.
+The owner review date is 16 November in Asia/Manila. Runtime approval/effective dates use 15 November UTC, following the existing UTC-calendar-day guard. The guard is unchanged. Superseded versions stop serving after 14 November UTC; they remain available for historical evaluation dates and citation/version traceability. KP-REC-02 retains its original 13 December review deadline; the other selected versions use 14 December. There is no overlap in currently served versions.
 
 ## Behavior
 

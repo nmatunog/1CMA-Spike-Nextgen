@@ -71,5 +71,6 @@ describe('staging migrate/seed gate', () => {
     } finally {
       await db.close();
     }
-  });
+  // This test initializes cold PGlite inside the body rather than a hook.
+  }, 30000);
 });
