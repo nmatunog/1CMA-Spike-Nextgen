@@ -6,27 +6,18 @@ for (const viewport of [{width:390,height:844},{width:1440,height:1000}]) {
   test(`GIA disclosure, consent and layout ${viewport.width}`, async ({page}) => {
     await page.setViewportSize(viewport);
     await page.goto('/gia');
-    await expect(page.getByRole('heading',{name:'GIA — Your 1CMA AI Guide'})).toBeVisible();
-    await expect(page.getByText(/an AI assistant/)).toBeVisible();
-    await expect(page.getByText(/GIYA Institute/).first()).toBeVisible();
-    await expect(page.getByText(/SPIKE Method/).first()).toBeVisible();
-    await expect(page.getByRole('radio',{name:'Recruit'})).toBeChecked();
-    await expect(page.getByRole('radio',{name:'Intern'})).toBeVisible();
-    await expect(page.getByRole('radio',{name:'RA'})).toBeVisible();
-    await expect(page.getByRole('button',{name:'Save consent and contact'})).toBeDisabled();
-    await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
-    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
-    await expect(page.getByRole('button',{name:'What should I do next?'})).toBeVisible();
-    await expect(page.getByRole('button',{name:'I want to learn money basics'})).toBeVisible();
-    if (viewport.width === 1440) await page.screenshot({path:'work/gia-welcome.png',fullPage:true});
-    await page.getByRole('radio',{name:'Intern'}).click();
+    await expect(page.getByRole('heading',{name:'GIA',exact:true})).toBeVisible();
+    await expect(page.getByText('Your AI guide. Ask away.')).toBeVisible();
+    await expect(page.getByRole('radio')).toHaveCount(0);
+    await expect(page.getByText(/role-aware guide|local adapter|entitlements/)).toHaveCount(0);
+    await expect(page.getByLabel('Name',{exact:true})).toHaveCount(0);
+    const conversation = page.getByLabel('Conversation', {exact:true});
+    await expect(conversation.getByRole('button')).toHaveCount(3);
+    for (const label of ['What is this?', 'Is it free?', 'How do I start?']) await expect(page.getByRole('button',{name:label,exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'I want to explore a business path'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'I want to learn money basics'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'What should I do next?'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'Talk to a 1CMA Leader'})).toBeVisible();
-    await page.getByRole('radio',{name:'Recruit'}).click();
-    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
+    await expect(page.getByRole('button',{name:'STOP / opt out'})).toBeVisible();
+    await expect(page.getByRole('link',{name:'Privacy notice'})).toBeVisible();
+    await expect(page.getByText('Learning does not authorize you to sell insurance or give insurance advice.', {exact:false})).toBeVisible();
     await expect(page.locator('input[type=file]')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({path:`work/gia-${viewport.width}.png`,fullPage:true});
@@ -46,8 +37,7 @@ test('pilot backend defaults to disabled', async ({request}) => {
 });
 test('intern guide hides FEP and denies FEP listing', async ({page}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
-  await page.goto('/gia');
-  await page.getByRole('radio',{name:'Intern'}).click();
+  await page.goto('/gia?program=intern');
   await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'I want to explore a business path'})).toHaveCount(0);
   await page.getByRole('textbox',{name:'Message GIA'}).fill('Show FEP sessions');
@@ -88,6 +78,8 @@ for (const [label, questions, registration] of [
 test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', async ({page,browser}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
   await page.goto('/gia');
+  await page.getByRole('button',{name:'Is it free?',exact:true}).click();
+  await page.getByRole('button',{name:'Save a contact',exact:true}).click();
   await page.getByLabel('Name',{exact:true}).fill('Synthetic Pilot Visitor');
   await page.getByLabel('Email',{exact:true}).fill('visitor@example.test');
   await page.getByRole('checkbox').check();
@@ -154,7 +146,9 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await page.screenshot({path:'work/gia-approved-flow.png',fullPage:true});
   await page.getByRole('button',{name:'STOP / opt out'}).click();
   await expect(page.getByText('You are opted out. No further follow-up will be sent.')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Save leader request'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Send',exact:true})).toBeDisabled();
+  await expect(page.getByLabel('Name',{exact:true})).toHaveCount(0);
   await staffPage.setViewportSize({width:1440,height:1000});
   await staffPage.goto('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -212,6 +206,8 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await staffPage.waitForURL('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Unassigned Alpha'}).click();
   await expect(staffPage.getByRole('heading',{name:'Preliminary evaluation'})).toBeVisible();
+  const evaluatedMetric = staffPage.locator('dt',{hasText:'Evaluated'}).locator('xpath=../dd');
+  const evaluatedBefore = Number(await evaluatedMetric.textContent());
   const evalForm=staffPage.locator('form').filter({has:staffPage.getByRole('button',{name:'Record evaluation'})});
   await evalForm.getByLabel('Background',{exact:true}).fill('Synthetic Alpha background');
   await evalForm.getByLabel('Education').fill('Synthetic college');
@@ -230,7 +226,7 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await followForm.getByRole('button',{name:'Save follow-up'}).click();
   await expect(staffPage.getByRole('status')).toHaveText('Follow-up saved');
   await expect(staffPage.getByText(/last engaged/i).first()).toBeVisible();
-  await expect(staffPage.locator('dt',{hasText:'Evaluated'}).locator('xpath=../dd')).toHaveText('1');
+  await expect(evaluatedMetric).toHaveText(String(evaluatedBefore + 1));
   await staffPage.screenshot({path:'docs/cc03/screenshots/evaluate-desktop.png',fullPage:true});
   await staffPage.setViewportSize({width:390,height:844});
   expect(await staffPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

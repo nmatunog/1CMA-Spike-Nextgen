@@ -67,10 +67,13 @@ describe('LOW-N6 failed login handoff', () => {
   });
 });
 describe('LOW-D2/D3/D4 and INFO-1 invariants', () => {
-  it('keeps the approved answers fingerprint unchanged and the inserted FAQ note current', () => {
+  it('preserves both approved wording fingerprints and the inserted FAQ note', () => {
     const fingerprint = '2eb9c08554ae260cbbeeec92f5ede4089b6a8c1f9a859ca936ac7a40097a10ad';
-    expect(createHash('sha256').update(JSON.stringify(selected.entries.map(({ id, version, answers }) => ({ id, version, answers })))).digest('hex')).toBe(fingerprint);
-    expect(selected.answersSha256).toBe(fingerprint);
+    const snapshot = selected.entries.map(({ id, version, answers }) => ({ id, version, answers }));
+    expect(createHash('sha256').update(JSON.stringify(snapshot.slice(0, 8))).digest('hex')).toBe(fingerprint);
+    const currentFingerprint = '57e93bcc170136313767b2ad07a80e3908fb9b2269bf951b4aada365983a4438';
+    expect(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex')).toBe(currentFingerprint);
+    expect(selected.answersSha256).toBe(currentFingerprint);
     expect(selected.entries.find(e => e.id === 'KP-REC-08')!.note).toContain('inserted into the runtime pack');
   });
   it('documents the real KP-REC-02 deadline without extending runtime validity', () => {

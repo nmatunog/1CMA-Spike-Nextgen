@@ -1,10 +1,10 @@
 # Owner wording review — 16 November 2026
 
-This records the exact selected wording from the owner's one-at-a-time Codex review. Only KP-REC-01 through KP-REC-08 and the 24 answers below are covered. No merge, deployment, live application submission or data operation is authorized.
+This records the exact selected wording from the owner's one-at-a-time Codex review. KP-REC-01 through KP-REC-08 retain the original 24 approved answers. The U1 addition below covers KP-REC-09 v0.1 in English only, approved by Nilo on 16 November 2026. Pending Cebuano/Tagalog translations are not approved runtime answers. No merge, deployment, live application submission or data operation is authorized.
 
 The owner supplied Cebuano edits, requested conversational/street Cebuano and Tagalog, and reviewed the aligned translations. KP-REC-02 was explicitly accepted with “ok to use”; subsequent responses were accepted with the feedback quoted below. No blanket approval of other Knowledge Pack entries is inferred. This record was transcribed by Codex; it is not an owner-authored GitHub approval comment and does not replace independent review of provenance. No external approval message was posted.
 
-Exact id/version/answers JSON SHA-256: `2eb9c08554ae260cbbeeec92f5ede4089b6a8c1f9a859ca936ac7a40097a10ad`. Machine-readable record: [owner-wording-2026-11-16.json](owner-wording-2026-11-16.json).
+Exact id/version/answers JSON SHA-256: `57e93bcc170136313767b2ad07a80e3908fb9b2269bf951b4aada365983a4438`. Before the approved KP-REC-09 addition: `2eb9c08554ae260cbbeeec92f5ede4089b6a8c1f9a859ca936ac7a40097a10ad`. Machine-readable record: [owner-wording-2026-11-16.json](owner-wording-2026-11-16.json).
 
 The older [approval request](kp-rec-wording-approval-request.md) describes the previous text at `89dde20`; it is not the snapshot selected here. Versions are incremented. The owner review date is 16 November 2026 in Asia/Manila. The existing runtime guard uses UTC calendar dates; UTC was still 15 November during this review, so runtime approvedOn/effective use `2026-11-15`. The guard itself is unchanged. KP-REC-02 keeps its original 13 December 2026 review deadline; the other selected entries use 14 December 2026.
 
@@ -259,3 +259,20 @@ Dili ang SPIKE. Ang imong recruiter ug ang leader ang mo submit ug mo confirm sa
 ```text
 Hindi ang SPIKE. Ang recruiter at leader mo ang magsu-submit at magko-confirm ng AIA application mo.
 ```
+
+
+## KP-REC-09 v0.1 — SPIKE introduction (U1)
+
+Nilo supplied and explicitly approved this exact English answer in the Codex conversation on **16 November 2026**, for draft PR #25's “What is this?” chip. This is a Codex transcription of that instruction, not an owner-authored GitHub comment or a new independent QA verdict.
+
+### en — APPROVED
+
+```text
+SPIKE is a guided pathway from 1CMA Cebu that helps you grow into a financial entrepreneur, step by step, through workshops, mentorship and real-world practice. I'm GIA, and I'll walk you through it.
+```
+
+### ceb / tl — PENDING NILO APPROVAL
+
+The [conversational translation drafts](spike-intro-translations-pending-2026-11-16.md) are review-only. They are not runtime answers and are not included in the answers fingerprint. Until separately approved, the exact English answer above is served for **all visitor languages**, using the existing English fallback. Language preference itself is not reset.
+
+Only KP-REC-09 was appended to the id/version/answers fingerprint; the prior eight records recompute to their original hash. No earlier answer, id, version or validity date is changed. The new entry uses approval/effective date 2026-11-16 and the existing pack's next review checkpoint, 2026-12-14. That checkpoint is administrative metadata, not approval of a translation.

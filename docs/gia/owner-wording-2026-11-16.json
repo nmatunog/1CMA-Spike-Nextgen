@@ -3,13 +3,13 @@
   "owner": "Nilo",
   "recordedBy": "Codex",
   "sourceHead": "89dde2024124bad4e826fc3212f061b8e367d7e0",
-  "scope": "Only these 8 entries and 24 language answers. No merge, deployment, live registration or data authorization.",
+  "scope": "KP-REC-01 through 08: the original 24 approved language answers, unchanged. KP-REC-09: one new English answer approved by Nilo on 2026-11-16. Cebuano/Tagalog drafts are not approved and are not runtime answers. No merge, deployment, live registration or data authorization.",
   "provenance": "Wording reviewed one response at a time in this owner Codex conversation, 15–16 November 2026. Feedback quoted per entry. This is a Codex-transcribed conversation record, not an owner-authored GitHub comment or independent QA verdict.",
   "styleGuidance": {
     "ceb": "Always conversational/street Cebuano, using familiar everyday words rather than formal or literal translation",
     "tl": "Always conversational/street Tagalog, using familiar everyday words rather than formal or literal translation"
   },
-  "answersSha256": "2eb9c08554ae260cbbeeec92f5ede4089b6a8c1f9a859ca936ac7a40097a10ad",
+  "answersSha256": "57e93bcc170136313767b2ad07a80e3908fb9b2269bf951b4aada365983a4438",
   "entries": [
     {
       "id": "KP-REC-01",
@@ -151,6 +151,28 @@
         "tl": "good"
       },
       "note": "Owner-supplied exact answer; inserted into the runtime pack as KP-REC-08 v0.1 in PR #22."
+    },
+    {
+      "id": "KP-REC-09",
+      "previousVersion": null,
+      "version": "0.1",
+      "answers": {
+        "en": "SPIKE is a guided pathway from 1CMA Cebu that helps you grow into a financial entrepreneur, step by step, through workshops, mentorship and real-world practice. I'm GIA, and I'll walk you through it."
+      },
+      "ownerEvidence": {
+        "owner": "Nilo",
+        "approvedOn": "2026-11-16",
+        "source": "Explicit owner instruction in Codex conversation to fix PR #25 U1; Codex-transcribed, not an owner-authored GitHub comment",
+        "approvedLanguages": [
+          "en"
+        ]
+      },
+      "ownerFeedback": {
+        "en": "Exact wording supplied and approved by Nilo on 16 November 2026",
+        "ceb": "PENDING NILO APPROVAL; English fallback only",
+        "tl": "PENDING NILO APPROVAL; English fallback only"
+      },
+      "note": "Recruit first-screen SPIKE introduction. Only English is approved. Pending translations are outside the runtime answers and outside this answers fingerprint."
     }
   ],
   "runtimeDateBasis": "Existing knowledge-import guard uses UTC calendar dates. Review occurred on 16 November in Asia/Manila while UTC was still 15 November; approvedOn/effective use 2026-11-15 without changing the guard."

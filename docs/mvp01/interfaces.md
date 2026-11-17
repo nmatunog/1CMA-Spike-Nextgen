@@ -115,3 +115,17 @@ True only when not stopped, consent is `granted`, and that channel preference is
 ## Dates
 
 Follow-up due values are Asia/Manila `datetime-local` strings converted with `parseManilaDateTimeLocal` (`UTC+08`, no DST). Overdue = `due_at < now()` and stage not `opt_out` / `disqualified` / `activated`. Dashboard event windows use `manilaDayBounds`.
+
+## Official AIA registration
+
+See `docs/mvp01/aia-registration.md`. Additive `candidate_events` only. No migration.
+
+`POST /api/recruitment/command/aia-registration` with `{ id, action, referralSource?, source? }`.
+
+`action`: `confirm_attribution` | `pending` | `submitted` | `verified`.
+
+AIA advisor path (`program_interest = ra_spike`) after confirmed FEP attendance. Attribution (`assigned_leader` confirmed) must precede any registration handoff. If none is assigned, Command Center falls back to `AIA_DEFAULT_RECRUITER_STAFF_ID` and records `attributionSource = default_recruiter`. Candidate self-report may only create `pending`. Submitted/verified are staff role-checked writes. Never grants Versa/SPIKE entitlements.
+
+Handoff URL (staff env, never committed real values): https origin, host `www.aia.com.ph`, path `/en/financialadvisor/join-us-now`, non-empty `reference`. Bare join-us-now is rejected. Optional `scroll=1` may be appended (`appendAiaFormScroll`) only when `reference` stays intact. Applicant prefill is not supported. Generic public AIA pages are staff reference only — do not send to recruits.
+
+Recruiter-assisted view: `open_assisted` / `copy_field`. Field order is `AIA_ASSISTED_REGISTRATION_FIELDS` in `lib/mvp01/aia-assisted-fields.ts` (G1 #19 mirrors that file byte-for-byte): Honorifics, First Name, Last Name, Date of Birth, Email Address, Mobile Number, I'm Applying To Be, Preferred Location. Consent and reCAPTCHA are done by the candidate on AIA's form. Uncollected fields say `ask the candidate on AIA's form`. Date of Birth is shown only if already present on the consented record. Consent granted required; STOP hides details; admin or assigned leader only. Read events on the timeline; copy does not change status.

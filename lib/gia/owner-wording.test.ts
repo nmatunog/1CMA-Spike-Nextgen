@@ -16,20 +16,21 @@ const questions: Record<string, string> = {
   'KP-REC-06': 'What does the AIA advisor path look like?',
   'KP-REC-07': 'AIA advisor career FAQs',
   'KP-REC-08': 'Does SPIKE submit or confirm my AIA application?',
+  'KP-REC-09': 'What is SPIKE?',
 };
 describe('owner-selected recruitment wording', () => {
-  it('preserves the exact reviewed snapshot and all 24 language answers', () => {
+  it('preserves the exact reviewed snapshot and all 25 approved language answers', () => {
     const snapshot = selected.entries.map(({ id, version, answers }) => ({ id, version, answers }));
-    expect(snapshot).toHaveLength(8);
+    expect(snapshot).toHaveLength(9);
     expect(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex')).toBe(selected.answersSha256);
     const current = entries.filter(e => isApproved(e, now));
     expect(current.map(({ id, version, answers }) => ({ id, version, answers }))).toEqual(snapshot);
-    expect(new Set(current.map(e => e.id)).size).toBe(8);
+    expect(new Set(current.map(e => e.id)).size).toBe(9);
     for (const e of current) {
       expect(validateEntry(e), e.id).toEqual([]);
       expect(isApproved(e, now), e.id).toBe(true);
       expect(isApproved(e, new Date('2026-11-14T12:00:00Z')), e.id).toBe(false);
-      expect(e.approvalRef).toContain('/blob/a3560c8838d2c5d574427f0bf59a0bd2407fdd68/');
+      expect(e.approvalRef).toContain(e.id === 'KP-REC-09' ? '/blob/c4025177b7b4550f2b4c8e7e1489cd1429aadd13/' : '/blob/a3560c8838d2c5d574427f0bf59a0bd2407fdd68/');
     }
   });
   it('keeps the owner-corrected Cebuano identical in runtime and both review records', () => {
@@ -49,7 +50,7 @@ describe('owner-selected recruitment wording', () => {
       const reply = respond(questions[e.id], lang, knowledge, now, { program: 'recruit' });
       expect(reply.intent).toBe('answer');
       expect(reply.citation).toMatchObject({ id: e.id, version: e.version });
-      expect(reply.text).toBe(e.answers[lang]);
+      expect(reply.text).toBe(e.answers[lang] || e.answers.en);
     });
   }
   it.each([

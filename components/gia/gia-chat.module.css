@@ -743,3 +743,11 @@
     transform: translateY(-3px);
   }
 }
+
+.introThread { padding-block: clamp(20px, 7vh, 72px); }
+.aboutContext { color: rgb(var(--gia-muted)); font-size: 12px; margin: 0 0 8px; }
+.pathHelp { width: 100%; color: rgb(var(--gia-muted)); font-size: 13px; }
+.pathHelp summary { cursor: pointer; padding-block: 8px; }
+.stopLink { border: 0; background: none; color: rgb(var(--gia-link)); padding: 0; font: inherit; text-decoration: underline; cursor: pointer; }
+.stopLink:disabled { opacity: .5; cursor: default; }
+.chip { min-height: 44px; }

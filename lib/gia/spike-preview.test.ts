@@ -95,7 +95,7 @@ it('maps visitor-goal chips to approved GIA flows without new content claims', (
     'What should I do next?',
     LEADER_INVITE,
   ]);
-  expect(chat).toContain('resolveGiaPrompt');
+  expect(chat).toContain('resolveVisitorPrompt');
   expect(chat).toContain('visibleJtbd');
   expect(chat).toContain('AIA_CAREER_CHIPS');
   expect(chat).toContain('RegisterWithRecruiter');
@@ -121,7 +121,7 @@ it('embeds the same GIA chat on /gia and the landing panel', () => {
   expect(chat).toContain('{GIA_CONSENT_FINE}');
   expect(chat).toContain('{GIA_CONSENT_CHECKBOX}');
   expect(chat).toContain('{GIA_CONSENT_SAVE}');
-  expect(GIA_TITLE).toBe('GIA — Your 1CMA AI Guide');
+  expect(GIA_TITLE).toBe('GIA');
   expect(GIA_DISCLAIMER).toBe('Learning does not authorize you to sell insurance or give insurance advice.');
   expect(GIA_CONSENT_SAVE).toBe('Save consent and contact');
   expect(chat).not.toMatch(/Grok|xAI|attach|model picker|regenerate/i);
