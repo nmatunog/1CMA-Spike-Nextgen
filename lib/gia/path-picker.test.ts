@@ -44,8 +44,8 @@ describe('Find your path picker', () => {
       highlight: null,
     });
     const src = readFileSync('components/spike-preview/SpikePreviewLanding.tsx', 'utf8');
-    expect(src).toContain('routePathPicker');
-    expect(src).toContain('Find your path');
+    expect(src).not.toContain('routePathPicker');
+    expect(src).not.toContain('Find your path');
     expect(src).not.toMatch(/localStorage|sessionStorage|indexedDB/);
   });
 

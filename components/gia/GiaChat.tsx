@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { NOTICE } from '@/lib/gia/engine.mjs';
+import { GiaAvatar } from '@/components/gia/GiaAvatar';
 import { GiaCitation } from '@/components/gia/GiaCitation';
 import { RegisterWithRecruiter } from '@/components/gia/RegisterWithRecruiter';
 import { AIA_CAREER_CHIPS, AIA_LEVELUP_ASK } from '@/lib/gia/path-picker';
@@ -226,7 +227,7 @@ export function GiaChat({
     <div className={`${styles.root} ${dark ? styles.dark : ''} ${variant === 'page' ? styles.page : styles.panel}`}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <span className={styles.mark} aria-hidden="true">G</span>
+          <GiaAvatar />
           <div className={styles.titles}>
             <h1>{GIA_TITLE}</h1>
             <p>{GIA_SUBTITLE}</p>
@@ -268,7 +269,7 @@ export function GiaChat({
               </div>
             ) : (
               <div key={i} className={styles.row}>
-                <span className={`${styles.mark} ${styles.markSm}`} aria-hidden="true">G</span>
+                <GiaAvatar small />
                 <div className={styles.col}>
                   <span className={styles.who}>GIA</span>
                   <div className={styles.bubbleGia}>
@@ -312,7 +313,7 @@ export function GiaChat({
           )}
           {busy && (
             <div className={styles.row} aria-label="GIA is typing">
-              <span className={`${styles.mark} ${styles.markSm}`} aria-hidden="true">G</span>
+              <GiaAvatar small />
               <div className={styles.col}>
                 <span className={styles.who}>GIA</span>
                 <button
