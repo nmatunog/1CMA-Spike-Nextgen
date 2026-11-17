@@ -8,7 +8,7 @@ import { syntheticVerifier } from './verifier';
 import { randomBytes } from 'node:crypto';
 import { authenticatedPayload, consumeTicket, issueTicket, issuerSignature, TICKET_MS } from './transport';
 import { passwordMatches } from './security';
-import type { MemberDb, Row } from './db';
+import { SCOPE_SQL, type MemberDb, type MemberScope, type Row } from './db';
 
 const SECRET = 'synthetic-member-test-secret-only-123456789';
 const ORIGIN = 'http://127.0.0.1:3002';
@@ -17,6 +17,14 @@ let db: PGlite, port: MemberDb, service: MemberService;
 let clock = Date.now();
 function adapter(client: PGlite): MemberDb {
   return {
+    scope(identity: MemberScope) {
+      const transaction = async <T>(work: (connection: MemberDb) => Promise<T>) => client.transaction(async tx => {
+        await tx.query(SCOPE_SQL, [identity.email || '', identity.accountId || '', identity.candidateId || '']);
+        await tx.exec('SET LOCAL ROLE member_app');
+        return work(adapter(tx as unknown as PGlite));
+      });
+      return { query: (text, args) => transaction(db => db.query(text, args)), transaction, scope: (next: MemberScope) => adapter(client).scope(next) };
+    },
     async query<T extends Row>(sql: string, args: unknown[] = []) {
       if (sql.includes('pg_advisory_xact_lock')) return [] as T[];
       return (await client.query<T>(sql, args)).rows;

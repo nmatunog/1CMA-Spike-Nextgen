@@ -76,8 +76,28 @@ CREATE POLICY synthetic_mail_reader ON member_local_mail FOR SELECT TO member_ma
 -- Minimal canonical identity access; no program enrollment, role or AIA mutation.
 GRANT SELECT(id,email_normalized,email_verified) ON candidates TO member_app;
 GRANT INSERT(id,name,email,email_verified,created_at,capture_channel) ON candidates TO member_app;
-CREATE POLICY member_candidate_read ON candidates FOR SELECT TO member_app USING (email_verified);
-CREATE POLICY member_candidate_create ON candidates FOR INSERT TO member_app WITH CHECK (email_verified AND capture_channel='versa_stub');
-GRANT SELECT(id,candidate_id,status,created_at),INSERT(id,candidate_id,status),UPDATE(candidate_id,status) ON user_accounts TO member_app;
-CREATE POLICY member_account_server ON user_accounts TO member_app USING (true) WITH CHECK (status IN ('pending','active'));
+CREATE POLICY member_candidate_read ON candidates FOR SELECT TO member_app
+  USING (email_verified AND email_normalized = NULLIF(current_setting('app.member_email',true),''));
+CREATE POLICY member_candidate_create ON candidates FOR INSERT TO member_app
+  WITH CHECK (email_verified AND capture_channel='versa_stub'
+    AND email_normalized = NULLIF(current_setting('app.member_email',true),'')
+    AND id::text = NULLIF(current_setting('app.member_candidate_id',true),''));
+-- Request identity is bound by the trusted transaction wrapper before SET LOCAL ROLE.
+-- No table-wide reads, active inserts, disabled-row updates, reassignment or deletion.
+REVOKE ALL ON user_accounts FROM member_app;
+REVOKE UPDATE(candidate_id) ON user_accounts FROM member_app;
+GRANT SELECT(id,candidate_id,status),INSERT(id,candidate_id,status),UPDATE(status) ON user_accounts TO member_app;
+CREATE POLICY member_account_read ON user_accounts FOR SELECT TO member_app
+  USING (id::text = NULLIF(current_setting('app.member_account_id',true),''));
+CREATE POLICY member_account_insert ON user_accounts FOR INSERT TO member_app
+  WITH CHECK (status='pending'
+    AND id::text = NULLIF(current_setting('app.member_account_id',true),'')
+    AND candidate_id::text = NULLIF(current_setting('app.member_candidate_id',true),'')
+    AND EXISTS(SELECT 1 FROM candidates c WHERE c.id=user_accounts.candidate_id));
+CREATE POLICY member_account_activate ON user_accounts FOR UPDATE TO member_app
+  USING (status='pending' AND id::text = NULLIF(current_setting('app.member_account_id',true),''))
+  WITH CHECK (status='active'
+    AND id::text = NULLIF(current_setting('app.member_account_id',true),'')
+    AND candidate_id::text = NULLIF(current_setting('app.member_candidate_id',true),'')
+    AND EXISTS(SELECT 1 FROM candidates c WHERE c.id=user_accounts.candidate_id));
 COMMIT;

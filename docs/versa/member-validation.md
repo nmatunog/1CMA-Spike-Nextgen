@@ -1,4 +1,4 @@
-# Rule 9 follow-up validation — 17 November 2026
+# M1 least-privilege validation — 18 November 2026
 
 These are Codex implementation checks, not independent QA. SPIKEDEV second-check,
 Claude exact-head Q1 and ChatGPT Rule 9 remain required. Nothing was deployed.
@@ -8,8 +8,8 @@ All commands used `SKIP_AUTO_SHIP=1 AUTO_SHIP=0` and synthetic data only.
 | --- | --- |
 | Lint | `npm run lint`: PASS |
 | Plain TypeScript | `npx tsc --noEmit`: PASS |
-| Full Vitest | Clean final `npm test -- --maxWorkers=1 --no-file-parallelism`: **49 files / 806 tests PASS**, no failures or skips |
-| Cloudflare build | `npm run build:cf`: PASS; handler gzip level 9, deterministic timestamp: **1,201,665 bytes**, below 3 MiB |
+| Full Vitest | Clean final `npm test -- --maxWorkers=1 --no-file-parallelism`: **50 files / 818 tests PASS**, no failures or skips |
+| Cloudflare build | `npm run build:cf`: PASS; handler gzip level 9, deterministic timestamp: **1,206,622 bytes**, below 3 MiB |
 | Full production-build Playwright | `MEMBER_LOCAL_DEMO=true GIA_PILOT_ENABLED=true npx playwright test --timeout=90000`: **53 PASS, 1 expected skip**; all 8 onboarding tests PASS |
 | Disabled pilot | The one skipped test was run separately against a disabled server on loopback port 3003: **1 PASS**, API returns 503 `pilot_disabled` |
 
@@ -56,3 +56,24 @@ policy was tested or changed. Signed tickets remove payload values from the
 supported browser URL, but upstream ticket/header logging and obsolete plain URLs
 cannot be redacted by this Worker. See the explicit hosted-release hold and Access
 plan in `member-onboarding.md`. No new independent QA is claimed for this head.
+
+## Claude M1 correction
+
+Brief: NEXO #32 comment 6953819929; blocked source `5b23ff0`. A fresh local PGlite
+probe applied the exact old SHA's migrations and reproduced: an unscoped SELECT
+read 3 accounts, disabled→active updated 1 row, and an already-active INSERT
+created 1 row. No live database was used.
+
+The 12 new `account-rls.test.ts` probes bind request identity before SET LOCAL ROLE,
+with FORCE RLS enabled. Empty scope reads no accounts/candidates; own scope returns
+only the owned account/current verified email. Disabled reactivation and cross-row
+updates affect zero rows; active INSERT and DELETE are rejected. Candidate
+reassignment and unused created_at reads are denied. An owned pending INSERT and
+pending→active transition succeed. Scope does not leak to a later transaction.
+
+The existing 54 service cases and all 8 browser member cases pass, including actual
+runtime role use for signup, later sign-in, linking, email reset and session checks.
+SELECT(candidate_id) remains necessary for the conflict arbiter; UPDATE(candidate_id)
+is revoked and the member flow no longer calls the shared helper's no-op update.
+GIA, approved answers, handoff/ticket code and vendored verifier are unchanged.
+CI status is recorded on the PR at the pushed exact SHA, separately from local gates.

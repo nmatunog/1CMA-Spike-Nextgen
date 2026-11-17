@@ -12,7 +12,7 @@ superseding owner decision. A replacement email link also works in an already-op
 verification tab; its fragment is consumed and immediately removed again.
 
 - Auth.js credentials/JWT sessions remain the authentication shell. `member:<canonical account UUID>` is distinct from `staff:<email>`; existing server staff authorization continues requiring the latter plus the configured roster. Member JWTs are rejected after logout/password reset/change via a stored version check.
-- Canonical `candidates` and `user_accounts` and the existing `provisionUserAccount` are reused **only after** email ownership and password sign-in succeed. Temporary pending signup hashes are not active accounts and cannot authenticate. No new CRM, program enrollment, program role, marketing consent or AIA registration is created. Existing verified candidate names/assignment/STOP/consent are preserved.
+- Canonical `candidates` and `user_accounts` are reused **only after** email ownership and password sign-in succeed. Temporary pending signup hashes are not active accounts and cannot authenticate. No new CRM, program enrollment, program role, marketing consent or AIA registration is created. Existing verified candidate names/assignment/STOP/consent are preserved.
 - SPIKE's portable code verifier is copied byte-for-byte from `nmatunog/SPIKE` at `482c31ced71096a9edc1d732af58bffcee4f0c6f`, `functions/_shared/versaCode/`, into `lib/vendor/versa-code/`. Its existing `verify()` is called without redemption, with the existing imported-plan, identity, status, expiry and level logic. `redeem()` is never called. A non-granting adapter prevents entitlement writes. No new verifier HTTP endpoint is invented. The verifier may record failed attempts/rate counters in its adapter; it is not side-effect-free. The current adapter is in memory. Only a `valid` available-code result confirms a handoff; free-entry/already-granted bypasses do not confirm a new handoff.
 - The local demo uses the upstream in-memory admin fixture adapter with designated synthetic FREE/PRO inventory. Real authoritative inventory/service connection is an **open dependency**. Existing SPIKE L1/L2 entry checks/redemption remain in SPIKE and are untouched. The handoff claim neither consumes their code nor grants access/payment/eligibility.
 - Separate SPIKE Internship / RA-SPIKE Supabase auth and learner IDs are not migrated or implicitly linked. An approved provider/identity mapping is required before real cross-portal account reuse. No separate production identity silo is enabled by this draft.
@@ -97,7 +97,7 @@ inventory; 00002 expired, 00003 reused, 00004 revoked, 00005 wrong owner, 00099 
 
 - Real mail provider and approval: pluggable `MemberMailer.send` exists; only the local synthetic sink is supplied. No delivery to a real address is implemented or claimed.
 - Reviewed authoritative verifier/storage adapter and identity mapping to existing program accounts. No guessed remote URL, CSV import to a live store, or real code is used.
-- Physical member identity storage placement remains a reviewed architecture/deployment decision. `0012_member_onboarding.sql` is additive **draft schema**, applied only to ephemeral local test DBs. It grants no new access to `gia_app` or public roles. It now defines a dedicated NOLOGIN `member_app` role, FORCE RLS and server-only policies, minimal canonical columns and no program/entitlement writes. Local runtime queries actually use `SET LOCAL ROLE member_app` inside each transaction, never a persistent pooled role. Synthetic mailbox reading is isolated to a separate NOLOGIN test-reader role; member_app cannot read links. Hosted role membership/placement still needs deployment review; no grants or SQL were applied live.
+- Physical member identity storage placement remains a reviewed architecture/deployment decision. `0012_member_onboarding.sql` is additive **draft schema**, applied only to ephemeral local test DBs. It grants no new access to `gia_app` or public roles. It now defines a dedicated NOLOGIN `member_app` role, FORCE RLS and server-only policies, minimal canonical columns and no program/entitlement writes. Local runtime queries bind the request email/account/candidate ids with transaction-local settings **before** `SET LOCAL ROLE member_app`; missing values are cleared, never inherited from the pool. Account SELECT is limited to the bound id; INSERT must match the bound ids and be pending; UPDATE can only activate that same pending row. DELETE and candidate reassignment are not granted. Candidate reads require the request's verified email. Neither setting a scope nor possessing the DB role is a public API; these are trusted server-only operations. Synthetic mailbox reading is isolated to a separate NOLOGIN test-reader role; member_app cannot read links. Hosted role membership/placement still needs deployment review; no grants or SQL were applied live.
 - The runtime defaults off. Even when the feature flag is set, the supplied adapter requires explicit local-demo mode, loopback DB + HTTP origin, real-length non-placeholder server secrets and synthetic inputs. It fails closed on hosted configurations.
 - GIA's separately reported 007/recruiter-name over-refusal remains a real-intake review dependency. This PR does not change credential safety or approved GIA answers.
 - SPIKEDEV second-check → Claude independent exact-head Q1 → ChatGPT Rule 9 → Nilo's separate merge/deploy decision. No live email, DB, Access policy, merge or deployment is included.
@@ -115,7 +115,12 @@ flowchart LR
 ```
 
 Match only an email-verified Candidate after proof, never sponsor name/code. Create
-a Candidate only when none matches, and reuse `provisionUserAccount`. Existing
+a Candidate only when none matches. Member signup inserts into the same canonical
+`user_accounts` table with `ON CONFLICT(candidate_id) DO NOTHING`, not the shared
+provisioner's no-op UPDATE. That helper and its other callers remain unchanged.
+Only a newly inserted pending account can activate; an existing account, including
+a disabled one, is never reactivated by signup. A concurrently created candidate
+causes a clean retry rather than widening the current transaction scope. Existing
 canonical accounts without a reviewed auth mapping are not silently reset or linked.
 `member_credentials.account_id` and claims reference the canonical User Account.
 There is no automatic Program Enrollment, program role, entitlement, payment or AIA
@@ -145,3 +150,24 @@ pages/APIs, required Auth.js endpoints and static assets/GIA as separately appro
 Do not use a host-wide bypass. Preserve owner/staff-only protection on Command
 Center and `/api/recruitment/*` / `/api/admin/*`; test policy precedence. No policy
 was written and no live partner URL is released by this PR.
+
+## M1 account-role correction (18 November 2026)
+
+Source: [SPIKEDEV brief 6953819929](https://github.com/nmatunog/NEXO/issues/32#issuecomment-6953819929)
+and Claude Q1 BLOCKED at `5b23ff0`. The former account policy allowed an unscoped
+SELECT, active INSERT and disabled→active UPDATE. It is replaced with separate
+command policies. Only `id`, `candidate_id` (needed by the conflict arbiter) and
+`status` are readable; only `status` is updatable. The UPDATE requires a pending
+source row, an active result and matching request ids/current verified candidate.
+Session/status reads bind an account id derived from the credential or JWT;
+password resets bind the immutable challenge account id before locking/rechecking
+the single-use challenge. Linking locks credentials, not active account rows,
+because the role has no UPDATE authority over active accounts.
+
+`lib/member/account-rls.test.ts` applies all migrations to PGlite and runs each
+probe in its own transaction as `member_app`, with request scope bound first and
+FORCE RLS enabled. It covers disabled reactivation, cross-account reads/updates,
+active insertion, DELETE, reassignment, candidate email scope, pool-scope clearing
+and a successful own-row pending→active transition. The ordinary member service
+and browser suites also exercise complete signup/sign-in/reset/link lifecycles.
+No handoff, ticket, approved wording or verifier logic is changed by this correction.

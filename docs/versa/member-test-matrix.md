@@ -26,3 +26,10 @@ squatting prevention, generic existing/unknown arrivals, configurable code parsi
 and actual activation under the dedicated `member_app` role. Mail links, canonical
 candidate names and program-role writes are denied to that role; member tables are
 also denied to `gia_app`, `anon` and `authenticated`.
+
+M1: `lib/member/account-rls.test.ts` runs 12 real PGlite role probes with FORCE RLS.
+No-scope SELECT returns no rows; scoped SELECT returns only the owned row. A disabled
+row cannot become active, an active INSERT is rejected, out-of-scope rows cannot be
+updated, and DELETE/reassignment are denied. A pending own-row insert/activation
+succeeds. Candidate reads expose only the current verified email. Service/browser
+lifecycles prove the narrower policy still supports normal signup and account use.
