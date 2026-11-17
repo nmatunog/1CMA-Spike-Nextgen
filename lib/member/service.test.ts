@@ -5,7 +5,7 @@ import { MemberError, MemberService, HANDOFF_MS, RESET_MS, VERIFY_MS } from './s
 import { parseHandoff, validPassword } from './contract';
 import { syntheticMailSink } from './mail';
 import { syntheticVerifier } from './verifier';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { authenticatedPayload, consumeTicket, issueTicket, issuerSignature, TICKET_MS } from './transport';
 import { passwordMatches } from './security';
 import { SCOPE_SQL, type MemberDb, type MemberScope, type Row } from './db';
@@ -203,6 +203,16 @@ describe('email ownership and canonical account activation', () => {
     clock += HANDOFF_MS * 2 + 1;
     const b = await service.prepare(fields()); await service.signup(b, PASSWORD, PASSWORD);
     expect(await port.query('SELECT 1 FROM member_pending_signups')).toHaveLength(1);
+  });
+  it.each(['pending','active','disabled'])('an existing canonical %s account without member credentials returns 409 and stays unchanged',async status=>{
+    const candidateId=randomUUID(), accountId=randomUUID();
+    await port.query("INSERT INTO candidates(id,name,email,email_verified,capture_channel) VALUES($1,'Synthetic existing','demo@example.test',true,'versa_stub')",[candidateId]);
+    await port.query('INSERT INTO user_accounts(id,candidate_id,status) VALUES($1,$2,$3)',[accountId,candidateId,status]);
+    const original=await service.prepare(fields()); await service.signup(original,PASSWORD,PASSWORD);
+    const cookie=await service.verifyEmail(await emailLink());
+    await expect(service.signIn('demo@example.test',PASSWORD,'local',cookie)).rejects.toMatchObject({code:'sign_in_required',status:409});
+    expect(await port.query('SELECT status FROM user_accounts WHERE id=$1',[accountId])).toEqual([{status}]);
+    expect(await port.query('SELECT 1 FROM member_credentials')).toHaveLength(0);
   });
   it('retains code availability in the upstream verifier: it never redeems or grants', async () => {
     const { verifier, admin } = await syntheticVerifier(SECRET);

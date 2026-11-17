@@ -97,7 +97,7 @@ inventory; 00002 expired, 00003 reused, 00004 revoked, 00005 wrong owner, 00099 
 
 - Real mail provider and approval: pluggable `MemberMailer.send` exists; only the local synthetic sink is supplied. No delivery to a real address is implemented or claimed.
 - Reviewed authoritative verifier/storage adapter and identity mapping to existing program accounts. No guessed remote URL, CSV import to a live store, or real code is used.
-- Physical member identity storage placement remains a reviewed architecture/deployment decision. `0012_member_onboarding.sql` is additive **draft schema**, applied only to ephemeral local test DBs. It grants no new access to `gia_app` or public roles. It now defines a dedicated NOLOGIN `member_app` role, FORCE RLS and server-only policies, minimal canonical columns and no program/entitlement writes. Local runtime queries bind the request email/account/candidate ids with transaction-local settings **before** `SET LOCAL ROLE member_app`; missing values are cleared, never inherited from the pool. Account SELECT is limited to the bound id; INSERT must match the bound ids and be pending; UPDATE can only activate that same pending row. DELETE and candidate reassignment are not granted. Candidate reads require the request's verified email. Neither setting a scope nor possessing the DB role is a public API; these are trusted server-only operations. Synthetic mailbox reading is isolated to a separate NOLOGIN test-reader role; member_app cannot read links. Hosted role membership/placement still needs deployment review; no grants or SQL were applied live.
+- Physical member identity storage placement remains a reviewed architecture/deployment decision. `0012_member_onboarding.sql` is additive **draft schema**, applied only to ephemeral local test DBs. It grants no new access to `gia_app` or public roles. It now defines a dedicated NOLOGIN `member_app` role, FORCE RLS and server-only policies, minimal canonical columns and no program/entitlement writes. Local runtime queries bind the request email/account/candidate ids with transaction-local settings **before** `SET LOCAL ROLE member_app`; missing values are cleared, never inherited from the pool. Account SELECT is limited to the bound id; direct INSERT/UPDATE, DELETE and candidate reassignment are not granted. Fixed definer functions handle pending creation and activation, as specified in the LOW-1/LOW-2 section below. Candidate reads require the request's verified email. Neither setting a scope nor possessing the DB role is a public API; these are trusted server-only operations. Synthetic mailbox reading is isolated to a separate NOLOGIN test-reader role; member_app cannot read links. Hosted role membership/placement still needs deployment review; no grants or SQL were applied live.
 - The runtime defaults off. Even when the feature flag is set, the supplied adapter requires explicit local-demo mode, loopback DB + HTTP origin, real-length non-placeholder server secrets and synthetic inputs. It fails closed on hosted configurations.
 - GIA's separately reported 007/recruiter-name over-refusal remains a real-intake review dependency. This PR does not change credential safety or approved GIA answers.
 - SPIKEDEV second-check → Claude independent exact-head Q1 → ChatGPT Rule 9 → Nilo's separate merge/deploy decision. No live email, DB, Access policy, merge or deployment is included.
@@ -151,7 +151,7 @@ Do not use a host-wide bypass. Preserve owner/staff-only protection on Command
 Center and `/api/recruitment/*` / `/api/admin/*`; test policy precedence. No policy
 was written and no live partner URL is released by this PR.
 
-## M1 account-role correction (18 November 2026)
+## Historical M1 correction at 4b70c49 (superseded by LOW-1/LOW-2 below)
 
 Source: [SPIKEDEV brief 6953819929](https://github.com/nmatunog/NEXO/issues/32#issuecomment-6953819929)
 and Claude Q1 BLOCKED at `5b23ff0`. The former account policy allowed an unscoped
@@ -171,3 +171,44 @@ active insertion, DELETE, reassignment, candidate email scope, pool-scope cleari
 and a successful own-row pending→active transition. The ordinary member service
 and browser suites also exercise complete signup/sign-in/reset/link lifecycles.
 No handoff, ticket, approved wording or verifier logic is changed by this correction.
+
+## LOW-1 / LOW-2 hosted holds and fixed database capabilities
+
+The member connection for hosted use **must** be a dedicated LOGIN-enabled,
+non-owner, NOSUPERUSER, non-BYPASSRLS login whose only role membership/privileges
+come from `member_app`. It must not own tables or functions, inherit an owner/staff
+role, have CREATE/CREATEROLE privileges, or share the existing owner/GIA login.
+Then RESET ROLE returns only to that restricted login and gains no owner rights.
+This is a hosted wiring requirement, not a deployed change: no hosted login/role,
+password, membership or database was created or modified by this draft.
+
+`member_app` has no direct INSERT or UPDATE privilege on `user_accounts`. The only
+account writes are migration-owner SECURITY DEFINER functions with fixed
+`search_path = pg_catalog, public`, explicit `public` table references and no dynamic
+SQL. `member_create_pending_account(uuid,uuid,text)` checks the bound arguments and
+verified candidate/email relationship and inserts pending only; conflicts return
+null. `member_activate_account(uuid,uuid)` matches both ids and changes pending to
+active only, returning false for a disabled/active/mismatched row. PUBLIC execute is
+revoked; only `member_app` is granted execute. The migration owner must retain the
+authorized rights needed for these fixed operations; the connecting login must not
+be that owner. No broad account write policy remains.
+
+Credentials now have per-command email/account scope policies. Challenges likewise
+use account/pending-email scope; verification rows carry their pending email.
+Scope-free verification/reset-token discovery uses only the private fixed-path
+`member_lookup_challenge(hash,kind)` function. It accepts one exact 64-hex token hash
+and kind, returns at most one row and locks it in the calling transaction. The
+service still revalidates expiry and consumption under that lock, preserving single
+use. Every credential reader/writer and challenge mutation establishes its scope.
+
+These capabilities are not an arbitrary-SQL sandbox: custom settings remain mutable
+and a scoped read filter is defense-in-depth. The fixed functions enforce their
+argument/state invariants, but do not independently prove email ownership, partner
+authenticity or code eligibility; the unchanged parameterised service flow supplies
+those checks. Do not expose the DB login/functions as public RPCs. Hosted Access,
+mail-provider, authoritative-verifier and identity-placement holds still apply.
+The RESET ROLE regression creates only an ephemeral local PGlite login fixture.
+
+The current local synthetic harness still bootstraps using its local owner login;
+the restricted-login RESET ROLE probe is a separate ephemeral fixture. This draft
+does not claim that the local owner connection itself prevents RESET ROLE.

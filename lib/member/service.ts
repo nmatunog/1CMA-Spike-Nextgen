@@ -41,20 +41,21 @@ export class MemberService {
   async requestVerification(cookie: string | undefined) {
     const h = await this.handoff(cookie);
     await this.limit(`verify:${h.payload.me}`, 5);
-    if ((await this.db.query("SELECT 1 FROM member_challenges WHERE handoff_key=$1 AND kind='verify' AND consumed_at IS NULL AND prepared_at IS NOT NULL AND expires_at > $2", [h.key_hash, new Date(this.clock())])).length) return;
+    if ((await this.db.scope({ email: h.payload.me }).query("SELECT 1 FROM member_challenges WHERE handoff_key=$1 AND kind='verify' AND consumed_at IS NULL AND prepared_at IS NOT NULL AND expires_at > $2", [h.key_hash, new Date(this.clock())])).length) return;
     const token = opaqueToken();
-    await this.db.transaction(async db => {
+    await this.db.scope({ email: h.payload.me }).transaction(async db => {
       await db.query("UPDATE member_challenges SET consumed_at=$1 WHERE handoff_key=$2 AND kind='verify' AND consumed_at IS NULL", [new Date(this.clock()), h.key_hash]);
-      await db.query("INSERT INTO member_challenges(token_hash,kind,handoff_key,expires_at) VALUES($1,'verify',$2,$3)", [this.digest(token), h.key_hash, new Date(this.clock() + VERIFY_MS)]);
+      await db.query("INSERT INTO member_challenges(token_hash,kind,handoff_key,expires_at,pending_email) VALUES($1,'verify',$2,$3,$4)", [this.digest(token), h.key_hash, new Date(this.clock() + VERIFY_MS), h.payload.me]);
     });
     await this.mail.send({ destination: h.payload.me, kind: 'verify', link: `${this.origin}/member/verify#token=${token}` });
-    await this.db.query('UPDATE member_challenges SET prepared_at=$1 WHERE token_hash=$2', [new Date(this.clock()), this.digest(token)]);
+    await this.db.scope({ email: h.payload.me }).query('UPDATE member_challenges SET prepared_at=$1 WHERE token_hash=$2', [new Date(this.clock()), this.digest(token)]);
   }
   async verifyEmail(token: unknown) {
     if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) throw new MemberError('link_unavailable');
     const next = opaqueToken();
-    await this.db.transaction(async db => {
-      const [challenge] = await db.query("SELECT * FROM member_challenges WHERE token_hash=$1 AND kind='verify' FOR UPDATE", [this.digest(token)]);
+    const [target] = await this.db.query("SELECT * FROM public.member_lookup_challenge($1,'verify')", [this.digest(token)]);
+    await this.db.scope({ email: target?.pending_email ? String(target.pending_email) : undefined }).transaction(async db => {
+      const [challenge] = await db.query("SELECT * FROM public.member_lookup_challenge($1,'verify')", [this.digest(token)]);
       if (!challenge || challenge.consumed_at || new Date(String(challenge.expires_at)).getTime() <= this.clock()) throw new MemberError('link_unavailable');
       const [h] = await db.query<StoredHandoff>('SELECT * FROM member_handoffs WHERE key_hash=$1 FOR UPDATE', [challenge.handoff_key]);
       if (!h || new Date(h.expires_at).getTime() <= this.clock() || h.claimed_by) throw new MemberError('link_unavailable');
@@ -67,7 +68,7 @@ export class MemberService {
     return next;
   }
   async credential(email: string): Promise<Row | undefined> {
-    const [row] = await this.db.query('SELECT * FROM member_credentials WHERE email=$1', [email]);
+    const [row] = await this.db.scope({ email }).query('SELECT * FROM member_credentials WHERE email=$1', [email]);
     if (!row) return undefined;
     const [account] = await this.db.scope({ accountId: String(row.account_id) }).query('SELECT status FROM user_accounts WHERE id=$1', [row.account_id]);
     return account ? { ...row, status: account.status } : undefined;
@@ -111,14 +112,13 @@ export class MemberService {
       // scope rather than widening this transaction's identity.
       if (existing && String(existing.id) !== candidateId) throw new MemberError('sign_in_required', 409);
       if (!existing) await db.query('INSERT INTO candidates(id,name,email,email_verified,created_at,capture_channel) VALUES($1,$2,$3,true,$4,$5)', [candidateId, `${h.payload.mfn} ${h.payload.mln}`, email, new Date(this.clock()), 'versa_stub']);
-      // Reuse the canonical account table without the shared provisioner's no-op
-      // UPDATE(candidate_id). A conflict never changes an existing/disabled account.
-      const [account] = await db.query("INSERT INTO user_accounts(id,candidate_id,status) VALUES($1,$2,'pending') ON CONFLICT(candidate_id) DO NOTHING RETURNING id", [accountId, candidateId]);
-      if (!account) throw new MemberError('sign_in_required', 409);
+      const [account] = await db.query('SELECT public.member_create_pending_account($1,$2,$3) AS id', [accountId, candidateId, email]);
+      if (!account?.id) throw new MemberError('sign_in_required', 409);
       await this.checkCode(h, accountId);
       await db.query('INSERT INTO member_credentials(account_id,email,password_salt,password_hash,email_verified_at) VALUES($1,$2,$3,$4,$5)', [accountId, email, pending.password_salt, pending.password_hash, new Date(this.clock())]);
       await this.claim(db, h, accountId);
-      await db.query("UPDATE user_accounts SET status='active' WHERE id=$1 AND status='pending'", [accountId]);
+      const [activation] = await db.query('SELECT public.member_activate_account($1,$2) AS activated', [accountId, candidateId]);
+      if (!activation?.activated) throw new MemberError('sign_in_required',409);
       await db.query('DELETE FROM member_pending_signups WHERE handoff_key=$1', [h.key_hash]);
       return { accountId, email, version: 1 };
     });
@@ -177,7 +177,7 @@ export class MemberService {
     const token = opaqueToken();
     let handoffKey: string | null = null;
     try { const h = await this.handoff(cookie); if (h.payload.me === normalized) handoffKey = h.key_hash; } catch { /* Later account recovery does not require a handoff. */ }
-    await this.db.transaction(async db => {
+    await this.db.scope({ email: normalized, accountId: account?.account_id ? String(account.account_id) : undefined }).transaction(async db => {
       await db.query("UPDATE member_challenges SET consumed_at=$1 WHERE (account_id=$2 OR (pending_email=$3 AND handoff_key=$4)) AND kind='reset' AND consumed_at IS NULL", [new Date(this.clock()), account?.account_id || null, pending ? normalized : null, handoffKey]);
       await db.query("INSERT INTO member_challenges(token_hash,kind,account_id,pending_email,handoff_key,expires_at) VALUES($1,'reset',$2,$3,$4,$5)", [this.digest(token), account?.account_id || null, pending ? normalized : null, handoffKey, new Date(this.clock() + RESET_MS)]);
     });
@@ -189,9 +189,9 @@ export class MemberService {
     let nextCookie: string | undefined;
     // The locked challenge is revalidated below; this immutable id only plans the
     // narrow account scope before SET LOCAL ROLE for an active-account reset.
-    const [target] = await this.db.query("SELECT account_id FROM member_challenges WHERE token_hash=$1 AND kind='reset'", [this.digest(token)]);
-    await this.db.scope({ accountId: target?.account_id ? String(target.account_id) : undefined }).transaction(async db => {
-      const [row] = await db.query("SELECT * FROM member_challenges WHERE token_hash=$1 AND kind='reset' FOR UPDATE", [this.digest(token)]);
+    const [target] = await this.db.query("SELECT * FROM public.member_lookup_challenge($1,'reset')", [this.digest(token)]);
+    await this.db.scope({ accountId: target?.account_id ? String(target.account_id) : undefined, email: target?.pending_email ? String(target.pending_email) : undefined }).transaction(async db => {
+      const [row] = await db.query("SELECT * FROM public.member_lookup_challenge($1,'reset')", [this.digest(token)]);
       if (!row || row.consumed_at || new Date(String(row.expires_at)).getTime() <= this.clock()) throw new MemberError('link_unavailable');
       if (row.account_id) {
         const [updated] = await db.query(`UPDATE member_credentials SET password_salt=$1,password_hash=$2,auth_version=auth_version+1 WHERE account_id=$3
@@ -219,13 +219,13 @@ export class MemberService {
     if (cookie) await this.db.query('UPDATE member_handoffs SET expires_at=$1 WHERE key_hash=$2', [new Date(this.clock()), this.digest(cookie)]);
   }
   async logout(member: Member, cookie: string | undefined) {
-    await this.db.query('UPDATE member_credentials SET auth_version=auth_version+1 WHERE account_id=$1 AND auth_version=$2', [member.accountId, member.version]);
+    await this.db.scope({ accountId: member.accountId }).query('UPDATE member_credentials SET auth_version=auth_version+1 WHERE account_id=$1 AND auth_version=$2', [member.accountId, member.version]);
     if (cookie) await this.db.query('UPDATE member_handoffs SET expires_at=$1 WHERE key_hash=$2', [new Date(this.clock()), this.digest(cookie)]);
   }
   async change(member: Member, current: unknown, password: unknown, confirm: unknown) {
     if (!validPassword(password) || password !== confirm || typeof current !== 'string' || current.length > 256) throw new MemberError('password_invalid');
     const digest = passwordDigest(password);
-    await this.db.transaction(async db => {
+    await this.db.scope({ accountId: member.accountId }).transaction(async db => {
       const [row] = await db.query('SELECT * FROM member_credentials WHERE account_id=$1 FOR UPDATE', [member.accountId]);
       if (!row || Number(row.auth_version) !== member.version || !passwordMatches(current, row.password_salt, row.password_hash)) throw new MemberError('password_invalid');
       await db.query('UPDATE member_credentials SET password_salt=$1,password_hash=$2,auth_version=auth_version+1 WHERE account_id=$3', [digest.salt, digest.hash, member.accountId]);

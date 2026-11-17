@@ -86,18 +86,65 @@ CREATE POLICY member_candidate_create ON candidates FOR INSERT TO member_app
 -- No table-wide reads, active inserts, disabled-row updates, reassignment or deletion.
 REVOKE ALL ON user_accounts FROM member_app;
 REVOKE UPDATE(candidate_id) ON user_accounts FROM member_app;
-GRANT SELECT(id,candidate_id,status),INSERT(id,candidate_id,status),UPDATE(status) ON user_accounts TO member_app;
+REVOKE INSERT(id,candidate_id,status),UPDATE(status) ON user_accounts FROM member_app;
+DROP POLICY IF EXISTS member_account_insert ON user_accounts;
+DROP POLICY IF EXISTS member_account_activate ON user_accounts;
+GRANT SELECT(id,candidate_id,status) ON user_accounts TO member_app;
 CREATE POLICY member_account_read ON user_accounts FOR SELECT TO member_app
   USING (id::text = NULLIF(current_setting('app.member_account_id',true),''));
-CREATE POLICY member_account_insert ON user_accounts FOR INSERT TO member_app
-  WITH CHECK (status='pending'
-    AND id::text = NULLIF(current_setting('app.member_account_id',true),'')
-    AND candidate_id::text = NULLIF(current_setting('app.member_candidate_id',true),'')
-    AND EXISTS(SELECT 1 FROM candidates c WHERE c.id=user_accounts.candidate_id));
-CREATE POLICY member_account_activate ON user_accounts FOR UPDATE TO member_app
-  USING (status='pending' AND id::text = NULLIF(current_setting('app.member_account_id',true),''))
-  WITH CHECK (status='active'
-    AND id::text = NULLIF(current_setting('app.member_account_id',true),'')
-    AND candidate_id::text = NULLIF(current_setting('app.member_candidate_id',true),'')
-    AND EXISTS(SELECT 1 FROM candidates c WHERE c.id=user_accounts.candidate_id));
+
+-- Definer entry points own the only member account-write capabilities. Never use
+-- caller-controlled scope alone to authorize a write; validate explicit arguments.
+CREATE FUNCTION public.member_create_pending_account(p_account uuid,p_candidate uuid,p_email text)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE result uuid;
+BEGIN
+  IF p_account::text IS DISTINCT FROM NULLIF(current_setting('app.member_account_id',true),'')
+    OR p_candidate::text IS DISTINCT FROM NULLIF(current_setting('app.member_candidate_id',true),'')
+    OR lower(p_email) IS DISTINCT FROM NULLIF(current_setting('app.member_email',true),'')
+    OR NOT EXISTS(SELECT 1 FROM public.candidates WHERE id=p_candidate AND email_verified AND email_normalized=lower(p_email)) THEN RETURN NULL; END IF;
+  INSERT INTO public.user_accounts(id,candidate_id,status) VALUES(p_account,p_candidate,'pending')
+    ON CONFLICT(candidate_id) DO NOTHING RETURNING id INTO result;
+  RETURN result;
+END $$;
+CREATE FUNCTION public.member_activate_account(p_account uuid,p_candidate uuid)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE changed uuid;
+BEGIN
+  IF p_account::text IS DISTINCT FROM NULLIF(current_setting('app.member_account_id',true),'')
+    OR p_candidate::text IS DISTINCT FROM NULLIF(current_setting('app.member_candidate_id',true),'')
+    OR NOT EXISTS(SELECT 1 FROM public.candidates WHERE id=p_candidate AND email_verified
+      AND email_normalized=NULLIF(current_setting('app.member_email',true),'')) THEN RETURN false; END IF;
+  UPDATE public.user_accounts SET status='active'
+    WHERE id=p_account AND candidate_id=p_candidate AND status='pending' RETURNING id INTO changed;
+  RETURN changed IS NOT NULL;
+END $$;
+REVOKE ALL ON FUNCTION public.member_create_pending_account(uuid,uuid,text),public.member_activate_account(uuid,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.member_create_pending_account(uuid,uuid,text),public.member_activate_account(uuid,uuid) TO member_app;
+
+DROP POLICY member_server ON member_credentials;
+CREATE POLICY member_credentials_read ON member_credentials FOR SELECT TO member_app
+  USING (email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''));
+CREATE POLICY member_credentials_insert ON member_credentials FOR INSERT TO member_app
+  WITH CHECK (email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''));
+CREATE POLICY member_credentials_update ON member_credentials FOR UPDATE TO member_app
+  USING (email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''))
+  WITH CHECK (email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''));
+DROP POLICY member_server ON member_challenges;
+CREATE POLICY member_challenges_read ON member_challenges FOR SELECT TO member_app
+  USING (pending_email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''));
+CREATE POLICY member_challenges_insert ON member_challenges FOR INSERT TO member_app
+  WITH CHECK (pending_email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''));
+CREATE POLICY member_challenges_update ON member_challenges FOR UPDATE TO member_app
+  USING (pending_email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''))
+  WITH CHECK (pending_email=NULLIF(current_setting('app.member_email',true),'') OR account_id::text=NULLIF(current_setting('app.member_account_id',true),''));
+-- Token possession permits one exact lookup, never enumeration. The caller still
+-- checks expiry/consumption under this transaction's row lock before any mutation.
+CREATE FUNCTION public.member_lookup_challenge(p_hash text,p_kind text)
+RETURNS SETOF public.member_challenges LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+  SELECT * FROM public.member_challenges WHERE token_hash=p_hash AND kind=p_kind
+    AND p_hash ~ '^[a-f0-9]{64}$' AND p_kind IN ('verify','reset') FOR UPDATE;
+$$;
+REVOKE ALL ON FUNCTION public.member_lookup_challenge(text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.member_lookup_challenge(text,text) TO member_app;
 COMMIT;

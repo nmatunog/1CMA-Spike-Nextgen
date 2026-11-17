@@ -27,9 +27,20 @@ and actual activation under the dedicated `member_app` role. Mail links, canonic
 candidate names and program-role writes are denied to that role; member tables are
 also denied to `gia_app`, `anon` and `authenticated`.
 
-M1: `lib/member/account-rls.test.ts` runs 12 real PGlite role probes with FORCE RLS.
+Historical M1 at 4b70c49: `lib/member/account-rls.test.ts` ran 12 real PGlite role probes with FORCE RLS.
 No-scope SELECT returns no rows; scoped SELECT returns only the owned row. A disabled
 row cannot become active, an active INSERT is rejected, out-of-scope rows cannot be
 updated, and DELETE/reassignment are denied. A pending own-row insert/activation
 succeeds. Candidate reads expose only the current verified email. Service/browser
 lifecycles prove the narrower policy still supports normal signup and account use.
+
+LOW-1/LOW-2: the account role suite now has 20 SQL probes. Direct INSERT/UPDATE fail
+with permission denied even after scope tampering. Definer functions enforce verified
+candidate/email matching, pending-only creation and exact pending→active activation;
+active/disabled conflicts, wrong candidate ids and unverified candidates are refused.
+Credential/challenge reads return zero rows without scope, and scoped reads expose
+only that identity. Exact token/kind lookup, fixed search_path/owner, private function
+ACLs and denied gia_app/anon/authenticated access are tested. A local restricted
+LOGIN fixture proves RESET ROLE gains no account-write privilege under the required
+hosted login model. Three service regressions prove canonical pending/active/disabled
+conflicts return 409 unchanged; all 57 service lifecycle cases pass.

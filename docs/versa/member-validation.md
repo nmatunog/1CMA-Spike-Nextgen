@@ -1,4 +1,4 @@
-# M1 least-privilege validation — 18 November 2026
+# LOW-1 / LOW-2 validation — 18 November 2026
 
 These are Codex implementation checks, not independent QA. SPIKEDEV second-check,
 Claude exact-head Q1 and ChatGPT Rule 9 remain required. Nothing was deployed.
@@ -8,8 +8,8 @@ All commands used `SKIP_AUTO_SHIP=1 AUTO_SHIP=0` and synthetic data only.
 | --- | --- |
 | Lint | `npm run lint`: PASS |
 | Plain TypeScript | `npx tsc --noEmit`: PASS |
-| Full Vitest | Clean final `npm test -- --maxWorkers=1 --no-file-parallelism`: **50 files / 818 tests PASS**, no failures or skips |
-| Cloudflare build | `npm run build:cf`: PASS; handler gzip level 9, deterministic timestamp: **1,206,622 bytes**, below 3 MiB |
+| Full Vitest | Clean final `npm test -- --maxWorkers=1 --no-file-parallelism`: **50 files / 829 tests PASS**, no failures or skips |
+| Cloudflare build | `npm run build:cf`: PASS; handler gzip level 9, deterministic timestamp: **1,208,039 bytes**, below 3 MiB |
 | Full production-build Playwright | `MEMBER_LOCAL_DEMO=true GIA_PILOT_ENABLED=true npx playwright test --timeout=90000`: **53 PASS, 1 expected skip**; all 8 onboarding tests PASS |
 | Disabled pilot | The one skipped test was run separately against a disabled server on loopback port 3003: **1 PASS**, API returns 503 `pilot_disabled` |
 
@@ -57,7 +57,7 @@ supported browser URL, but upstream ticket/header logging and obsolete plain URL
 cannot be redacted by this Worker. See the explicit hosted-release hold and Access
 plan in `member-onboarding.md`. No new independent QA is claimed for this head.
 
-## Claude M1 correction
+## Historical Claude M1 correction at 4b70c49
 
 Brief: NEXO #32 comment 6953819929; blocked source `5b23ff0`. A fresh local PGlite
 probe applied the exact old SHA's migrations and reproduced: an unscoped SELECT
@@ -77,3 +77,20 @@ SELECT(candidate_id) remains necessary for the conflict arbiter; UPDATE(candidat
 is revoked and the member flow no longer calls the shared helper's no-op update.
 GIA, approved answers, handoff/ticket code and vendored verifier are unchanged.
 CI status is recorded on the PR at the pushed exact SHA, separately from local gates.
+
+## LOW-1 / LOW-2 follow-up
+
+Read Claude 6964000010, SPIKEDEV 6963665278 and NEXO #32 6964000311. The new account
+writes are fixed-path migration-owner SECURITY DEFINER functions with private
+EXECUTE ACLs. Direct account DML privileges/policies are removed. Credentials and
+challenges have per-command scope policies; a separate private exact-hash/kind
+lookup supports scope-free verification/reset discovery with row locking.
+
+20 direct SQL role tests and 57 service cases pass; the complete serial unit run is
+**50 files / 829 tests PASS**. The production-build browser run is **53 PASS / one
+expected skip**, with the disabled-pilot case separately **1 PASS**. Lint, plain tsc
+and build:cf pass; handler gzip-9 is **1,208,039 bytes**. The required hosted-login
+model is documentation only. No hosted database, role, provider, policy or release
+was changed. Mutable scope remains defense-in-depth for reads, not an arbitrary-SQL
+sandbox; existing server proof/password/code checks and hosted holds remain required.
+All user-protected files and the wording fingerprint are unchanged from 4b70c49.
