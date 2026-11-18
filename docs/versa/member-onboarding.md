@@ -1,5 +1,7 @@
 # Versa handoff and member onboarding — synthetic draft
 
+LOW-A and signup-only sponsor display: [credential proof follow-up](credential-proofs.md).
+
 Current database boundary and local browser instructions: [hosted hardening](hosted-hardening.md).
 The historical #27 implementation notes below are superseded where that runbook
 introduces proof-bearing functions and a real restricted-login test harness.

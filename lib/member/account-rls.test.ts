@@ -16,5 +16,5 @@ it('server-held proof and scoped data survive shared SQL probes (real LOGIN comp
   await tx.exec('SET LOCAL ROLE member_app');
   return work(async(s,args=[]) => (await tx.query<Row>(s,args)).rows);
  });} finally {await db.exec('RESET SESSION AUTHORIZATION; RESET ROLE');}};
- const report=await hostedProbes(owner,asMember,{resetRole:false});expect(report).toHaveLength(18);
+ const report=await hostedProbes(owner,asMember,{resetRole:false});expect(report).toHaveLength(30);
 });

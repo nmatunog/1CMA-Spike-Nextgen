@@ -118,7 +118,7 @@ export function EmailLink({ kind }: { kind: 'verify' | 'reset' }) {
     {error && <p role="alert">{error}</p>}<div className={styles.links}><a href="/gia">Ask GIA</a><a href="/signin">Sign in</a></div>
   </section>;
 }
-export function MemberAccount({ email, sponsor }: { email: string; sponsor: string }) {
+export function MemberAccount({ email }: { email: string }) {
   const router = useRouter();
   const [currentPassword, setCurrent] = useState(''), [password, setPassword] = useState(''), [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -132,7 +132,6 @@ export function MemberAccount({ email, sponsor }: { email: string; sponsor: stri
     finally { setCurrent(''); setPassword(''); setConfirm(''); setBusy(false); }
   }
   return <section className={styles.card}><h1>Your SPIKE account</h1><p>{email}</p>
-    {sponsor && <p>Sponsor: {sponsor}</p>}
     <p>Your account is active. This handoff grants no course access. L1/L2 entry gates still apply.</p>
     <form method="post" onSubmit={change}><h2>Change password</h2><div className={styles['fields-stack']}>
       <label className={styles.field}>Current password<input type="password" autoComplete="current-password" maxLength={256} value={currentPassword} onChange={event => setCurrent(event.target.value)} required /></label>
