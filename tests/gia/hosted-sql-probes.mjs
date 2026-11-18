@@ -1,5 +1,6 @@
 // Shared synthetic assertions for PGlite and a real restricted PostgreSQL login.
 import assert from 'node:assert/strict';
+import {credentialProbes} from './credential-sql-probes.mjs';
 import {createHmac,randomBytes} from 'node:crypto';
 export const TEST_PROOF_KEY='ab'.repeat(32);
 export function proof(action,claims,key=TEST_PROOF_KEY,exp=Date.now()+60000) {
@@ -136,5 +137,5 @@ export async function hostedProbes(owner,asMember,{resetRole=true}={}) {
   assert.equal((await asMember(ctx(0),q=>q('SELECT member_activate_account($1,$2,$3,$4::jsonb) AS ok',[a[0],c[0],h[0],JSON.stringify(proof('activate_account',claims))])))[0].ok,false);
   await owner('INSERT INTO member_private.proof_keys(id,secret) VALUES(true,$1)',[TEST_PROOF_KEY]);
  });
- return report;
+ return [...report,...await credentialProbes(owner,asMember,proof,{resetRole})];
 }

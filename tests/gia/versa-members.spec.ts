@@ -31,9 +31,15 @@ async function mailbox(email: string, kind = 'verify') {
   const [row] = await db`SELECT link FROM member_local_mail WHERE destination=${email} AND kind=${kind} ORDER BY created_at DESC LIMIT 1`;
   return String(row.link);
 }
+async function sponsorHidden(page: Page) {
+  expect(await page.locator('body').innerText()).not.toMatch(/Test Sponsor|Another Sponsor/);
+  expect(await page.content()).not.toMatch(/Test Sponsor|Another Sponsor|sponsor_first|sponsor_last/);
+  for (const path of ['/api/auth/session','/api/member']) expect(await (await page.request.get(path)).text()).not.toMatch(/Test Sponsor|Another Sponsor|sponsor_first|sponsor_last/);
+}
 async function verify(page: Page, email: string) {
   await page.goto(await mailbox(email));
   await expect(page).toHaveURL(/\/member\/verify$/);
+  await sponsorHidden(page);
   await page.getByRole('button', { name: 'Confirm my email' }).click();
   await expect(page).toHaveURL(/\/signin$/);
   await expect(page.getByLabel('Email', { exact: true })).toHaveValue(email);
@@ -50,12 +56,14 @@ async function signup(page: Page, email: string, code: string, password = PASSWO
   await page.getByRole('button', { name: 'Create my account', exact: true }).click();
   await expect(page).toHaveURL(/\/signup-done$/);
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+  await sponsorHidden(page);
   await expect(page.getByText(/No email was sent/)).toBeVisible();
 }
 async function active(page: Page, email: string, code: string) {
   await signup(page, email, code); await verify(page, email); await signin(page, email);
   await expect(page).toHaveURL(/\/member\/account$/);
   await expect(page.getByRole('heading', { name: 'Your SPIKE account' })).toBeVisible();
+  await sponsorHidden(page);
 }
 
 test('approved signup, check-email and signin screens at mobile and desktop, light and dark', async ({ page }) => {
@@ -120,11 +128,14 @@ test('root consumes query, rejects duplicate/incomplete fields, and keeps extra 
 test('new verified account, subsequent signin, forgot/reset, password change, logout and staff isolation', async ({ page, browser }) => {
   const email = 'lifecycle@example.test';
   await active(page,email,'PRO-SYN00025');
-  await expect(page.getByText('Sponsor: Test Sponsor')).toBeVisible();
+  expect(await page.locator('body').innerText()).not.toContain('Test Sponsor');
+  expect(await page.content()).not.toContain('sponsor_first');
+  expect(await (await page.request.get('/api/auth/session')).text()).not.toContain('Test Sponsor');
   await expect(page.getByText(/This handoff grants no course access/)).toBeVisible();
   const [account] = await db`SELECT account_id FROM member_credentials WHERE email=${email}`;
   expect((await db`SELECT 1 FROM program_enrollments WHERE account_id=${account.account_id}`).length).toBe(0);
-  const [claim] = await db`SELECT variable_data FROM member_handoff_claims WHERE account_id=${account.account_id}`;
+  const [claim] = await db`SELECT variable_data,sponsor_first,sponsor_last FROM member_handoff_claims WHERE account_id=${account.account_id}`;
+  expect([claim.sponsor_first,claim.sponsor_last]).toEqual(['Test','Sponsor']);
   expect(claim.variable_data).toEqual({ campaign: 'opaque-extra-synthetic-only', role: 'admin' });
   expect((await page.request.get('/api/recruitment/command')).status()).toBe(401);
   expect((await page.request.get('/api/admin/candidates')).status()).toBe(401);
@@ -138,7 +149,7 @@ test('new verified account, subsequent signin, forgot/reset, password change, lo
   await page.getByLabel('Email', { exact: true }).fill(email); await page.getByRole('button', { name: 'Request reset link' }).click();
   await expect(page.getByRole('status')).toContainText('This draft does not send email');
   const link = await mailbox(email,'reset'), token = new URLSearchParams(new URL(link).hash.slice(1)).get('token');
-  await page.goto(link); await expect(page).toHaveURL(/\/member\/reset$/);
+  await page.goto(link); await expect(page).toHaveURL(/\/member\/reset$/); await sponsorHidden(page);
   await page.getByLabel('Password', { exact: true }).fill('Synthetic-new-password-8');
   await page.getByLabel('Confirm password', { exact: true }).fill('Synthetic-new-password-8');
   await page.getByRole('button', { name: 'Reset password', exact: true }).click();
@@ -160,7 +171,8 @@ test('existing and unknown accounts have identical arrival/signup responses with
   await page.goto(await url(page, email,'FREE-SYN00027',{ sln: 'Another Sponsor' })); await expect(page).toHaveURL(/\/signup$/);
   expect((await post(page,{action:'signup',password:'Must-not-overwrite',confirm:'Must-not-overwrite'})).status()).toBe(200);
   await verify(page,email); await signin(page,email);
-  await expect(page).toHaveURL(/\/member\/account$/); await expect(page.getByText('Sponsor: Test Another Sponsor')).toBeVisible();
+  await expect(page).toHaveURL(/\/member\/account$/); expect(await page.locator('body').innerText()).not.toContain('Another Sponsor');
+  expect((await db`SELECT sponsor_last FROM member_handoff_claims WHERE account_id IN (SELECT account_id FROM member_credentials WHERE email=${email}) AND sponsor_last='Another Sponsor'`).length).toBe(1);
   expect((await db`SELECT 1 FROM member_credentials WHERE email=${email}`).length).toBe(1);
 });
 
