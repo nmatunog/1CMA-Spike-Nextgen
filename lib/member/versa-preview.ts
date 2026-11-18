@@ -1,0 +1,25 @@
+/** Synthetic welcome context only. Never authentication, code validation or attribution. */
+export const VERSA_PREVIEW_COOKIE = 'spike_versa_preview';
+export const VERSA_FIELDS = ['mfn', 'mln', 'me', 'sfn', 'sln', 'code'] as const;
+export type VersaPreview = Record<typeof VERSA_FIELDS[number], string>;
+export function previewHost(host: string) {
+  return host === 'nextgen-staging.nmatunog.workers.dev' ||
+    (process.env.MEMBER_LOCAL_DEMO === 'true' && ['localhost', '127.0.0.1'].includes(host.split(':')[0]));
+}
+export function parseVersaPreview(params: URLSearchParams): VersaPreview | null {
+  if (params.has('handoff')) return null;
+  const result = {} as VersaPreview;
+  for (const key of VERSA_FIELDS) {
+    const values = params.getAll(key);
+    if (values.length !== 1 || !values[0].trim() || values[0].length > 120 || /[\u0000-\u001f\u007f]/.test(values[0])) return null;
+    result[key] = values[0].trim();
+  }
+  // This receiver deliberately accepts only fictional staging fixtures.
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@example\.test$/i.test(result.me) ||
+      !/^(FREE|PRO)-SYN[0-9]{5}$/.test(result.code)) return null;
+  return result;
+}
+export function decodeVersaPreview(value: string | undefined): VersaPreview | null {
+  if (!value || value.length > 3000) return null;
+  try { return parseVersaPreview(new URLSearchParams(value)); } catch { return null; }
+}

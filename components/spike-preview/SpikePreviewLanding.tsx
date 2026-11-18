@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { GiaChat } from '@/components/gia/GiaChat';
 import { GiaAvatar } from '@/components/gia/GiaAvatar';
 import type { RecruiterRegistration } from '@/lib/gia/recruiter-registration';
+import type { VersaPreview } from '@/lib/member/versa-preview';
 import styles from './spike-preview.module.css';
 
 function Icon({ kind }: { kind: 'moon' | 'sun' | 'send' | 'spike' | 'book' }) {
@@ -20,7 +21,8 @@ function Icon({ kind }: { kind: 'moon' | 'sun' | 'send' | 'spike' | 'book' }) {
   );
 }
 
-export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, children }: {
+export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, children, versaPreview }: {
+  versaPreview?: VersaPreview | null;
   children?: ReactNode;
   fontClass?: string;
   defaultRecruiter?: RecruiterRegistration | null;
@@ -66,7 +68,7 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, childr
   }
 
   return <>
-    <div className={`${styles.root} ${children ? styles.memberRoot : ''} ${fontClass ?? ''}`} data-theme={theme} inert={giaOpen}>
+    <div className={`${styles.root} ${children || versaPreview ? styles.memberRoot : ''} ${fontClass ?? ''}`} data-theme={theme} inert={giaOpen}>
       <a className={styles.skipLink} href="#main">Skip to content</a>
       <header>
         <div className={styles.brands}>
@@ -78,6 +80,18 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, childr
         </button>
       </header>
       <main id="main" tabIndex={-1}>
+        {versaPreview && <section className={styles.versaWelcome} aria-labelledby="versa-title">
+          <h1 id="versa-title">Welcome, {versaPreview.mfn}.</h1>
+          <p>Your details arrived from Versa. Let’s explore your next step with GIA.</p>
+          <dl>{([
+            ['Member', `${versaPreview.mfn} ${versaPreview.mln}`],
+            ['Email / intended username', versaPreview.me],
+            ['Sponsor', `${versaPreview.sfn} ${versaPreview.sln}`],
+            ['Access code', versaPreview.code],
+          ]).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          <p>Synthetic staging preview · These details are unverified. No account or access has been activated.</p>
+          <button type="button" onClick={() => openGia()}>Continue with GIA</button>
+        </section>}
         {children ?? <>
         <section className={styles.hero} aria-labelledby="hero-title" data-testid="gia-hero">
           <div className={styles['hero-photo']}>

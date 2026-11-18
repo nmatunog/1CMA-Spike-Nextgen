@@ -34,7 +34,7 @@ test('existing approved value is available before a signup or contact request', 
   page.on('request', request => { if (request.url().endsWith('/api/gia') && request.method() === 'POST') actions.push(request.postDataJSON().action); });
   await page.goto('/gia');
   await page.getByRole('button', { name: 'What is this?', exact: true }).click();
-  await expect(page.getByText('KP-REC-09 · v0.1', { exact: true })).toBeVisible();
+  await expect(page.getByText('KP-REC-09 · v0.1', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/SPIKE is a guided pathway from 1CMA Cebu/)).toBeVisible();
   await expect(page.getByText(/GIYA/)).toHaveCount(0);
   await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);

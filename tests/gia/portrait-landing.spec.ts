@@ -61,14 +61,14 @@ test('What is SPIKE and literacy cards reach distinct approved answers without c
   await page.getByRole('button', { name: 'What is SPIKE? Hear it from GIA' }).click();
   const dialog = page.getByRole('dialog', { name: 'GIA guide' });
   await expect(dialog.getByText(INTRO, { exact: true })).toBeVisible();
-  await expect(dialog.getByText('KP-REC-09 · v0.1', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('KP-REC-09 · v0.1', { exact: true })).toHaveCount(0);
   await expect(dialog.getByLabel('Name', { exact: true })).toHaveCount(0);
   await expect(dialog.getByText(/GIYA/)).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'What is SPIKE? Hear it from GIA' })).toBeFocused();
   await page.getByRole('button', { name: 'Free Financial Literacy Start learning, free' }).click();
-  await expect(dialog.getByText('KP-LIT-01 · v0.2', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('KP-LIT-01 · v0.2', { exact: true })).toHaveCount(0);
   await expect(dialog.getByText(INTRO, { exact: true })).toHaveCount(0);
   await expect(dialog.getByLabel('Name', { exact: true })).toHaveCount(0);
 });

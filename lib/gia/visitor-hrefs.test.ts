@@ -48,11 +48,11 @@ describe('visitor href guard', () => {
     }
   });
 
-  it('renders an internal governance citation as plain text', () => {
+  it('hides internal governance citation metadata', () => {
     const html = renderToStaticMarkup(createElement(GiaCitation, {
       citation: { id: 'KP-LIT-01', version: '0.2', source: 'https://github.com/nmatunog/NEXO/issues/27' },
     }));
-    expect(html).toContain('KP-LIT-01 · v0.2');
+    expect(html).toBe('');
     expect(hrefsFromHtml(html)).toEqual([]);
   });
   it('blocks generic join-us-now and iRecruit from becoming visitor hrefs', () => {
@@ -81,13 +81,13 @@ describe('visitor href guard', () => {
     expect(html).not.toMatch(/irecruit/i);
   });
 
-  it('renders GIA join-AIA citation as plain text when source is generic join-us-now', () => {
+  it('hides citation metadata when source is generic join-us-now', () => {
     const html = renderToStaticMarkup(
       createElement(GiaCitation, {
         citation: { id: 'KP-REC-01', version: '0.3', source: GENERIC_JOIN },
       }),
     );
-    expect(html).toContain('KP-REC-01 · v0.3');
+    expect(html).toBe('');
     expect(html).not.toMatch(/<a\b/i);
     expect(hrefsFromHtml(html)).toEqual([]);
     expect(blockedVisitorHrefs(hrefsFromHtml(html))).toEqual([]);
@@ -99,7 +99,8 @@ describe('visitor href guard', () => {
         citation: { id: 'KP-REC-03', version: '0.1', source: AIA_REF_PARTNER },
       }),
     );
-    expect(html).toContain('KP-REC-03 · v0.1');
+    expect(html).toContain('Source');
+    expect(html).not.toContain('KP-REC-03');
     expect(hrefsFromHtml(html)).toEqual([AIA_REF_PARTNER]);
     expect(blockedVisitorHrefs(hrefsFromHtml(html))).toEqual([]);
     expect(html).not.toMatch(/join-us-now|irecruit/i);

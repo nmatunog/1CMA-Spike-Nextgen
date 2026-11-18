@@ -28,7 +28,7 @@ for (const example of [
       intent: 'answer', language: example.lang, text: application.answers[example.lang],
       citation: { id: 'KP-REC-08', version: '0.1' },
     });
-    await expect(page.getByText('KP-REC-08 · v0.1', { exact: true })).toBeVisible();
+    await expect(page.getByText('KP-REC-08 · v0.1', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'KP-REC-08 · v0.1' })).toHaveCount(0);
   });
 }
