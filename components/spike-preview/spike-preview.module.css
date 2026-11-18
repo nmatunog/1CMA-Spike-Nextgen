@@ -391,3 +391,7 @@
 @media (max-width: 900px) { .root .icon .cardAvatar { width: 52px; height: 52px; } }
 
 .optionTitle, .optionCaption { display: block; }
+
+.root.memberRoot { height: auto; min-height: 100dvh; }
+.root.memberRoot main { flex: 1 0 auto; align-items: center; }
+@media(max-width: 900px) { .root.memberRoot main:has([data-center-mobile]) { justify-content: center; } }
