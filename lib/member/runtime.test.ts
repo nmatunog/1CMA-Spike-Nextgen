@@ -17,3 +17,11 @@ it.each([
 ])('fails closed before storage for %s', (key,value) => {
   vi.stubEnv(key,value); expect(() => memberService()).toThrow('member_dependency_unavailable');
 });
+
+it.each([
+ ['MEMBER_DATABASE_URL',''],['MEMBER_DATABASE_URL','postgres://postgres@127.0.0.1:55432/postgres'],
+ ['MEMBER_DB_PROOF_SECRET',''],['MEMBER_DB_PROOF_SECRET','short'],
+])('fails closed before connecting when restricted member wiring %s is unset/invalid',(key,value)=>{
+ vi.stubEnv('MEMBER_DATABASE_URL','postgres://member_runtime@127.0.0.1:55432/postgres');vi.stubEnv('MEMBER_DB_PROOF_SECRET','ab'.repeat(32));
+ vi.stubEnv(key,value);expect(()=>memberService()).toThrow('member_storage_unconfigured');
+});

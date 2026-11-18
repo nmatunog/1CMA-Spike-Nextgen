@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const ORIGIN = process.env.GIA_TEST_URL || 'http://127.0.0.1:3002';
 const PASSWORD = 'Synthetic-member-password-8!';
-const directDb = postgres('postgres://postgres:postgres@127.0.0.1:55432/postgres', { max: 1, prepare: false });
+const directDb = postgres(process.env.GIA_TEST_DATABASE_URL || 'postgres://postgres:postgres@127.0.0.1:55432/postgres', { max: 1, prepare: false });
 // PGlite shares one backend across sockets. Keep each test query's wire messages
 // together so an app request cannot replace its unnamed portal between Bind/Execute.
 async function db(parts: TemplateStringsArray, ...values: unknown[]) {

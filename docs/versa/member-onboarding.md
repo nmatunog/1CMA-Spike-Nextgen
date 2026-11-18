@@ -1,5 +1,9 @@
 # Versa handoff and member onboarding — synthetic draft
 
+Current database boundary and local browser instructions: [hosted hardening](hosted-hardening.md).
+The historical #27 implementation notes below are superseded where that runbook
+introduces proof-bearing functions and a real restricted-login test harness.
+
 Owner sources: [brief 6943631448](https://github.com/nmatunog/NEXO/issues/32#issuecomment-6943631448) and [superseding decisions 6944359204](https://github.com/nmatunog/NEXO/issues/32#issuecomment-6944359204), 17 November 2026. Rule 9 fixes: [owner-directed brief 6948767837](https://github.com/nmatunog/NEXO/issues/32#issuecomment-6948767837). #27 is rebased onto the #26 merge on `mvp01/staging-cf`, `f67ab99138f3a066d1d56da923c82959a2faaaf9`. #26 is not changed.
 
 ## Reuse and boundaries
@@ -82,7 +86,7 @@ Verification/reset challenges store HMAC digests. The local synthetic mail sink 
 All commands use `SKIP_AUTO_SHIP=1 AUTO_SHIP=0`.
 
 1. Install existing locked dependencies and build with `NEXT_FONT_GOOGLE_MOCKED_RESPONSES="$PWD/tests/gia/font-mock.cjs" npm run build:cf`.
-2. `node tests/gia/member-demo-server.mjs` starts an ephemeral synthetic PGlite DB on loopback and the app at `http://127.0.0.1:3002`. This explicitly enables the local-only member adapters and generates temporary secrets. It never contacts Supabase, a real mailbox, a verifier endpoint, or a deployment service.
+2. Start the throwaway real PostgreSQL cluster and member harness using [the hardening runbook](hosted-hardening.md). The member browser harness now requires an actual restricted LOGIN; the former owner-connected PGlite browser harness is superseded. It explicitly enables local-only adapters and generates temporary secrets. No hosted service or real mailbox is contacted.
 3. `node tests/gia/member-sample-link.mjs` signs a fictional body with the local
 issuer secret from the ignored `work/member-issuer.json`, then prints a fresh usable
 `http://127.0.0.1:3002/?handoff=...` link. The six fields/code never appear in that URL.
@@ -91,7 +95,7 @@ it as a deployed integration. FREE/PRO SYN00001 and SYN00006–40 are available 
 inventory; 00002 expired, 00003 reused, 00004 revoked, 00005 wrong owner, 00099 unknown.
 
 4. Read `member_local_mail` directly from the local DB for test links; there is deliberately no public mail/debug endpoint. Playwright does this only on `127.0.0.1:55432`.
-5. `MEMBER_LOCAL_DEMO=true GIA_PILOT_ENABLED=true npx playwright test --timeout=90000` exercises the full browser suite. Unit tests inject an isolated PGlite store and the same pinned verifier.
+5. Run Playwright with the fixture owner URL as `GIA_TEST_DATABASE_URL`, as shown in the hardening runbook. Browser member requests use the separate restricted `member_runtime` login. Unit tests still inject an isolated PGlite store and the same pinned verifier.
 
 ## Open dependencies / release hold
 
@@ -172,43 +176,25 @@ and a successful own-row pending→active transition. The ordinary member servic
 and browser suites also exercise complete signup/sign-in/reset/link lifecycles.
 No handoff, ticket, approved wording or verifier logic is changed by this correction.
 
-## LOW-1 / LOW-2 hosted holds and fixed database capabilities
+## Database hardening and hosted holds
 
-The member connection for hosted use **must** be a dedicated LOGIN-enabled,
-non-owner, NOSUPERUSER, non-BYPASSRLS login whose only role membership/privileges
-come from `member_app`. It must not own tables or functions, inherit an owner/staff
-role, have CREATE/CREATEROLE privileges, or share the existing owner/GIA login.
-Then RESET ROLE returns only to that restricted login and gains no owner rights.
-This is a hosted wiring requirement, not a deployed change: no hosted login/role,
-password, membership or database was created or modified by this draft.
+The merged #27 LOW-1/LOW-2 implementation is superseded by draft migration
+`0013_member_hosted_hardening.sql`: the older unproved account/challenge function
+signatures are no longer executable by `member_app`. See [the hardening runbook](hosted-hardening.md)
+for proof-bearing capabilities, per-command handoff/pending scope, actual LOGIN
+checks, synthetic PostgreSQL evidence and the remaining hosted holds.
 
-`member_app` has no direct INSERT or UPDATE privilege on `user_accounts`. The only
-account writes are migration-owner SECURITY DEFINER functions with fixed
-`search_path = pg_catalog, public`, explicit `public` table references and no dynamic
-SQL. `member_create_pending_account(uuid,uuid,text)` checks the bound arguments and
-verified candidate/email relationship and inserts pending only; conflicts return
-null. `member_activate_account(uuid,uuid)` matches both ids and changes pending to
-active only, returning false for a disabled/active/mismatched row. PUBLIC execute is
-revoked; only `member_app` is granted execute. The migration owner must retain the
-authorized rights needed for these fixed operations; the connecting login must not
-be that owner. No broad account write policy remains.
+A dedicated `member_runtime` LOGIN must have only `member_app` membership, no
+ownership and no superuser/BYPASSRLS/role-creation/database-creation privileges.
+The runtime checks these properties and refuses an absent or unsafe member storage
+configuration. RESET ROLE returns to this same restricted login. Migration 0013
+creates the role without a password, but **has not been applied to any hosted DB**.
+The migration leaves the private proof-key table empty, so account capabilities
+fail closed until separately authorized owner provisioning. No hosted credential,
+key, membership or infrastructure change is included.
 
-Credentials now have per-command email/account scope policies. Challenges likewise
-use account/pending-email scope; verification rows carry their pending email.
-Scope-free verification/reset-token discovery uses only the private fixed-path
-`member_lookup_challenge(hash,kind)` function. It accepts one exact 64-hex token hash
-and kind, returns at most one row and locks it in the calling transaction. The
-service still revalidates expiry and consumption under that lock, preserving single
-use. Every credential reader/writer and challenge mutation establishes its scope.
-
-These capabilities are not an arbitrary-SQL sandbox: custom settings remain mutable
-and a scoped read filter is defense-in-depth. The fixed functions enforce their
-argument/state invariants, but do not independently prove email ownership, partner
-authenticity or code eligibility; the unchanged parameterised service flow supplies
-those checks. Do not expose the DB login/functions as public RPCs. Hosted Access,
-mail-provider, authoritative-verifier and identity-placement holds still apply.
-The RESET ROLE regression creates only an ephemeral local PGlite login fixture.
-
-The current local synthetic harness still bootstraps using its local owner login;
-the restricted-login RESET ROLE probe is a separate ephemeral fixture. This draft
-does not claim that the local owner connection itself prevents RESET ROLE.
+GUC-scoped reads remain defense in depth; mutable settings are not an arbitrary-SQL
+identity sandbox. Account writes and handoff/ticket mutations additionally require
+an expiring, argument-bound, single-use server HMAC capability. The private key and
+nonce ledger cannot be read or changed by either member SQL role. Host deployment,
+Access, real mail, authoritative verification and identity-placement holds remain.

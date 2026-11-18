@@ -16,6 +16,14 @@ type StoredHandoff = Row & { key_hash: string; payload: Handoff; expires_at: Dat
 export class MemberService {
   constructor(public db: MemberDb, public secret: string, public origin: string, public mail: MemberMailer, public verifier: CodeVerifier, public clock = () => Date.now()) {}
   digest(value: string) { return tokenHash(value, this.secret); }
+  private async writeHandoff(db: MemberDb, action: string, key: string, data: Handoff | null=null, source: string | null=null, account: string | null=null, expires: number | null=null) {
+    const proof=db.proof('handoff_'+action,{key,data,source,account,expires});
+    const [row]=await db.query('SELECT public.member_write_handoff($1,$2,$3::jsonb,$4,$5,$6,$7::jsonb) AS ok',[action,key,JSON.stringify(data),source,account,expires,JSON.stringify(proof)]);
+    if (!row?.ok) throw new MemberError('handoff_unavailable');
+  }
+  private lookupChallenge(hash: string, kind: string, db=this.db) {
+    return db.query('SELECT * FROM public.member_lookup_challenge($1,$2,$3::jsonb)',[hash,kind,JSON.stringify(db.proof('lookup_challenge',{hash,kind}))]);
+  }
   async limit(subject: string, maximum = 30) {
     const now = new Date(this.clock()), expires = new Date(this.clock() + 15 * 60_000);
     const [row] = await this.db.query(`INSERT INTO member_rate_limits(key_hash,hits,expires_at) VALUES($1,1,$2)
@@ -26,15 +34,16 @@ export class MemberService {
   async prepare(payload: Handoff) {
     const token = opaqueToken();
     await this.db.query('DELETE FROM member_pending_signups WHERE expires_at <= $1', [new Date(this.clock())]);
-    await this.db.query('DELETE FROM member_handoffs WHERE expires_at <= $1', [new Date(this.clock())]);
     await this.db.query('DELETE FROM member_rate_limits WHERE expires_at <= $1', [new Date(this.clock())]);
     await this.db.query("DELETE FROM member_local_mail WHERE created_at < $1", [new Date(this.clock() - 60 * 60_000)]);
-    await this.db.query('INSERT INTO member_handoffs(key_hash,payload,expires_at) VALUES($1,$2::jsonb,$3)', [this.digest(token), JSON.stringify(payload), new Date(this.clock() + HANDOFF_MS)]);
+    await this.writeHandoff(this.db,'prepare',this.digest(token),payload,null,null,this.clock()+HANDOFF_MS);
     return token;
   }
   async handoff(token: string | undefined, db = this.db, lock = false): Promise<StoredHandoff> {
     if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new MemberError('handoff_unavailable');
-    const [row] = await db.query<StoredHandoff>(`SELECT * FROM member_handoffs WHERE key_hash=$1 ${lock ? 'FOR UPDATE' : ''}`, [this.digest(token)]);
+    const connection=db===this.db ? db.scope({handoffKey:this.digest(token)}) : db;
+    void lock; // Immutable handoff rows are locked inside the proof-gated write function.
+    const [row] = await connection.query<StoredHandoff>('SELECT * FROM member_handoffs WHERE key_hash=$1', [this.digest(token)]);
     if (!row || new Date(row.expires_at).getTime() <= this.clock()) throw new MemberError('handoff_unavailable');
     return row;
   }
@@ -53,16 +62,15 @@ export class MemberService {
   async verifyEmail(token: unknown) {
     if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) throw new MemberError('link_unavailable');
     const next = opaqueToken();
-    const [target] = await this.db.query("SELECT * FROM public.member_lookup_challenge($1,'verify')", [this.digest(token)]);
+    const [target] = await this.lookupChallenge(this.digest(token),'verify');
     await this.db.scope({ email: target?.pending_email ? String(target.pending_email) : undefined }).transaction(async db => {
-      const [challenge] = await db.query("SELECT * FROM public.member_lookup_challenge($1,'verify')", [this.digest(token)]);
+      const [challenge] = await this.lookupChallenge(this.digest(token),'verify',db);
       if (!challenge || challenge.consumed_at || new Date(String(challenge.expires_at)).getTime() <= this.clock()) throw new MemberError('link_unavailable');
-      const [h] = await db.query<StoredHandoff>('SELECT * FROM member_handoffs WHERE key_hash=$1 FOR UPDATE', [challenge.handoff_key]);
+      const [h] = await db.query<StoredHandoff>('SELECT * FROM member_handoffs WHERE key_hash=$1', [challenge.handoff_key]);
       if (!h || new Date(h.expires_at).getTime() <= this.clock() || h.claimed_by) throw new MemberError('link_unavailable');
       // Email proof rotates the handoff. Its original holder cannot choose the victim's password.
-      await db.query('INSERT INTO member_handoffs(key_hash,payload,verified_at,expires_at) VALUES($1,$2::jsonb,$3,$4)', [this.digest(next), JSON.stringify(h.payload), new Date(this.clock()), new Date(this.clock() + HANDOFF_MS)]);
+      await this.writeHandoff(db,'rotate',this.digest(next),null,h.key_hash,null,this.clock()+HANDOFF_MS);
       await db.query('UPDATE member_pending_signups SET handoff_key=$1 WHERE handoff_key=$2', [this.digest(next), h.key_hash]);
-      await db.query('UPDATE member_handoffs SET expires_at=$1 WHERE key_hash=$2', [new Date(this.clock()), h.key_hash]);
       await db.query('UPDATE member_challenges SET consumed_at=$1 WHERE token_hash=$2', [new Date(this.clock()), this.digest(token)]);
     });
     return next;
@@ -94,14 +102,15 @@ export class MemberService {
     return this.completePending(normalized, proofCookie, String(pending.password_hash));
   }
   async pending(handoffKey: string, db = this.db) {
-    const [row] = await db.query('SELECT * FROM member_pending_signups WHERE handoff_key=$1 AND expires_at > $2', [handoffKey, new Date(this.clock())]);
+    const connection=db===this.db ? db.scope({handoffKey}) : db;
+    const [row] = await connection.query('SELECT * FROM member_pending_signups WHERE handoff_key=$1 AND expires_at > $2', [handoffKey, new Date(this.clock())]);
     return row;
   }
   private async completePending(email: string, cookie: string, passwordHash: string): Promise<Member> {
     const [plannedCandidate] = await this.db.scope({ email }).query('SELECT id FROM candidates WHERE email_normalized=$1 AND email_verified', [email]);
     const candidateId = plannedCandidate ? String(plannedCandidate.id) : randomUUID();
     const accountId = randomUUID();
-    return this.db.scope({ email, candidateId, accountId }).transaction(async db => {
+    return this.db.scope({ email, candidateId, accountId, handoffKey:this.digest(cookie) }).transaction(async db => {
       await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`member:${email}`]);
       const h = await this.handoff(cookie, db, true);
       const [pending] = await db.query('SELECT * FROM member_pending_signups WHERE handoff_key=$1 AND expires_at > $2 FOR UPDATE', [h.key_hash, new Date(this.clock())]);
@@ -112,12 +121,12 @@ export class MemberService {
       // scope rather than widening this transaction's identity.
       if (existing && String(existing.id) !== candidateId) throw new MemberError('sign_in_required', 409);
       if (!existing) await db.query('INSERT INTO candidates(id,name,email,email_verified,created_at,capture_channel) VALUES($1,$2,$3,true,$4,$5)', [candidateId, `${h.payload.mfn} ${h.payload.mln}`, email, new Date(this.clock()), 'versa_stub']);
-      const [account] = await db.query('SELECT public.member_create_pending_account($1,$2,$3) AS id', [accountId, candidateId, email]);
+      const [account] = await db.query('SELECT public.member_create_pending_account($1,$2,$3,$4,$5::jsonb) AS id', [accountId, candidateId, email,h.key_hash,JSON.stringify(db.proof('create_account',{account:accountId,candidate:candidateId,email,handoff:h.key_hash}))]);
       if (!account?.id) throw new MemberError('sign_in_required', 409);
       await this.checkCode(h, accountId);
       await db.query('INSERT INTO member_credentials(account_id,email,password_salt,password_hash,email_verified_at) VALUES($1,$2,$3,$4,$5)', [accountId, email, pending.password_salt, pending.password_hash, new Date(this.clock())]);
       await this.claim(db, h, accountId);
-      const [activation] = await db.query('SELECT public.member_activate_account($1,$2) AS activated', [accountId, candidateId]);
+      const [activation] = await db.query('SELECT public.member_activate_account($1,$2,$3,$4::jsonb) AS activated', [accountId, candidateId,h.key_hash,JSON.stringify(db.proof('activate_account',{account:accountId,candidate:candidateId,handoff:h.key_hash}))]);
       if (!activation?.activated) throw new MemberError('sign_in_required',409);
       await db.query('DELETE FROM member_pending_signups WHERE handoff_key=$1', [h.key_hash]);
       return { accountId, email, version: 1 };
@@ -138,14 +147,14 @@ export class MemberService {
     if (owner?.account_id !== accountId) throw new MemberError('handoff_not_verified');
     await db.query(`INSERT INTO member_handoff_claims(handoff_key,account_id,code_digest,sponsor_first,sponsor_last,variable_data)
       VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(handoff_key) DO NOTHING`, [h.key_hash, accountId, codeDigest, h.payload.sfn, h.payload.sln, JSON.stringify(h.payload.extra)]);
-    await db.query('UPDATE member_handoffs SET claimed_by=$1 WHERE key_hash=$2', [accountId, h.key_hash]);
+    await this.writeHandoff(db,'claim',h.key_hash,null,null,accountId);
   }
   async signup(cookie: string | undefined, password: unknown, confirm: unknown) {
     if (!validPassword(password) || password !== confirm) throw new MemberError('password_invalid');
     const digest = passwordDigest(password);
     const incoming = await this.handoff(cookie);
     await this.limit(`signup:${incoming.payload.me}`, 10);
-    await this.db.transaction(async db => {
+    await this.db.scope({email:incoming.payload.me,handoffKey:incoming.key_hash}).transaction(async db => {
       const h = await this.handoff(cookie, db, true);
       if (h.claimed_by) throw new MemberError('handoff_unavailable');
       await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`member:${h.payload.me}`]);
@@ -157,7 +166,7 @@ export class MemberService {
     await this.requestVerification(cookie);
   }
   async link(cookie: string | undefined, member: Member) {
-    return this.db.scope({ accountId: member.accountId }).transaction(async db => {
+    return this.db.scope({ accountId: member.accountId,email:member.email }).transaction(async db => {
       const [account] = await db.query('SELECT c.auth_version,c.email,a.status FROM member_credentials c JOIN user_accounts a ON a.id=c.account_id WHERE c.account_id=$1 FOR UPDATE OF c', [member.accountId]);
       if (!account || account.status !== 'active' || Number(account.auth_version) !== member.version || account.email !== member.email) throw new MemberError('sign_in_required', 401);
       const h = await this.handoff(cookie, db, true);
@@ -189,9 +198,9 @@ export class MemberService {
     let nextCookie: string | undefined;
     // The locked challenge is revalidated below; this immutable id only plans the
     // narrow account scope before SET LOCAL ROLE for an active-account reset.
-    const [target] = await this.db.query("SELECT * FROM public.member_lookup_challenge($1,'reset')", [this.digest(token)]);
+    const [target] = await this.lookupChallenge(this.digest(token),'reset');
     await this.db.scope({ accountId: target?.account_id ? String(target.account_id) : undefined, email: target?.pending_email ? String(target.pending_email) : undefined }).transaction(async db => {
-      const [row] = await db.query("SELECT * FROM public.member_lookup_challenge($1,'reset')", [this.digest(token)]);
+      const [row] = await this.lookupChallenge(this.digest(token),'reset',db);
       if (!row || row.consumed_at || new Date(String(row.expires_at)).getTime() <= this.clock()) throw new MemberError('link_unavailable');
       if (row.account_id) {
         const [updated] = await db.query(`UPDATE member_credentials SET password_salt=$1,password_hash=$2,auth_version=auth_version+1 WHERE account_id=$3
@@ -203,24 +212,23 @@ export class MemberService {
       }
       await db.query('UPDATE member_challenges SET consumed_at=$1 WHERE token_hash=$2', [new Date(this.clock()), this.digest(token)]);
       if (row.handoff_key) {
-        const [h] = await db.query<StoredHandoff>('SELECT * FROM member_handoffs WHERE key_hash=$1 FOR UPDATE', [row.handoff_key]);
+        const [h] = await db.query<StoredHandoff>('SELECT * FROM member_handoffs WHERE key_hash=$1', [row.handoff_key]);
         const credential = row.pending_email ? { email: row.pending_email } : (await db.query('SELECT email FROM member_credentials WHERE account_id=$1', [row.account_id]))[0];
         if (h && !h.claimed_by && new Date(h.expires_at).getTime() > this.clock() && credential?.email === h.payload.me) {
           nextCookie = opaqueToken();
-          await db.query('INSERT INTO member_handoffs(key_hash,payload,verified_at,expires_at) VALUES($1,$2::jsonb,$3,$4)', [this.digest(nextCookie), JSON.stringify(h.payload), new Date(this.clock()), new Date(this.clock()+HANDOFF_MS)]);
+          await this.writeHandoff(db,'rotate',this.digest(nextCookie),null,h.key_hash,null,this.clock()+HANDOFF_MS);
           await db.query('UPDATE member_pending_signups SET handoff_key=$1 WHERE handoff_key=$2', [this.digest(nextCookie), h.key_hash]);
-          await db.query('UPDATE member_handoffs SET expires_at=$1 WHERE key_hash=$2', [new Date(this.clock()), h.key_hash]);
-        }
+            }
       }
     });
     return nextCookie;
   }
   async expire(cookie: string | undefined) {
-    if (cookie) await this.db.query('UPDATE member_handoffs SET expires_at=$1 WHERE key_hash=$2', [new Date(this.clock()), this.digest(cookie)]);
+    if (cookie) await this.writeHandoff(this.db,'expire',this.digest(cookie));
   }
   async logout(member: Member, cookie: string | undefined) {
     await this.db.scope({ accountId: member.accountId }).query('UPDATE member_credentials SET auth_version=auth_version+1 WHERE account_id=$1 AND auth_version=$2', [member.accountId, member.version]);
-    if (cookie) await this.db.query('UPDATE member_handoffs SET expires_at=$1 WHERE key_hash=$2', [new Date(this.clock()), this.digest(cookie)]);
+    if (cookie) await this.writeHandoff(this.db,'expire',this.digest(cookie));
   }
   async change(member: Member, current: unknown, password: unknown, confirm: unknown) {
     if (!validPassword(password) || password !== confirm || typeof current !== 'string' || current.length > 256) throw new MemberError('password_invalid');
