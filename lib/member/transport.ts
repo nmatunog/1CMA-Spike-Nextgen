@@ -26,15 +26,18 @@ export async function issueTicket(service: MemberService, payload: Handoff, nonc
   const id = opaqueToken(), expires = service.clock() + TICKET_MS;
   const value = `${id}.${expires}`;
   const ticket = `${value}.${mac(service.secret, `versa-ticket-v1:${value}`)}`;
-  await service.db.query('DELETE FROM member_arrival_tickets WHERE expires_at <= $1', [new Date(service.clock())]);
-  await service.db.query('INSERT INTO member_arrival_tickets(ticket_hash,issuer_nonce,payload,expires_at) VALUES($1,$2,$3::jsonb,$4)', [service.digest(ticket), service.digest(`issuer:${nonce}`), JSON.stringify(payload), new Date(expires)]);
+  const hash=service.digest(ticket), issuer=service.digest(`issuer:${nonce}`);
+  const proof=service.db.proof('issue_ticket',{hash,issuer_nonce:issuer,data:payload,expires});
+  const [row]=await service.db.query('SELECT public.member_issue_ticket($1,$2,$3::jsonb,$4,$5::jsonb) AS ok',[hash,issuer,JSON.stringify(payload),expires,JSON.stringify(proof)]);
+  if (!row?.ok) throw new MemberError('handoff_unavailable');
   return ticket;
 }
 export async function consumeTicket(service: MemberService, ticket: string) {
   const match = /^([a-f0-9]{64})\.(\d{13})\.([a-f0-9]{64})$/.exec(ticket);
   if (!match || Number(match[2]) <= service.clock() || Number(match[2]) > service.clock()+TICKET_MS || !matches(match[3], mac(service.secret, `versa-ticket-v1:${match[1]}.${match[2]}`))) throw new MemberError('handoff_unavailable');
   // UPDATE ... RETURNING is atomic: refresh, parallel requests and replay cannot reuse it.
-  const [row] = await service.db.query("UPDATE member_arrival_tickets SET consumed_at=$1 WHERE ticket_hash=$2 AND consumed_at IS NULL AND expires_at > $1 RETURNING payload", [new Date(service.clock()), service.digest(ticket)]);
+  const hash=service.digest(ticket);
+  const [row] = await service.db.query('SELECT public.member_consume_ticket($1,$2::jsonb) AS payload',[hash,JSON.stringify(service.db.proof('consume_ticket',{hash}))]);
   if (!row) throw new MemberError('handoff_unavailable');
   return service.prepare(row.payload as Handoff);
 }

@@ -8,8 +8,10 @@ import { syntheticVerifier } from './verifier';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { authenticatedPayload, consumeTicket, issueTicket, issuerSignature, TICKET_MS } from './transport';
 import { passwordMatches } from './security';
+import { signDbProof } from './db-proof';
 import { SCOPE_SQL, type MemberDb, type MemberScope, type Row } from './db';
 
+const PROOF_KEY='ab'.repeat(32);
 const SECRET = 'synthetic-member-test-secret-only-123456789';
 const ORIGIN = 'http://127.0.0.1:3002';
 const PASSWORD = 'Synthetic-pass-8!';
@@ -17,13 +19,14 @@ let db: PGlite, port: MemberDb, service: MemberService;
 let clock = Date.now();
 function adapter(client: PGlite): MemberDb {
   return {
+    proof: (action,claims)=>signDbProof(PROOF_KEY,action,claims),
     scope(identity: MemberScope) {
       const transaction = async <T>(work: (connection: MemberDb) => Promise<T>) => client.transaction(async tx => {
-        await tx.query(SCOPE_SQL, [identity.email || '', identity.accountId || '', identity.candidateId || '']);
+        await tx.query(SCOPE_SQL, [identity.email || '', identity.accountId || '', identity.candidateId || '',identity.handoffKey || '']);
         await tx.exec('SET LOCAL ROLE member_app');
         return work(adapter(tx as unknown as PGlite));
       });
-      return { query: (text, args) => transaction(db => db.query(text, args)), transaction, scope: (next: MemberScope) => adapter(client).scope(next) };
+      return { query: (text, args) => transaction(db => db.query(text, args)), transaction, proof:(action,claims)=>signDbProof(PROOF_KEY,action,claims), scope: (next: MemberScope) => adapter(client).scope(next) };
     },
     async query<T extends Row>(sql: string, args: unknown[] = []) {
       if (sql.includes('pg_advisory_xact_lock')) return [] as T[];
@@ -58,11 +61,12 @@ beforeAll(async () => {
   db = new PGlite(); port = adapter(db);
   await db.exec('CREATE TABLE candidates(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),name text NOT NULL,email text NOT NULL DEFAULT \'\',phone text NOT NULL DEFAULT \'\',score integer NOT NULL DEFAULT 0,created_at timestamptz DEFAULT now());');
   await applyAllMigrations((sql: string) => db.exec(sql));
+  await db.query('INSERT INTO member_private.proof_keys(id,secret) VALUES(true,$1)',[PROOF_KEY]);
 });
 afterAll(async () => { await db.close(); });
 beforeEach(async () => {
   await resetWorkflowTables((sql: string) => db.exec(sql), WORKFLOW_RESET_TABLES);
-  await db.exec('TRUNCATE member_local_mail,member_rate_limits,member_pending_signups,member_arrival_tickets');
+  await db.exec('TRUNCATE member_local_mail,member_rate_limits,member_pending_signups,member_arrival_tickets,member_private.used_proofs');
   clock = Date.now();
   const { verifier } = await syntheticVerifier(SECRET);
   service = new MemberService(port, SECRET, ORIGIN, syntheticMailSink(port), verifier, () => clock);
@@ -171,7 +175,7 @@ describe('email ownership and canonical account activation', () => {
   });
   it('rejects linking as a different member', async () => {
     const first = await active(); const next = await verified({ me: 'other@example.test', code: 'FREE-SYN00006' });
-    await expect(service.link(next.cookie, first.member)).rejects.toThrow('handoff_not_verified');
+    await expect(service.link(next.cookie, first.member)).rejects.toThrow('handoff_unavailable');
   });
   it('isolates parallel pending passwords without reserving an email', async () => {
     const a = await service.prepare(fields({ code: 'FREE-SYN00007' })), b = await service.prepare(fields({ code: 'FREE-SYN00008' }));
