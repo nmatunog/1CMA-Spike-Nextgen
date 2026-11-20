@@ -7,7 +7,7 @@ import styles from '@/components/member/member.module.css';
 export default async function SignupPage() {
   const host = (await headers()).get('host') ?? '';
   const preview = previewHost(host) ? decodeVersaPreview((await cookies()).get(VERSA_PREVIEW_COOKIE)?.value) : null;
-  if (preview && !(await cookies()).get(HANDOFF_COOKIE)?.value) return <section className={styles.card}><h2>Your signup details</h2><p>The details above are read-only. This synthetic welcome preview does not create an account. Password setup and email verification require the connected member service.</p><a href="/spike-preview">Continue exploring with GIA</a></section>;
+  if (preview) return <MemberSignup fields={preview} preview />;
   const data = await (async () => {
     try {
       const service = memberService();

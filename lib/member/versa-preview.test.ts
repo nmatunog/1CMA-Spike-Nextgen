@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseVersaPreview, decodeVersaPreview, previewHost } from './versa-preview';
+beforeEach(()=>vi.stubEnv('VERSA_GET_STAGING_ENABLED','true'));
+afterEach(()=>vi.unstubAllEnvs());
 const fields = { mfn: 'Test Member', mln: 'Example', me: 'test.member@example.test', sfn: 'Test', sln: 'Sponsor', code: 'FREE-SYN00001' };
 describe('Versa synthetic compatibility receiver', () => {
   it('preserves all six encoded fields and supports refresh cookie decoding', () => {
@@ -14,7 +16,7 @@ describe('Versa synthetic compatibility receiver', () => {
       const duplicate = new URLSearchParams(fields); duplicate.append(key, 'other');
       expect(parseVersaPreview(duplicate)).toBeNull();
     }
-    for (const changes of ([{ me: 'member@real.example' }, { code: 'SP-1234656' }, { mfn: 'x'.repeat(121) }, { handoff: 'signed-flow' }] as Record<string, string>[])) {
+    for (const changes of ([{ me: 'member@real.example' }, { code: 'SP-1234656' }, { mfn: 'x'.repeat(81) }, { handoff: 'signed-flow' }] as Record<string, string>[])) {
       expect(parseVersaPreview(new URLSearchParams({ ...fields, ...changes }))).toBeNull();
     }
   });
@@ -24,3 +26,5 @@ describe('Versa synthetic compatibility receiver', () => {
     expect(decodeVersaPreview(undefined)).toBeNull();
   });
 });
+
+it('fails closed when the staging preview flag is absent',()=>{vi.stubEnv('VERSA_GET_STAGING_ENABLED','');expect(previewHost('nextgen-staging.nmatunog.workers.dev')).toBe(false);});

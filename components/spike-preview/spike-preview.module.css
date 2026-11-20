@@ -402,3 +402,7 @@
 .versaWelcome dt { font-size: 13px; opacity: .75; }
 .versaWelcome dd { margin: 4px 0 0; font-weight: 600; }
 .versaWelcome button { padding: 14px 22px; border: 0; border-radius: 24px; background: #101b2d; color: white; font: inherit; cursor: pointer; }
+
+.startLink { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 12px 24px; border-radius: 999px; background: #a6192e; color: white; text-decoration: none; font-weight: 700; }
+.versaWelcome summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
+.versaWelcome dd { overflow-wrap: anywhere; }

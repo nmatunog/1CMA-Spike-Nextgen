@@ -13,6 +13,7 @@ async function act(body: Record<string, unknown>) {
   return data;
 }
 const errors: Record<string, string> = {
+  preview_account_dependency: 'Password setup and verification are not connected on this host. This draft uses a local synthetic mailbox only; no account was created.',
   handoff_not_verified: "We couldn't verify this handoff. Return to Versa for a new handoff.",
   handoff_unavailable: 'This handoff has expired. Return to Versa for a new one.',
   email_verification_required: 'Verify your email before continuing.',
@@ -22,36 +23,45 @@ const errors: Record<string, string> = {
   try_later: 'Please wait before trying again.',
 };
 function Passwords({ password, confirm, setPassword, setConfirm }: { password: string; confirm: string; setPassword: (value: string) => void; setConfirm: (value: string) => void }) {
-  return <><label className={styles.field}><span className={styles['field-label']}>Password</span><input type="password" placeholder="8 characters minimum" autoComplete="new-password" minLength={8} maxLength={256} value={password} onChange={event => setPassword(event.target.value)} required /></label>
-    <label className={styles.field}><span className={styles['field-label']}>Confirm password</span><input type="password" placeholder="8 characters minimum" autoComplete="new-password" minLength={8} maxLength={256} value={confirm} onChange={event => setConfirm(event.target.value)} required /></label></>;
+  const [visible,setVisible]=useState(false);
+  return <><button type="button" className={styles.link} style={{gridColumn:'1 / -1',justifySelf:'end'}} aria-pressed={visible} onClick={()=>setVisible(!visible)}>{visible?'Hide passwords':'Show passwords'}</button><label className={styles.field}><span className={styles['field-label']}>Password</span><input type={visible ? 'text' : 'password'} placeholder="8 characters minimum" autoComplete="new-password" minLength={8} maxLength={256} value={password} onChange={event => setPassword(event.target.value)} required /></label>
+    <label className={styles.field}><span className={styles['field-label']}>Confirm password</span><input type={visible ? 'text' : 'password'} placeholder="8 characters minimum" autoComplete="new-password" minLength={8} maxLength={256} value={confirm} onChange={event => setConfirm(event.target.value)} required /></label></>;
 }
 function HeroHead({ title, children }: { title: React.ReactNode; children?: React.ReactNode }) {
   return <div className={styles['hero-head']}><a href="/spike-preview" className={styles.avatar} aria-label="Ask GIA"><GiaAvatar className={styles.avatarMark} /></a><div className={styles['hero-text']}><h1>{title}</h1>{children && <p className={styles.lede}>{children}</p>}</div></div>;
 }
 function message(error: unknown) { return errors[error instanceof Error ? error.message : ''] || 'This request is unavailable. Please try again or return for a new handoff.'; }
-export function MemberSignup({ fields }: { fields: Omit<Handoff, 'extra'> }) {
+export function MemberSignup({ fields, preview=false }: { fields: Omit<Handoff, 'extra'>; preview?: boolean }) {
   const router = useRouter();
   const [password, setPassword] = useState(''), [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
-    try { await act({ action: 'signup', password, confirm }); router.push('/signup-done'); }
+    try {
+      if (preview) {
+        const response=await fetch('/api/member/preview-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password,confirm})});
+        const result=await response.json(); if(!response.ok) throw new Error(result.error);
+      } else await act({ action: 'signup', password, confirm });
+      router.push('/signup-done');
+    }
     catch (failure) { if (failure instanceof Error && failure.message === 'sign_in_required') { router.push('/signin'); } else setError(message(failure)); }
     finally { setPassword(''); setConfirm(''); setBusy(false); }
   }
   return <section className={`${styles.card} ${styles.signup}`} aria-label="Create your SPIKE account">
     <HeroHead title={<>Welcome, {fields.mfn}!</>}>GIA here. Set your password to start your SPIKE journey.</HeroHead>
+    {preview && <p>Unverified synthetic Versa details. Verify your email before account activation.</p>}
     <dl className={styles.details} aria-label="Read-only Versa details">
       {[['Name', `${fields.mfn} ${fields.mln}`], ['Email (your username)', fields.me], ['Sponsor', `${fields.sfn} ${fields.sln}`], ['Access code', fields.code]].map(([label,value]) => <div className={styles.detail} key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
     </dl>
-    <form method="post" onSubmit={submit}><div className={styles.fields}><Passwords password={password} confirm={confirm} setPassword={setPassword} setConfirm={setConfirm} /></div><button className={styles.btn} disabled={busy} type="submit">{busy ? 'Please wait…' : 'Create my account'}</button></form>
+    {preview && <label className={styles.field}>Email (your username)<input type="email" value={fields.me} readOnly autoComplete="username" /></label>}
+    <form method="post" onSubmit={submit}><div className={styles.fields}><Passwords password={password} confirm={confirm} setPassword={setPassword} setConfirm={setConfirm} /></div><button className={styles.btn} disabled={busy} type="submit">{busy ? 'Please wait…' : preview ? 'Create account & meet GIA' : 'Create my account'}</button></form>
     {error && <p role="alert">{error}</p>}
   </section>;
 }
 export function SignupDone() {
   return <section className={styles.card} data-center-mobile><HeroHead title="Check your email">No email was sent. Open the link in the local test mailbox, then sign in.</HeroHead><a className={styles.btn} href="/signin">Go to sign in</a></section>;
 }
-export function MemberSignIn({ initialEmail = '', hasHandoff = false, verified = false }: { initialEmail?: string; hasHandoff?: boolean; verified?: boolean }) {
+export function MemberSignIn({ initialEmail = '', hasHandoff = false, verified = false, meetGia=false }: { initialEmail?: string; hasHandoff?: boolean; verified?: boolean; meetGia?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState(initialEmail), [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false), [forgot, setForgot] = useState(false), [status, setStatus] = useState(''), [error, setError] = useState('');
@@ -70,7 +80,7 @@ export function MemberSignIn({ initialEmail = '', hasHandoff = false, verified =
           if (!verified) { await verifyFirst(); return; }
           await act({ action: 'claim' });
         }
-        router.push('/member/account');
+        router.push(meetGia ? '/gia' : '/member/account');
       }
     } catch (failure) { setError(message(failure)); }
     finally { setPassword(''); setBusy(false); }
