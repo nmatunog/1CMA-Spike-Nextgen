@@ -34,7 +34,7 @@ test('existing approved value is available before a signup or contact request', 
   page.on('request', request => { if (request.url().endsWith('/api/gia') && request.method() === 'POST') actions.push(request.postDataJSON().action); });
   await page.goto('/gia');
   await page.getByRole('button', { name: 'What is this?', exact: true }).click();
-  await expect(page.getByText('KP-REC-09 · v0.1', { exact: true })).toBeVisible();
+  await expect(page.getByText('KP-REC-09 · v0.1', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/SPIKE is a guided pathway from 1CMA Cebu/)).toBeVisible();
   await expect(page.getByText(/GIYA/)).toHaveCount(0);
   await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);
@@ -106,6 +106,8 @@ test('crisis safety still takes priority on first open without consent', async (
   await page.getByRole('textbox', { name: 'Message GIA' }).fill('I want to die');
   const result = page.waitForResponse(r => r.url().endsWith('/api/gia') && r.request().method() === 'POST');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
-  expect(await (await result).json()).toMatchObject({ reason: 'urgent', citation: { id: 'KP-SAFETY-01' } });
-  await expect(page.getByText(/KP-SAFETY-01/)).toBeVisible();
+  const response=await (await result).json();
+  expect(response).toMatchObject({ reason: 'urgent', citation: { id: 'KP-SAFETY-01' } });
+  await expect(page.getByText(response.text,{exact:true})).toBeVisible();
+  await expect(page.getByText(/KP-SAFETY-01/)).toHaveCount(0);
 });

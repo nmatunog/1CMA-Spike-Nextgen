@@ -10,7 +10,7 @@ export async function expectSafeVisitorLinks(page: Page) {
 }
 
 export async function expectPlainCitation(page: Page, label: string) {
-  await expect(page.getByText(label, { exact: true }).last()).toBeVisible();
+  await expect(page.getByText(label, { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: label })).toHaveCount(0);
   await expectSafeVisitorLinks(page);
 }

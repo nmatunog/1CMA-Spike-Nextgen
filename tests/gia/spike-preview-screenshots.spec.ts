@@ -76,7 +76,7 @@ test('landing chat preserves consent, AIA registration and STOP at 390 and 1440'
     await dock.getByLabel('GIA is typing').scrollIntoViewIfNeeded();
     await dock.screenshot({ path: `${DIR}/gia-typing-${width}.png` });
     await expect(dock.getByText(/link provided by your recruiter/)).toBeVisible({ timeout: 8_000 });
-    await expect(dock.getByText('KP-REC-01 · v0.4')).toBeVisible();
+    await expect(dock.getByText('KP-REC-01 · v0.4')).toHaveCount(0);
     await expect(dock.getByRole('link', { name: /KP-REC-01/ })).toHaveCount(0);
     await expect(dock.getByText(/join-us-now|partner-with-the-best/)).toHaveCount(0);
     expect(blockedVisitorHrefs(await hrefsIn(dock))).toEqual([]);

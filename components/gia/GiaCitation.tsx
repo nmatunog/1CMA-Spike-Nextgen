@@ -5,9 +5,9 @@ export function GiaCitation({
 }: {
   citation: { id: string; version: string; source?: string | null };
 }) {
-  const label = `${citation.id} · v${citation.version}`;
+  const label = 'Source';
   const href = visitorSafeHref(citation.source);
-  if (!href) return <span>{label}</span>;
+  if (!href) return null;
   return (
     <a href={href} rel="noopener noreferrer">
       {label}

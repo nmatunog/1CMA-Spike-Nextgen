@@ -1,9 +1,13 @@
-import { cookies } from 'next/headers';
+import { decodeVersaPreview, previewHost, VERSA_PREVIEW_COOKIE } from '@/lib/member/versa-preview';
+import { cookies, headers } from 'next/headers';
 import { HANDOFF_COOKIE } from '@/lib/member/http';
 import { memberService } from '@/lib/member/runtime';
 import { MemberSignup } from '@/components/member/MemberForms';
 import styles from '@/components/member/member.module.css';
 export default async function SignupPage() {
+  const host = (await headers()).get('host') ?? '';
+  const preview = previewHost(host) ? decodeVersaPreview((await cookies()).get(VERSA_PREVIEW_COOKIE)?.value) : null;
+  if (preview) return <MemberSignup fields={preview} preview />;
   const data = await (async () => {
     try {
       const service = memberService();

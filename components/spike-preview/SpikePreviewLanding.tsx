@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { GiaChat } from '@/components/gia/GiaChat';
 import { GiaAvatar } from '@/components/gia/GiaAvatar';
 import type { RecruiterRegistration } from '@/lib/gia/recruiter-registration';
+import type { VersaPreview } from '@/lib/member/versa-preview';
 import styles from './spike-preview.module.css';
 
 function Icon({ kind }: { kind: 'moon' | 'sun' | 'send' | 'spike' | 'book' }) {
@@ -20,7 +21,8 @@ function Icon({ kind }: { kind: 'moon' | 'sun' | 'send' | 'spike' | 'book' }) {
   );
 }
 
-export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, children }: {
+export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, children, versaPreview }: {
+  versaPreview?: VersaPreview | null;
   children?: ReactNode;
   fontClass?: string;
   defaultRecruiter?: RecruiterRegistration | null;
@@ -66,7 +68,7 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, childr
   }
 
   return <>
-    <div className={`${styles.root} ${children ? styles.memberRoot : ''} ${fontClass ?? ''}`} data-theme={theme} inert={giaOpen}>
+    <div className={`${styles.root} ${children || versaPreview ? styles.memberRoot : ''} ${fontClass ?? ''}`} data-theme={theme} inert={giaOpen}>
       <a className={styles.skipLink} href="#main">Skip to content</a>
       <header>
         <div className={styles.brands}>
@@ -78,7 +80,22 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, childr
         </button>
       </header>
       <main id="main" tabIndex={-1}>
-        {children ?? <>
+        {versaPreview && <section className={styles.hero} aria-labelledby="versa-title">
+          <div className={styles['hero-photo']}><Image src="/spike-preview/gia-hero.webp" alt="GIA, your 1CMA AI guide" fill priority unoptimized sizes="(max-width: 900px) calc(100vw - 32px), 542px" /></div>
+          <div className={styles['hero-copy']}>
+            <p className={styles.lede}>Learn. Build. Grow.</p>
+            <h1 id="versa-title">Welcome, {versaPreview.mfn}.</h1>
+            <p className={styles.lede}>I’m GIA, your 1CMA guide. Let’s take your next step together.</p>
+            <details className={styles.versaWelcome}><summary>Your Versa details</summary><dl>{([
+              ['Member', `${versaPreview.mfn} ${versaPreview.mln}`], ['Email / username', versaPreview.me],
+              ['Sponsor', `${versaPreview.sfn} ${versaPreview.sln}`], ['Access code', versaPreview.code],
+            ]).map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+            <p>Unverified synthetic details. No account or course access has been activated.</p></details>
+            <a className={styles.startLink} href="/signup">Let’s get started</a>
+            <p><a href="/signin">Already have an account? Sign in</a></p>
+          </div>
+        </section>}
+        {children ?? (!versaPreview && <>
         <section className={styles.hero} aria-labelledby="hero-title" data-testid="gia-hero">
           <div className={styles['hero-photo']}>
             <Image src="/spike-preview/gia-hero.webp" alt="GIA, your 1CMA AI guide" fill priority unoptimized sizes="(max-width: 900px) calc(100vw - 32px), 542px" />
@@ -106,7 +123,7 @@ export function SpikePreviewLanding({ fontClass, defaultRecruiter = null, childr
             <span className={styles['option-text']}><span className={styles.optionTitle}>Talk to GIA</span><span className={styles.optionCaption}>Ask anything, anytime</span></span>
           </button>
         </section>
-        </>}
+        </>)}
       </main>
       <footer><a href="/gia/privacy">Privacy notice</a>{' · Reply STOP to opt out'}</footer>
     </div>
