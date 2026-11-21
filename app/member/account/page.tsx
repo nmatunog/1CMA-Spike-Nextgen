@@ -5,7 +5,7 @@ import styles from '@/components/member/member.module.css';
 export default async function Page() {
   const data = await (async () => {
     try {
-      const service = memberService();
+      const service = await memberService();
       const member = await currentMember(service);
       if (!member) return null;
       return { email: member.email };

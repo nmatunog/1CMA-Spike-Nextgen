@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const response = new NextResponse(null, { status: 303, headers: { ...PRIVATE_HEADERS, Location: '/signup' } });
   try {
-    const service = memberService();
+    const service = await memberService(new URL(request.url).hostname);
     await service.limit(`arrival:${clientIpFromRequest(request)}`, 60);
     const params = new URL(request.url).searchParams;
     let token: string;

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         return memberJson({ok:true,message:STAGING_RESET_MESSAGE});
       }
     }
-    const service = memberService();
+    const service = await memberService(new URL(request.url).hostname);
     if (request.headers.get('origin') !== service.origin) return memberJson({ error: 'origin_required' }, 403);
     await service.limit(`post:${clientIpFromRequest(request)}`, 90);
     const body = await smallJson(request);

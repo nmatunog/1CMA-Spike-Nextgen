@@ -10,7 +10,7 @@ export default async function SignupPage() {
   if (preview) return <MemberSignup fields={preview} preview />;
   const data = await (async () => {
     try {
-      const service = memberService();
+      const service = await memberService();
       const h = await service.handoff((await cookies()).get(HANDOFF_COOKIE)?.value);
       const { extra, ...fields } = h.payload; void extra;
       return { fields };

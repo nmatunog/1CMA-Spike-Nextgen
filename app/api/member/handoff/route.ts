@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /** Draft server-to-server issuer. Hosted runtime remains disabled pending dependencies. */
 export async function POST(request: NextRequest) {
   try {
-    const service = memberService();
+    const service = await memberService(new URL(request.url).hostname);
     await service.limit(`issuer:${clientIpFromRequest(request)}`, 30);
     const { payload, nonce } = authenticatedPayload(process.env.MEMBER_HANDOFF_ISSUER_SECRET || '', request.headers, await smallText(request, 16384), service.clock(), memberAdapters.codeFormat);
     if (!/^[^@]+@example\.test$/.test(payload.me) || !/^(FREE|PRO)-SYN\d{5}$/.test(payload.code)) throw new Error('synthetic_only');
