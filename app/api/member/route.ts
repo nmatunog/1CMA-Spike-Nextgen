@@ -3,10 +3,21 @@ import { clientIpFromRequest } from '@/lib/gia/rate.mjs';
 import { HANDOFF_COOKIE, memberJson, setHandoff, smallJson } from '@/lib/member/http';
 import { memberService } from '@/lib/member/runtime';
 import { currentMember } from '@/lib/member/session';
+import { stagingEmailSkipEnabled, STAGING_RESET_MESSAGE } from '@/lib/member/staging-email';
 import { MemberError } from '@/lib/member/service';
 export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
+    const url=new URL(request.url);
+    if (stagingEmailSkipEnabled(url.hostname)) {
+      const early=await smallJson(request.clone());
+      if (early.action==='forgot') {
+        const expected=process.env.MEMBER_PUBLIC_ORIGIN || url.origin;
+        if (request.headers.get('origin')!==expected) return memberJson({error:'origin_required'},403);
+        if (Object.keys(early).some(k=>!['action','email'].includes(k))) throw new MemberError('invalid_request');
+        return memberJson({ok:true,message:STAGING_RESET_MESSAGE});
+      }
+    }
     const service = memberService();
     if (request.headers.get('origin') !== service.origin) return memberJson({ error: 'origin_required' }, 403);
     await service.limit(`post:${clientIpFromRequest(request)}`, 90);
@@ -27,8 +38,12 @@ export async function POST(request: NextRequest) {
       return setHandoff(memberJson({ ok: true }), token, service.origin);
     }
     if (body.action === 'signup') {
-      await service.signup(cookie, body.password, body.confirm);
-      return memberJson({ ok: true });
+      if (stagingEmailSkipEnabled(url.hostname)) {
+        const signup=await service.signupForRequest(cookie,body.password,body.confirm,url.hostname,clientIpFromRequest(request));
+        return setHandoff(memberJson({ok:true,readyToSignIn:signup.readyToSignIn}),signup.handoff,service.origin);
+      }
+      await service.signup(cookie,body.password,body.confirm);
+      return memberJson({ok:true});
     }
     if (body.action === 'forgot') {
       try { await service.forgot(body.email, cookie); } catch (failure) { if (failure instanceof MemberError && failure.status === 429) throw failure; }

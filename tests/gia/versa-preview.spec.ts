@@ -47,9 +47,9 @@ for (const [width,code] of [[390,'FREE-SYN00032'],[768,'FREE-SYN00033'],[1440,'F
   }
  });
 }
-test('malformed, duplicate, oversized and non-synthetic fields fail without DB effects',async({page})=>{
+test('malformed, duplicate and oversized fields fail without DB effects',async({page})=>{
  const base=fields('invalid');const before=await snapshot();
- const bad=[{...base,me:'real@invalid.example'},{...base,mfn:'x'.repeat(81)},{...base,code:'real-code'},{...base,mfn:'bad\nname'}];
+ const bad=[{...base,me:'x'.repeat(121)},{...base,mfn:'x'.repeat(81)},{...base,code:'x'.repeat(33)},{...base,mfn:'bad\nname'}];
  const queries=bad.map(v=>new URLSearchParams(v).toString());queries.push(new URLSearchParams({...base,extra:'unexpected'}).toString());const duplicate=new URLSearchParams(base);duplicate.append('me','other@example.test');queries.push(duplicate.toString());const missing=new URLSearchParams(base);missing.delete('sfn');queries.push(missing.toString());
  for(const q of queries){await page.goto('/?'+q);await expect(page).toHaveURL(/\/signup$/);await expect(page.getByRole('heading',{name:'Open your Versa handoff'})).toBeVisible();expect(await page.context().cookies()).not.toEqual(expect.arrayContaining([expect.objectContaining({name:'spike_versa_preview',value:expect.stringContaining('compat')})]));}
  expect(await snapshot()).toEqual(before);

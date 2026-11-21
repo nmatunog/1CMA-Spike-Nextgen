@@ -1,5 +1,7 @@
 # Versa six-field synthetic staging journey — PR #30
 
+Current display-capture follow-up: [format-agnostic capture](versa-preview-capture.md).
+
 Continue the existing `codex/versa-get-staging` checkpoint `06a8782a`, based on
 `mvp01/staging-cf @ e481764e393e6839440160943b1a2980a48f4818`.
 Source: [SPIKEDEV brief 6996767943](https://github.com/nmatunog/NEXO/issues/32#issuecomment-6996767943)
@@ -17,10 +19,10 @@ A fictional example (not a deployed-use claim):
 
 Receiver requires `VERSA_GET_STAGING_ENABLED=true`; unset is disabled. It accepts
 only `nextgen-staging.nmatunog.workers.dev`, or loopback with the existing explicit
-MEMBER_LOCAL_DEMO flag. Only example.test addresses and FREE-/PRO-SYN plus five
-digits are accepted. Names are capped at 80 characters, email at 120, code at 32;
-missing, duplicate, unknown/case-mismatched keys, controls and malformed Unicode
-are rejected. The synthetic format check is not the authoritative code verifier.
+MEMBER_LOCAL_DEMO flag. Email and code are now unverified display strings without format checks. Names
+are capped at 80 characters, email at 120, code at 32; missing, duplicate,
+unknown/case-mismatched keys, controls and malformed Unicode remain rejected.
+Both root and direct /spike-preview GET capture are supported; see the follow-up.
 
 GET stores unverified display context in a separate 15-minute HttpOnly,
 SameSite=Lax cookie, clears any stale handoff draft cookie, and redirects to a

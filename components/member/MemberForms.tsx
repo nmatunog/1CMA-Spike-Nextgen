@@ -41,7 +41,8 @@ export function MemberSignup({ fields, preview=false }: { fields: Omit<Handoff, 
       if (preview) {
         const response=await fetch('/api/member/preview-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password,confirm})});
         const result=await response.json(); if(!response.ok) throw new Error(result.error);
-      } else await act({ action: 'signup', password, confirm });
+        if(result.readyToSignIn){router.push('/signin');return;}
+      } else {const result=await act({action:'signup',password,confirm});if(result.readyToSignIn){router.push('/signin');return;}}
       router.push('/signup-done');
     }
     catch (failure) { if (failure instanceof Error && failure.message === 'sign_in_required') { router.push('/signin'); } else setError(message(failure)); }
