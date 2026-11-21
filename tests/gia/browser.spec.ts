@@ -1,29 +1,23 @@
+import { aiaRegistrationQuestions, aiaLeaderQuestions, otherAccountQuestions } from './fixtures/credential-regressions';
+import { expectPlainCitation, expectSafeVisitorLinks } from './visitor-link-assertions';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 for (const viewport of [{width:390,height:844},{width:1440,height:1000}]) {
   test(`GIA disclosure, consent and layout ${viewport.width}`, async ({page}) => {
     await page.setViewportSize(viewport);
     await page.goto('/gia');
-    await expect(page.getByRole('heading',{name:'GIA — Your 1CMA AI Guide'})).toBeVisible();
-    await expect(page.getByText(/an AI assistant/)).toBeVisible();
-    await expect(page.getByText(/GIYA Institute/).first()).toBeVisible();
-    await expect(page.getByText(/SPIKE Method/).first()).toBeVisible();
-    await expect(page.getByRole('radio',{name:'Recruit'})).toBeChecked();
-    await expect(page.getByRole('radio',{name:'Intern'})).toBeVisible();
-    await expect(page.getByRole('radio',{name:'RA'})).toBeVisible();
-    await expect(page.getByRole('button',{name:'Save consent and contact'})).toBeDisabled();
-    await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
-    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
-    await expect(page.getByRole('button',{name:'What should I do next?'})).toBeVisible();
-    if (viewport.width === 1440) await page.screenshot({path:'work/gia-welcome.png',fullPage:true});
-    await page.getByRole('radio',{name:'Intern'}).click();
+    await expect(page.getByRole('heading',{name:'GIA',exact:true})).toBeVisible();
+    await expect(page.getByText('Your AI guide. Ask away.')).toBeVisible();
+    await expect(page.getByRole('radio')).toHaveCount(0);
+    await expect(page.getByText(/role-aware guide|local adapter|entitlements/)).toHaveCount(0);
+    await expect(page.getByLabel('Name',{exact:true})).toHaveCount(0);
+    const conversation = page.getByLabel('Conversation', {exact:true});
+    await expect(conversation.getByRole('button')).toHaveCount(3);
+    for (const label of ['What is this?', 'Is it free?', 'How do I start?']) await expect(page.getByRole('button',{name:label,exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'Join Free Financial Literacy'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'What should I do next?'})).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'Talk to a 1CMA Leader'})).toBeVisible();
-    await page.getByRole('radio',{name:'Recruit'}).click();
-    await expect(page.getByRole('button',{name:'Show FEP sessions'})).toBeVisible();
+    await expect(page.getByRole('button',{name:'STOP / opt out'})).toBeVisible();
+    await expect(page.getByRole('link',{name:'Privacy notice'})).toBeVisible();
+    await expect(page.getByText('Learning does not authorize you to sell insurance or give insurance advice.', {exact:false})).toBeVisible();
     await expect(page.locator('input[type=file]')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({path:`work/gia-${viewport.width}.png`,fullPage:true});
@@ -43,22 +37,49 @@ test('pilot backend defaults to disabled', async ({request}) => {
 });
 test('intern guide hides FEP and denies FEP listing', async ({page}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
-  await page.goto('/gia');
-  await page.getByRole('radio',{name:'Intern'}).click();
+  await page.goto('/gia?program=intern');
   await expect(page.getByRole('button',{name:'Show FEP sessions'})).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'I want to explore a business path'})).toHaveCount(0);
   await page.getByRole('textbox',{name:'Message GIA'}).fill('Show FEP sessions');
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await expect(page.getByText(/FEP session booking is part of the recruitment guide/)).toBeVisible();
-  await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toHaveCount(0);
+  await expect(page.getByText('KP-FEP-01 · v0.2', { exact: true })).toHaveCount(0);
+  await expectSafeVisitorLinks(page);
   await page.getByRole('textbox',{name:'Message GIA'}).fill('what is FEP');
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await expect(page.getByText(/Approved answers for SPIKE for Interns are not in this GIA guide yet/)).toBeVisible();
-  await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toHaveCount(0);
+  await expect(page.getByText('KP-FEP-01 · v0.2', { exact: true })).toHaveCount(0);
+  await expectSafeVisitorLinks(page);
 });
+for (const [label, questions, registration] of [
+  ['AIA registration questions', aiaRegistrationQuestions, true],
+  ['AIA account support questions', aiaLeaderQuestions, false],
+  ['SPIKE FEP and generic account questions', otherAccountQuestions, false],
+] as const) {
+  test(`${label} preserve the correct guidance without credential refusal`, async ({page}) => {
+    test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
+    await page.goto('/gia');
+    let answers = 0;
+    for (const question of questions) {
+      await page.getByRole('textbox', { name: 'Message GIA' }).fill(question);
+      await page.getByRole('button', { name: 'Send', exact: true }).click();
+      if (registration) {
+        await expect(page.getByText('KP-REC-01 · v0.4', { exact: true })).toHaveCount(0);
+        await expectPlainCitation(page, 'KP-REC-01 · v0.4');
+      } else {
+        await expect(page.getByText('I do not have an approved answer for that yet. I can connect you with a 1CMA leader.', { exact: true })).toHaveCount(++answers);
+        await expect(page.getByText('KP-REC-01 · v0.4', { exact: true })).toHaveCount(0);
+      }
+      await expect(page.getByText(/I cannot accept AIA login credentials/)).toHaveCount(0);
+      await expectSafeVisitorLinks(page);
+    }
+  });
+}
 test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', async ({page,browser}) => {
   test.skip(process.env.GIA_PILOT_ENABLED !== 'true');
   await page.goto('/gia');
+  await page.getByRole('button',{name:'Is it free?',exact:true}).click();
+  await page.getByRole('button',{name:'Save a contact',exact:true}).click();
   await page.getByLabel('Name',{exact:true}).fill('Synthetic Pilot Visitor');
   await page.getByLabel('Email',{exact:true}).fill('visitor@example.test');
   await page.getByRole('checkbox').check();
@@ -67,15 +88,15 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await expect(page.locator('input[type=file]')).toHaveCount(0);
   await page.getByRole('button',{name:'Check my status'}).click();
   await expect(page.getByText(/mock OTP adapter/i)).toBeVisible();
-  await page.getByRole('button',{name:'Join Free Financial Literacy'}).click();
+  await page.getByRole('button',{name:'I want to learn money basics'}).click();
   await expect(page.getByText('Financial Literacy is free. You may start with learning or explore the free Financial Entrepreneurship Preview directly.')).toBeVisible();
-  await expect(page.getByRole('link',{name:'KP-LIT-01 · v0.2'})).toBeVisible();
+  await expectPlainCitation(page, 'KP-LIT-01 · v0.2');
   await page.getByRole('textbox',{name:'Message GIA'}).fill('Bisaya');
   await page.getByRole('button',{name:'Send',exact:true}).click();
   await expect(page.getByText('Sige, mag-Bisaya ta. Unsa akong ikatabang?')).toBeVisible();
-  await page.getByRole('button',{name:'Explore Free Financial Entrepreneurship Preview'}).click();
+  await page.getByRole('button',{name:'I want to explore a business path'}).click();
   await expect(page.getByText(/Libre ang Financial Entrepreneurship Preview/)).toBeVisible();
-  await expect(page.getByRole('link',{name:'KP-FEP-01 · v0.2'})).toBeVisible();
+  await expectPlainCitation(page, 'KP-FEP-01 · v0.2');
   await page.getByRole('button',{name:'Show FEP sessions'}).click();
   await expect(page.getByRole('button',{name:'Book this FEP'})).toBeVisible();
   await page.getByRole('button',{name:'Book this FEP'}).click();
@@ -89,7 +110,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading',{name:'Dashboard'})).toBeVisible();
   await expect(staffPage.getByRole('heading',{name:'Synthetic Pilot Visitor'}).first()).toBeVisible({timeout:15000});
   await staffPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -110,7 +131,7 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await staffPage.screenshot({path:'docs/cc02a/screenshots/command-mobile.png',fullPage:true});
   const leaderContext=await browser.newContext();const leaderPage=await leaderContext.newPage();
   await leaderPage.goto('/login');await leaderPage.getByLabel('Email',{exact:true}).fill(access.leaderEmail);await leaderPage.getByLabel('Password',{exact:true}).fill(access.leaderPassword);
-  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/');await leaderPage.goto('/recruitment/command');
+  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Pilot Visitor'}).first()).toBeVisible();
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Unassigned Alpha'})).toHaveCount(0);
   await leaderPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -125,7 +146,9 @@ test('synthetic consent, Bisaya, booking, handoff and authorized follow-up', asy
   await page.screenshot({path:'work/gia-approved-flow.png',fullPage:true});
   await page.getByRole('button',{name:'STOP / opt out'}).click();
   await expect(page.getByText('You are opted out. No further follow-up will be sent.')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Save leader request'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Save leader request'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Send',exact:true})).toBeDisabled();
+  await expect(page.getByLabel('Name',{exact:true})).toHaveCount(0);
   await staffPage.setViewportSize({width:1440,height:1000});
   await staffPage.goto('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Pilot Visitor',exact:true}).first().click();
@@ -142,7 +165,7 @@ test('admin CSV import flags unverified duplicates and exports consent-aware CSV
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await expect(staffPage.getByRole('heading',{name:'CSV import'})).toBeVisible();
   await staffPage.getByLabel('Synthetic CSV').setInputFiles('tests/gia/fixtures/cc02b-10-prospects.csv');
   await staffPage.getByRole('button',{name:'Dry run'}).click();
@@ -166,7 +189,7 @@ test('admin CSV import flags unverified duplicates and exports consent-aware CSV
   await staffPage.screenshot({path:'docs/cc02b/screenshots/import-mobile.png',fullPage:true});
   const leaderContext=await browser.newContext();const leaderPage=await leaderContext.newPage();
   await leaderPage.goto('/login');await leaderPage.getByLabel('Email',{exact:true}).fill(access.leaderEmail);await leaderPage.getByLabel('Password',{exact:true}).fill(access.leaderPassword);
-  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/');await leaderPage.goto('/recruitment/command');
+  await leaderPage.getByRole('button',{name:'Sign in',exact:true}).click();await leaderPage.waitForURL('/recruitment/command');
   await expect(leaderPage.getByRole('heading',{name:'CSV import'})).toHaveCount(0);
   await expect(leaderPage.getByRole('heading',{name:'Synthetic Prospect 01'})).toHaveCount(0);
   await staffContext.close();
@@ -180,9 +203,11 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await staffPage.getByLabel('Email',{exact:true}).fill(access.email);
   await staffPage.getByLabel('Password',{exact:true}).fill(access.password);
   await staffPage.getByRole('button',{name:'Sign in',exact:true}).click();
-  await staffPage.waitForURL('/');await staffPage.goto('/recruitment/command');
+  await staffPage.waitForURL('/recruitment/command');
   await staffPage.getByRole('button',{name:'Synthetic Unassigned Alpha'}).click();
   await expect(staffPage.getByRole('heading',{name:'Preliminary evaluation'})).toBeVisible();
+  const evaluatedMetric = staffPage.locator('dt',{hasText:'Evaluated'}).locator('xpath=../dd');
+  const evaluatedBefore = Number(await evaluatedMetric.textContent());
   const evalForm=staffPage.locator('form').filter({has:staffPage.getByRole('button',{name:'Record evaluation'})});
   await evalForm.getByLabel('Background',{exact:true}).fill('Synthetic Alpha background');
   await evalForm.getByLabel('Education').fill('Synthetic college');
@@ -201,7 +226,7 @@ test('evaluation suggests a next step then engagement logs an outcome', async ({
   await followForm.getByRole('button',{name:'Save follow-up'}).click();
   await expect(staffPage.getByRole('status')).toHaveText('Follow-up saved');
   await expect(staffPage.getByText(/last engaged/i).first()).toBeVisible();
-  await expect(staffPage.locator('dt',{hasText:'Evaluated'}).locator('xpath=../dd')).toHaveText('1');
+  await expect(evaluatedMetric).toHaveText(String(evaluatedBefore + 1));
   await staffPage.screenshot({path:'docs/cc03/screenshots/evaluate-desktop.png',fullPage:true});
   await staffPage.setViewportSize({width:390,height:844});
   expect(await staffPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

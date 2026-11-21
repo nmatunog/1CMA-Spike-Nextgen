@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  logging: false, // Never print raw partner request URLs in the local dev server.
+  serverExternalPackages: ["postgres"],
+  async redirects() {
+    return []; // The root GET receiver consumes sensitive handoffs before redirecting.
+  },
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/icon" }];
   },
@@ -15,6 +20,9 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
+      ...['/', '/spike-preview', '/signup', '/signup-done', '/signin', '/member/:path*', '/api/member/:path*'].map(source => ({ source, headers: [
+        { key: 'Cache-Control', value: 'no-store' }, { key: 'Referrer-Policy', value: 'no-referrer' },
+      ] })),
     ];
   },
 };

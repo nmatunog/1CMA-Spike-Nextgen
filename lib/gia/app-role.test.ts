@@ -141,7 +141,8 @@ describe('gia_app least-privilege access', () => {
     expect(files).toContain('0009_gia_unconsented_urgent_handoff.sql');
     expect(files).toContain('0010_gia_rate_windows.sql');
     expect(files).toContain('0011_gia_rate_windows_delete.sql');
-    expect(files[files.length - 1]).toBe('0011_gia_rate_windows_delete.sql');
+    expect(files).toContain('0012_member_onboarding.sql');
+    expect(files.indexOf('0012_member_onboarding.sql')).toBeGreaterThan(files.indexOf('0011_gia_rate_windows_delete.sql'));
   });
 
   it('FORCE RLS and a gia_app ALLOW policy on every workflow table', async () => {

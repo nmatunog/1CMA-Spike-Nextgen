@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppHeader } from "@/components/app-header";
+import { STAFF_POST_LOGIN_PATH } from "@/lib/gia/ui-copy";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function LoginPage() {
       setErr("Invalid credentials or demo login not configured.");
       return;
     }
-    router.push("/");
+    router.push(STAFF_POST_LOGIN_PATH);
     router.refresh();
   };
 
