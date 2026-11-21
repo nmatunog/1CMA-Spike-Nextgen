@@ -7,8 +7,10 @@ export function previewHost(host: string) {
   return host === 'nextgen-staging.nmatunog.workers.dev' ||
     (process.env.MEMBER_LOCAL_DEMO === 'true' && ['localhost', '127.0.0.1'].includes(host.split(':')[0]));
 }
+// Discard only known transport tracking; never persist it or accept arbitrary extras.
+const TRACKING_FIELDS = ['fbclid','utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id'];
 export function parseVersaPreview(params: URLSearchParams): VersaPreview | null {
-  if ([...params.keys()].some(key => !VERSA_FIELDS.includes(key as typeof VERSA_FIELDS[number]))) return null;
+  if ([...params.keys()].some(key => !VERSA_FIELDS.includes(key as typeof VERSA_FIELDS[number]) && !TRACKING_FIELDS.includes(key))) return null;
   const result = {} as VersaPreview;
   for (const key of VERSA_FIELDS) {
     const values = params.getAll(key);

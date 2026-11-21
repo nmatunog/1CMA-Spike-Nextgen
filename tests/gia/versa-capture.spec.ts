@@ -23,3 +23,7 @@ test('direct malformed query clears stale context; missing fields show plain lan
  q.delete('sfn');q.set('sln','Sponsor@sfn=Test');await page.goto('/spike-preview?'+q);await expect(page).toHaveURL(/\/spike-preview$/);await expect(page.getByRole('heading',{name:'Ask GIA. Start free.'})).toBeVisible();await expect(page.getByText('Welcome, Preview.')).toHaveCount(0);expect((await page.context().cookies()).find(c=>c.name==='spike_versa_preview')).toBeUndefined();
  await page.goto('/signup');await expect(page.getByRole('heading',{name:'Open your Versa handoff'})).toBeVisible();
 });
+test('staging skip reset message works without any account database',async({page})=>{
+ test.skip(process.env.MEMBER_STAGING_SKIP_TEST!=='true','Staging skip flag required');
+ await page.goto('/signin');await page.getByRole('button',{name:'Forgot password?',exact:true}).click();await page.getByLabel('Email',{exact:true}).fill('capture-only@example.test');await page.getByRole('button',{name:'Request reset link'}).click();await expect(page.getByRole('status')).toHaveText("Password reset isn't available on staging yet");
+});

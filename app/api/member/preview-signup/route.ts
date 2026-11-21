@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server';
 import { decodeVersaPreview, previewHost, VERSA_PREVIEW_COOKIE } from '@/lib/member/versa-preview';
 import { memberJson, setHandoff, smallJson } from '@/lib/member/http';
 import { memberService } from '@/lib/member/runtime';
+import { clientIpFromRequest } from '@/lib/gia/rate.mjs';
+import { stagingEmailSkipEnabled } from '@/lib/member/staging-email';
 import { MemberError } from '@/lib/member/service';
 import { parseHandoff, validPassword } from '@/lib/member/contract';
 import { consumeTicket, issueTicket } from '@/lib/member/transport';
@@ -27,6 +29,10 @@ export async function POST(request: NextRequest) {
     // requires the existing email verification, code verifier and DB proofs.
     const ticket=await issueTicket(service,payload,randomBytes(32).toString('hex'));
     const handoff=await consumeTicket(service,ticket);
+    if (stagingEmailSkipEnabled(url.hostname)) {
+      const signup=await service.signupForRequest(handoff,body.password,body.confirm,url.hostname,clientIpFromRequest(request));
+      return setHandoff(memberJson({ok:true,readyToSignIn:signup.readyToSignIn}),signup.handoff,service.origin);
+    }
     await service.signup(handoff,body.password,body.confirm);
     return setHandoff(memberJson({ok:true}),handoff,service.origin);
   } catch(error) { return memberJson({error:error instanceof MemberError ? error.code : 'request_unavailable'},error instanceof MemberError ? error.status : 400); }

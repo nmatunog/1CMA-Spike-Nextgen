@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { applyAllMigrations, resetWorkflowTables, WORKFLOW_RESET_TABLES } from '@/lib/gia/apply-migrations.mjs';
 import { MemberError, MemberService, HANDOFF_MS, RESET_MS, VERIFY_MS } from './service';
@@ -337,4 +337,34 @@ describe('signed opaque transport, format adapter and least privilege', () => {
     const rows=await port.query("SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname LIKE 'member_%' AND relkind='r'");
     expect(rows.every(row=>row.relrowsecurity&&row.relforcerowsecurity)).toBe(true);
   });
+});
+
+afterEach(()=>vi.unstubAllEnvs());
+describe('owner-authorized staging email skip',()=>{
+ it.each(['nextgen-staging.nmatunog.workers.dev','localhost'])('activates immediately without any mail on %s',async host=>{
+  vi.stubEnv('MEMBER_EMAIL_VERIFY_STAGING_SKIP','true');vi.stubEnv('MEMBER_LOCAL_DEMO','true');
+  const cookie=await service.prepare(fields());
+  const result=await service.signupForRequest(cookie,PASSWORD,PASSWORD,host,'synthetic-ip');
+  expect(result.readyToSignIn).toBe(true);expect(await port.query('SELECT 1 FROM member_local_mail')).toHaveLength(0);
+  expect((await port.query('SELECT status FROM user_accounts'))[0].status).toBe('active');
+  expect((await port.query('SELECT email_verified FROM candidates'))[0].email_verified).toBe(true);
+  expect((await port.query('SELECT email_verified_at FROM member_credentials'))[0].email_verified_at).toBeTruthy();
+  expect(await service.signIn('demo@example.test',PASSWORD,'returning')).not.toBeNull();
+  expect(await port.query('SELECT 1 FROM program_enrollments')).toHaveLength(0);
+ });
+ it.each([
+  ['false','nextgen-staging.nmatunog.workers.dev','true'],['true','spike-asc.pages.dev','true'],
+  ['true','pilot.example.test','true'],['true','localhost','false'],
+ ])('keeps verification for flag=%s host=%s local=%s',async(flag,host,local)=>{
+  vi.stubEnv('MEMBER_EMAIL_VERIFY_STAGING_SKIP',flag);vi.stubEnv('MEMBER_LOCAL_DEMO',local);
+  const cookie=await service.prepare(fields());const result=await service.signupForRequest(cookie,PASSWORD,PASSWORD,host,'synthetic-ip');
+  expect(result.readyToSignIn).toBe(false);expect(await port.query('SELECT 1 FROM member_local_mail')).toHaveLength(1);
+  expect(await port.query('SELECT 1 FROM user_accounts')).toHaveLength(0);
+ });
+ it('still refuses invalid code activation in skip mode and queues no mail',async()=>{
+  vi.stubEnv('MEMBER_EMAIL_VERIFY_STAGING_SKIP','true');
+  const cookie=await service.prepare(fields({code:'FREE-SYN00099'}));
+  await expect(service.signupForRequest(cookie,PASSWORD,PASSWORD,'nextgen-staging.nmatunog.workers.dev','synthetic-ip')).rejects.toThrow('handoff_not_verified');
+  expect(await port.query('SELECT 1 FROM user_accounts')).toHaveLength(0);expect(await port.query('SELECT 1 FROM member_credentials')).toHaveLength(0);expect(await port.query('SELECT 1 FROM member_local_mail')).toHaveLength(0);
+ });
 });

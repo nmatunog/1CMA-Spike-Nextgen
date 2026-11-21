@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { stagingEmailSkipEnabled } from './staging-email';
 import { memberWrite } from './writes';
 import type { MemberDb, Row } from './db';
 import type { MemberMailer } from './mail';
@@ -149,7 +150,7 @@ export class MemberService {
       VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(handoff_key) DO NOTHING`, [h.key_hash, accountId, codeDigest, h.payload.sfn, h.payload.sln, JSON.stringify(h.payload.extra)]);
     await this.writeHandoff(db,'claim',h.key_hash,null,null,accountId);
   }
-  async signup(cookie: string | undefined, password: unknown, confirm: unknown) {
+  private async stagePassword(cookie: string | undefined, password: unknown, confirm: unknown) {
     if (!validPassword(password) || password !== confirm) throw new MemberError('password_invalid');
     const digest = passwordDigest(password);
     const incoming = await this.handoff(cookie);
@@ -162,7 +163,25 @@ export class MemberService {
       // no account-status-dependent response, and no overwrite on refresh/retry.
       if (!await this.pending(h.key_hash,db) && !await memberWrite(db,'stage_pending',{handoff:h.key_hash,email:h.payload.me,salt:digest.salt,hash:digest.hash,expires:this.clock()+HANDOFF_MS*2})) throw new MemberError('handoff_unavailable');
     });
+  }
+  async signup(cookie: string | undefined, password: unknown, confirm: unknown) {
+    await this.stagePassword(cookie,password,confirm);
     await this.requestVerification(cookie);
+  }
+  async signupForRequest(cookie: string | undefined,password: unknown,confirm: unknown,host: string,clientKey: string) {
+    if (!stagingEmailSkipEnabled(host)) {await this.signup(cookie,password,confirm);return {readyToSignIn:false,handoff:cookie!};}
+    await this.stagePassword(cookie,password,confirm);
+    const h=await this.handoff(cookie),token=opaqueToken();
+    // Owner-authorized staging exception only: reuse the existing challenge,
+    // rotation and account proof gates, but never queue or send verification mail.
+    await this.db.scope({email:h.payload.me}).transaction(async db=>{
+      if (!await memberWrite(db,'create_challenge',{token:this.digest(token),kind:'verify',account:null,email:h.payload.me,handoff:h.key_hash,expires:this.clock()+VERIFY_MS})) throw new MemberError('link_unavailable');
+    });
+    const handoff=await this.verifyEmail(token);
+    const member=await this.signIn(h.payload.me,password,clientKey,handoff);
+    if (!member) throw new MemberError('sign_in_required',409);
+    if ((await this.handoff(handoff)).claimed_by!==member.accountId) await this.link(handoff,member);
+    return {readyToSignIn:true,handoff};
   }
   async link(cookie: string | undefined, member: Member) {
     return this.db.scope({ accountId: member.accountId,email:member.email }).transaction(async db => {

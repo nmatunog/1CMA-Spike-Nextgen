@@ -77,3 +77,13 @@ it('requires both explicit local flags for the synthetic plain-query fallback', 
   expect(fake.prepare).toHaveBeenCalledOnce(); expect(response.status).toBe(303);
   expect(response.headers.get('location')).toBe('/signup'); expect(response.cookies.get('spike_member_handoff')?.value).toBe('c'.repeat(64));
 });
+
+it('staging skip with no provider reports reset unavailable even without member storage',async()=>{
+ vi.stubEnv('MEMBER_EMAIL_VERIFY_STAGING_SKIP','true');vi.stubEnv('MEMBER_PUBLIC_ORIGIN','https://nextgen-staging.nmatunog.workers.dev');state.disabled=true;
+ const r=await POST(new NextRequest('https://nextgen-staging.nmatunog.workers.dev/api/member',{method:'POST',headers:{origin:'https://nextgen-staging.nmatunog.workers.dev','content-type':'application/json'},body:JSON.stringify({action:'forgot',email:'unknown@example.test'})}));
+ expect(r.status).toBe(200);expect((await r.json()).message).toBe("Password reset isn't available on staging yet");expect(fake.forgot).not.toHaveBeenCalled();
+});
+it('a skip flag on another host does not suppress the normal forgot flow',async()=>{
+ vi.stubEnv('MEMBER_EMAIL_VERIFY_STAGING_SKIP','true');vi.stubEnv('MEMBER_LOCAL_DEMO','');
+ const r=await POST(request({action:'forgot',email:'unknown@example.test'}));expect(r.status).toBe(200);expect((await r.json()).message).toContain('If an eligible account exists');expect(fake.forgot).toHaveBeenCalled();
+});

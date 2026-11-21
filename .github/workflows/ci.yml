@@ -7,6 +7,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      SKIP_AUTO_SHIP: "1"
+      AUTO_SHIP: "0"
+      WRANGLER_SEND_METRICS: "false"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -22,3 +26,12 @@ jobs:
       - run: npm run build:gia:offline
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Build the Cloudflare artifact (no deployment)
+        run: npm run build:cf
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_FONT_GOOGLE_MOCKED_RESPONSES: ${{ github.workspace }}/tests/gia/font-mock.cjs
+          XDG_CONFIG_HOME: ${{ runner.temp }}/spike-worker-build
+      - name: Smoke-test redirects in the local Worker runtime
+        run: node tests/gia/worker-preview-smoke.mjs

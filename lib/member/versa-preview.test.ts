@@ -35,3 +35,9 @@ it.each([
 ])('accepts unrestricted display formats (case %#)',(me,code)=>{
  expect(parseVersaPreview(new URLSearchParams({...fields,me,code}))).toEqual({...fields,me,code});
 });
+
+it('ignores only known tracking keys and excludes them from stored context',()=>{
+ const p=new URLSearchParams({...fields,fbclid:'ignored',utm_source:'fb',utm_campaign:'demo'});
+ expect(parseVersaPreview(p)).toEqual(fields);
+ p.set('unknown','no');expect(parseVersaPreview(p)).toBeNull();
+});

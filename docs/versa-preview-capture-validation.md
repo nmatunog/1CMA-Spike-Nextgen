@@ -1,5 +1,8 @@
 # Codex validation: format-agnostic preview capture
 
+Historical first-head evidence only; superseded by [the Worker corrective validation](versa-preview-worker-fix-validation.md).
+The earlier gates did not detect the workerd redirect loop.
+
 Base `1650192c042f387b030e5279e65db43fea49f0e9`; new draft branch
 `codex/versa-preview-capture`. This is implementation evidence, not independent
 SPIKEDEV QA, Claude Q1 or ChatGPT Rule 9. Exact pushed head is on the draft PR.
