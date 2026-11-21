@@ -66,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user?.id?.startsWith('member:')) token.memberVersion = (user as { authVersion?: number }).authVersion;
       if (token.sub?.startsWith('member:')) {
-        try { if (!await memberService().session(token.sub.slice(7), Number(token.memberVersion))) return null; } catch { return null; }
+        try { if (!await (await memberService()).session(token.sub.slice(7), Number(token.memberVersion))) return null; } catch { return null; }
       }
       return token;
     },

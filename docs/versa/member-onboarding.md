@@ -3,6 +3,7 @@
 LOW-A and signup-only sponsor display: [credential proof follow-up](credential-proofs.md).
 
 Current database boundary and local browser instructions: [hosted hardening](hosted-hardening.md).
+Hosted staging opt-in: [staging member runtime](hosted-staging-members.md).
 The historical #27 implementation notes below are superseded where that runbook
 introduces proof-bearing functions and a real restricted-login test harness.
 
@@ -42,7 +43,8 @@ request replay. The ticket contains only random ID, expiry and a domain-separate
 HMAC. Its server-side payload expires after five minutes; an atomic conditional
 update permits exactly one arrival. Replay/refresh fails closed. No account/code
 mutation happens on ticket issuance or GET arrival. Use HTTPS and approved machine
-auth/Access configuration before any hosted integration. Hosted remains disabled.
+auth/Access configuration before any hosted integration. The hosted staging exception
+is documented in the staging member runtime; all other hosts remain disabled.
 
 | Lowercase key | Meaning | Bound |
 | --- | --- | --- |
@@ -64,8 +66,8 @@ existing credentials are never overwritten. Ordinary root visits preserve the #2
 
 Plain `mfn/mln/me/sfn/sln/code` queries are rejected unless **both** local-demo mode
 and `MEMBER_ALLOW_PLAIN_QUERY=true` are explicitly set. The latter defaults off,
-including in the normal synthetic harness. Runtime also rejects any hosted origin
-or non-loopback database. This fallback is not a partner or hosted contract.
+including in the normal synthetic harness. Runtime rejects hosted origins and non-loopback databases except for the explicit
+exact-host staging opt-in described above. This fallback is not a partner or hosted contract.
 
 `memberAdapters.codeFormat` is the configuration seam; `CodeFormat.normalize()` is
 injected into parsing, with the current FREE/PRO pattern as synthetic default. It
@@ -104,7 +106,7 @@ inventory; 00002 expired, 00003 reused, 00004 revoked, 00005 wrong owner, 00099 
 - Real mail provider and approval: pluggable `MemberMailer.send` exists; only the local synthetic sink is supplied. No delivery to a real address is implemented or claimed.
 - Reviewed authoritative verifier/storage adapter and identity mapping to existing program accounts. No guessed remote URL, CSV import to a live store, or real code is used.
 - Physical member identity storage placement remains a reviewed architecture/deployment decision. `0012_member_onboarding.sql` is additive **draft schema**, applied only to ephemeral local test DBs. It grants no new access to `gia_app` or public roles. It now defines a dedicated NOLOGIN `member_app` role, FORCE RLS and server-only policies, minimal canonical columns and no program/entitlement writes. Local runtime queries bind the request email/account/candidate ids with transaction-local settings **before** `SET LOCAL ROLE member_app`; missing values are cleared, never inherited from the pool. Account SELECT is limited to the bound id; direct INSERT/UPDATE, DELETE and candidate reassignment are not granted. Fixed definer functions handle pending creation and activation, as specified in the LOW-1/LOW-2 section below. Candidate reads require the request's verified email. Neither setting a scope nor possessing the DB role is a public API; these are trusted server-only operations. Synthetic mailbox reading is isolated to a separate NOLOGIN test-reader role; member_app cannot read links. Hosted role membership/placement still needs deployment review; no grants or SQL were applied live.
-- The runtime defaults off. Even when the feature flag is set, the supplied adapter requires explicit local-demo mode, loopback DB + HTTP origin, real-length non-placeholder server secrets and synthetic inputs. It fails closed on hosted configurations.
+- The runtime defaults off. Even when the feature flag is set, the supplied adapter requires explicit local-demo mode, loopback DB + HTTP origin, real-length non-placeholder server secrets and synthetic inputs. It fails closed on hosted configurations except for the explicit staging-only opt-in.
 - GIA's separately reported 007/recruiter-name over-refusal remains a real-intake review dependency. This PR does not change credential safety or approved GIA answers.
 - SPIKEDEV second-check → Claude independent exact-head Q1 → ChatGPT Rule 9 → Nilo's separate merge/deploy decision. No live email, DB, Access policy, merge or deployment is included.
 
@@ -190,7 +192,8 @@ A dedicated `member_runtime` LOGIN must have only `member_app` membership, no
 ownership and no superuser/BYPASSRLS/role-creation/database-creation privileges.
 The runtime checks these properties and refuses an absent or unsafe member storage
 configuration. RESET ROLE returns to this same restricted login. Migration 0013
-creates the role without a password, but **has not been applied to any hosted DB**.
+creates the role without a password. The Nov 21 SPIKEDEV brief reports it applied
+to the isolated staging Neon project; this draft does not query or provision it.
 The migration leaves the private proof-key table empty, so account capabilities
 fail closed until separately authorized owner provisioning. No hosted credential,
 key, membership or infrastructure change is included.

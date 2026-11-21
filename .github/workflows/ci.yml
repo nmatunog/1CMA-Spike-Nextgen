@@ -35,3 +35,5 @@ jobs:
           XDG_CONFIG_HOME: ${{ runner.temp }}/spike-worker-build
       - name: Smoke-test redirects in the local Worker runtime
         run: node tests/gia/worker-preview-smoke.mjs
+      - name: Smoke-test hosted member opt-in in local workerd and disposable PostgreSQL
+        run: MEMBER_TEST_PG_BIN="$(pg_config --bindir)" node tests/gia/worker-hosted-member-smoke.mjs

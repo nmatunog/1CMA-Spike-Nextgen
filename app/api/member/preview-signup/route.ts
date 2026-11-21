@@ -4,28 +4,29 @@ import { decodeVersaPreview, previewHost, VERSA_PREVIEW_COOKIE } from '@/lib/mem
 import { memberJson, setHandoff, smallJson } from '@/lib/member/http';
 import { memberService } from '@/lib/member/runtime';
 import { clientIpFromRequest } from '@/lib/gia/rate.mjs';
+import { hostedStagingEnabled } from '@/lib/member/hosted-staging';
 import { stagingEmailSkipEnabled } from '@/lib/member/staging-email';
 import { MemberError } from '@/lib/member/service';
 import { parseHandoff, validPassword } from '@/lib/member/contract';
 import { consumeTicket, issueTicket } from '@/lib/member/transport';
 export const dynamic = 'force-dynamic';
-/** Explicit local synthetic POST only. GET context is never proof of identity. */
+/** Explicit synthetic POST only. GET context is never proof of identity. */
 export async function POST(request: NextRequest) {
   const url=new URL(request.url);
   if (!previewHost(url.host)) return memberJson({error:'preview_unavailable'},503);
   const preview=decodeVersaPreview(request.cookies.get(VERSA_PREVIEW_COOKIE)?.value);
   if (!preview) return memberJson({error:'handoff_unavailable'},400);
-  // Hosted remains 503, before ticket issuance/DB access; reuse the existing gate.
-  if (process.env.MEMBER_LOCAL_DEMO!=='true' || !['127.0.0.1','localhost'].includes(url.hostname)) return memberJson({error:'preview_account_dependency'},503);
-  if (request.headers.get('origin')!==process.env.MEMBER_PUBLIC_ORIGIN) return memberJson({error:'origin_required'},403);
+  // Hosted is default-off and pinned to staging; local demo keeps its original gate.
+  if (!hostedStagingEnabled(url.hostname) && (process.env.MEMBER_LOCAL_DEMO!=='true' || !['127.0.0.1','localhost'].includes(url.hostname))) return memberJson({error:'preview_account_dependency'},503);
+  if (request.headers.get('origin')!==(process.env.MEMBER_PUBLIC_ORIGIN || (hostedStagingEnabled(url.hostname)?'https://nextgen-staging.nmatunog.workers.dev':''))) return memberJson({error:'origin_required'},403);
   let service;
-  try { service=memberService(); } catch { return memberJson({error:'preview_account_dependency'},503); }
+  try { service=await memberService(new URL(request.url).hostname); } catch { return memberJson({error:'preview_account_dependency'},503); }
   try {
     const body=await smallJson(request);
     if (Object.keys(body).some(k=>!['password','confirm'].includes(k)) || !validPassword(body.password) || body.password!==body.confirm) return memberJson({error:'password_invalid'},400);
     await service.limit(`preview-signup:${preview.me}`,10);
     const payload=parseHandoff(new URLSearchParams(preview));
-    // Only the local synthetic adapter may issue this ticket. Account binding still
+    // Only the designated synthetic adapter may issue this ticket. Account binding still
     // requires the existing email verification, code verifier and DB proofs.
     const ticket=await issueTicket(service,payload,randomBytes(32).toString('hex'));
     const handoff=await consumeTicket(service,ticket);
