@@ -6,14 +6,14 @@ import { GET as memberArrival } from '../../app/api/member/arrival/route';
 import { VERSA_PREVIEW_COOKIE } from './versa-preview';
 beforeEach(()=>vi.stubEnv('VERSA_GET_STAGING_ENABLED','true'));
 afterEach(() => {vi.clearAllMocks();vi.unstubAllEnvs();});
-const query = new URLSearchParams({ mfn: 'Test', mln: 'Member', me: 'test.member@example.test', sfn: 'Test', sln: 'Sponsor', code: 'FREE-SYN00001' });
+const query = new URLSearchParams({ mfn: 'Test', mln: 'Member', me: 'dennis@hismail.example', sfn: 'Test', sln: 'Sponsor', code: '12345678' });
 it('accepts staging synthetic GET without invoking account service and cleans the URL', async () => {
   const response = await GET(new NextRequest('https://nextgen-staging.nmatunog.workers.dev/?' + query));
   expect(response.status).toBe(303);
   expect(response.headers.get('location')).toBe('/spike-preview');
   expect(response.headers.get('cache-control')).toContain('no-store');
   expect(response.headers.get('referrer-policy')).toBe('no-referrer');
-  expect(response.cookies.get(VERSA_PREVIEW_COOKIE)?.value).toBe(query.toString());
+  expect(response.cookies.get(VERSA_PREVIEW_COOKIE)).toMatchObject({value:query.toString(),httpOnly:true,secure:true,sameSite:'lax',maxAge:900});
   expect(response.headers.get('set-cookie')).toMatch(/HttpOnly/);
   expect(memberArrival).not.toHaveBeenCalled();
 });
@@ -26,4 +26,10 @@ it('preserves signed handoff routing and clears stale preview context', async ()
 it('does not enable synthetic compatibility on another hostname', async () => {
   await GET(new NextRequest('https://spike-asc.pages.dev/?' + query));
   expect(memberArrival).toHaveBeenCalledOnce();
+});
+
+it('does not log captured values',async()=>{
+ const spies=[vi.spyOn(console,'log'),vi.spyOn(console,'info'),vi.spyOn(console,'warn'),vi.spyOn(console,'error'),vi.spyOn(console,'debug')].map(s=>s.mockImplementation(()=>{}));
+ try {await GET(new NextRequest('https://nextgen-staging.nmatunog.workers.dev/?'+query));for(const s of spies)expect(s).not.toHaveBeenCalled();}
+ finally {for(const s of spies)s.mockRestore();}
 });

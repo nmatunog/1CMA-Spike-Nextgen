@@ -1,4 +1,4 @@
-/** Synthetic welcome context only. Never authentication, code validation or attribution. */
+/** Unverified display context only. Never authentication, code validation or attribution. */
 export const VERSA_PREVIEW_COOKIE = 'spike_versa_preview';
 export const VERSA_FIELDS = ['mfn', 'mln', 'me', 'sfn', 'sln', 'code'] as const;
 export type VersaPreview = Record<typeof VERSA_FIELDS[number], string>;
@@ -15,9 +15,7 @@ export function parseVersaPreview(params: URLSearchParams): VersaPreview | null 
     if (values.length !== 1 || !values[0].trim() || values[0].length > (key === 'me' ? 120 : key === 'code' ? 32 : 80) || /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069\ufffd]/.test(values[0])) return null;
     result[key] = values[0].trim();
   }
-  // This receiver deliberately accepts only fictional staging fixtures.
-  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@example\.test$/i.test(result.me) ||
-      !/^(FREE|PRO)-SYN[0-9]{5}$/.test(result.code)) return null;
+  // Display only: never authentication, code validation, redemption or attribution.
   return result;
 }
 export function decodeVersaPreview(value: string | undefined): VersaPreview | null {
